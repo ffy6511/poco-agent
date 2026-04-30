@@ -578,7 +578,7 @@ export function TeamIssuesPageClient() {
 
   return (
     <>
-      <TeamContentShell contentClassName="max-w-none">
+      <TeamContentShell>
         <div className="space-y-6">
           {!hasLoadedBoards && isRefreshing ? (
             <div className="space-y-4">
