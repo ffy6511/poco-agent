@@ -26,6 +26,8 @@
 
 新的 constitution 已经明确：MVP 中的 agent 不再只是一个可复用 preset 配置，而是 server / channel 协作面中的长期成员。这会立刻带来一个过去没有真正定死的问题：agent 的长期状态到底放在哪里，谁可以写，什么时候写，以及它和当前运行中的容器是什么关系。
 
+同时，新的 chat-first 会话层需求已经单独沉淀在 `11-chat-first-channel-conversation-plan.md`：用户首先进入 channel / DM 对话，再按需把消息显式派生为 task。由于后续执行会从 `10` 开始，这份 spec 需要显式对齐那条主线，避免继续默认 “agent 主要通过 task 页面出现”。
+
 当前 Poco 已有的相关基础主要包括：
 
 - `backend/app/models/preset.py`：保存 prompt、skills、MCP、container_mode 等运行配置
@@ -49,6 +51,16 @@
 - 定义 agent-owned 持久目录结构
 - 定义“每个 agent identity 任一时刻最多一个可写 persistent runtime”
 - 定义 temporary runtime 如何只读持久状态快照，并通过显式 merge 进入长期状态
+- 定义 agent 如何以 channel / DM 成员身份暴露给协作面，而不是只作为 task assignee 存在
+
+### 与 `11` 的分工
+
+`11-chat-first-channel-conversation-plan.md` 负责定义会话主界面、三列布局、DM、thread 和 “create as task” 入口；这份 spec 负责定义 agent identity、persistent state 和 runtime 语义。两者的接口边界是：
+
+- `11` 定义 agent 在 channel / DM 中如何被看见和被打开
+- `10` 定义打开后用户能看到哪些 runtime / state 信息，以及这些状态如何被解释
+- `11` 不定义 persistent runtime 规则
+- `10` 不定义完整聊天布局
 
 ### 关键洞察
 
@@ -136,7 +148,7 @@ agents/<agent_id>/
 
 #### 1.1 建立 AgentIdentity 模型
 
-**描述：** 引入新的协作身份实体，让 agent 成为 server/channel 内的成员，而不是仅以 preset id 被间接引用。
+**描述：** 引入新的协作身份实体，让 agent 成为 server/channel 内的成员，而不是仅以 preset id 被间接引用。这个身份还必须能进入 direct message 会话，成为用户直接对话的对象。
 
 **建议字段：**
 
@@ -161,6 +173,7 @@ agents/<agent_id>/
 
 - [ ] agent identity 独立于 preset 存在
 - [ ] agent identity 可成为 server/channel 协作成员
+- [ ] agent identity 可成为 DM 中的会话成员
 
 #### 1.2 收敛 RuntimePreset 为执行配置来源
 
@@ -306,7 +319,7 @@ agents/<agent_id>/
 
 #### 4.1 建立 agent detail / status 面板
 
-**描述：** 在 channel task detail 或 agent profile 中展示：
+**描述：** 在 channel 右侧上下文面板、task detail 或 agent DM profile 中展示：
 
 - 当前绑定 preset
 - 当前 persistent runtime 状态
@@ -324,6 +337,7 @@ agents/<agent_id>/
 
 - [ ] 用户能看见 agent 的身份、配置来源和 runtime 状态
 - [ ] 用户能区分 persistent runtime 与 temporary runtime
+- [ ] 用户不需要先进入 task，才能看到 agent runtime 状态
 
 #### 4.2 建立操作入口与受控动作
 
@@ -338,6 +352,21 @@ agents/<agent_id>/
 
 - [ ] 高风险动作不是隐藏的后台分支
 - [ ] 用户能理解什么时候在改长期状态、什么时候只是跑临时任务
+
+#### 4.3 建立和 chat-first 协作面的对接点
+
+**描述：** 根据新的 chat-first 约束，agent detail / runtime 状态不能只依附于 task 页面，还必须能从会话面直接访问。
+
+**至少应支持：**
+
+- 在 channel 里点击 agent 成员，打开右侧 agent profile / activity / runtime 面板
+- 在 agent DM 里直接查看该 agent 的 profile、activity 和 runtime state
+- 在 thread / task detail / agent profile 之间共享同一套 runtime 状态语义
+
+**验收标准：**
+
+- [ ] spec 中明确 agent profile 可从 channel 和 DM 两侧进入
+- [ ] spec 中明确 thread / task / profile 共享同一套 agent runtime 解释
 
 ---
 
