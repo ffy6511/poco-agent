@@ -86,6 +86,9 @@
     "dropzone": "Drop here to move task",
     "urlHint": "This view is synced through the `view={{view}}` query state for the current channel.",
     "backToServers": "Back to servers",
+    "legacyEntryTitle": "Task collaboration moved",
+    "legacyEntryDescription": "The old team issue board is closed. Continue task work from the server and channel task pages.",
+    "openNewView": "Open server channels",
     "actions": {
       "refresh": "Refresh",
       "newTask": "New task",

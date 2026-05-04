@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, MoreHorizontal, Plus, Users } from "lucide-react";
+import { ChevronLeft, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +24,6 @@ import {
 import { PageHeaderShell } from "@/components/shared/page-header-shell";
 import { useLanguage } from "@/hooks/use-language";
 import { useT } from "@/lib/i18n/client";
-import { issuesApi } from "@/features/issues/api/issues-api";
 import {
   buildTeamSectionHref,
   buildTeamSections,
@@ -32,7 +31,6 @@ import {
 } from "@/features/workspaces/lib/team-sections";
 import { TeamRailProvider, useTeamRailContext } from "@/features/workspaces/model/team-rail-context";
 import { useWorkspaceContext } from "@/features/workspaces/model/workspace-context";
-import type { WorkspaceBoard } from "@/features/issues/model/types";
 import { TeamSectionRail } from "@/features/workspaces/ui/team-section-rail";
 
 interface CreateWorkspaceDialogProps {
@@ -118,9 +116,6 @@ function TeamLibraryShellContent({ children }: TeamLibraryShellProps) {
   } = useWorkspaceContext();
   const { railContent } = useTeamRailContext();
   const [createOpen, setCreateOpen] = React.useState(false);
-  const [workspaceBoards, setWorkspaceBoards] = React.useState<
-    Array<{ board: WorkspaceBoard; pendingCount: number; totalCount: number }>
-  >([]);
 
   const activeSection = React.useMemo(
     () => resolveSectionFromPath(pathname),
@@ -158,37 +153,6 @@ function TeamLibraryShellContent({ children }: TeamLibraryShellProps) {
     router.push(buildTeamSectionHref(lng, "overview"));
   }, [lng, router]);
 
-  React.useEffect(() => {
-    const loadBoards = async () => {
-      if (!currentWorkspace) {
-        setWorkspaceBoards([]);
-        return;
-      }
-      try {
-        const boards = await issuesApi.listBoards(currentWorkspace.id);
-        const issueGroups = await Promise.all(
-          boards.map((board) => issuesApi.listIssues(board.board_id)),
-        );
-        setWorkspaceBoards(
-          boards.map((board, index) => {
-            const issues = issueGroups[index] ?? [];
-            return {
-              board,
-              totalCount: issues.length,
-              pendingCount: issues.filter(
-                (issue) => issue.status !== "done" && issue.status !== "canceled",
-              ).length,
-            };
-          }),
-        );
-      } catch {
-        setWorkspaceBoards([]);
-      }
-    };
-
-    void loadBoards();
-  }, [currentWorkspace]);
-
   const defaultRailFooter = React.useMemo(() => {
     if (!currentWorkspace) {
       return null;
@@ -196,87 +160,28 @@ function TeamLibraryShellContent({ children }: TeamLibraryShellProps) {
 
     return (
       <section className="space-y-2">
-        <div className="flex items-center justify-between px-2">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            {t("issues.boardsTitle")}
-          </p>
+        <div className="rounded-xl border border-border/70 bg-muted/20 px-3 py-3">
+          <div className="space-y-1.5">
+            <p className="text-sm font-semibold text-foreground">
+              {t("channelTasks.legacyEntryTitle")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("channelTasks.legacyEntryDescription")}
+            </p>
+          </div>
           <Button
             type="button"
-            size="icon"
-            variant="ghost"
-            className="size-8"
-            onClick={() => router.push(`/${lng}/team/issues`)}
-            aria-label={t("issues.actions.createBoard")}
+            variant="outline"
+            size="sm"
+            className="mt-3 w-full"
+            onClick={() => router.push(`/${lng}/servers`)}
           >
-            <Plus className="size-4" />
+            {t("channelTasks.openNewView")}
           </Button>
-        </div>
-        <div className="space-y-1">
-          {workspaceBoards.map(({ board, pendingCount, totalCount }) => {
-            const isSelected =
-              pathname.includes("/team/issues") &&
-              pathname.includes(`board=${board.board_id}`);
-            return (
-              <button
-                key={board.board_id}
-                type="button"
-                onClick={() =>
-                  router.push(`/${lng}/team/issues?board=${board.board_id}`)
-                }
-                className={
-                  isSelected
-                    ? "group/board-item flex w-full flex-col rounded-md bg-muted px-3 py-2 text-left"
-                    : "group/board-item flex w-full flex-col rounded-md px-3 py-2 text-left text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                }
-              >
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="size-2 rounded-full bg-primary/70" />
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {board.name}
-                      </span>
-                    </div>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {pendingCount} pending · {totalCount} total
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover/board-item:opacity-100 md:group-focus-within/board-item:opacity-100">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-7"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        router.push(`/${lng}/team/issues?board=${board.board_id}`);
-                      }}
-                      aria-label={t("issues.actions.createIssue")}
-                    >
-                      <Plus className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-7"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        router.push(`/${lng}/team/issues?board=${board.board_id}`);
-                      }}
-                      aria-label={t("issues.actions.boardSettings")}
-                    >
-                      <MoreHorizontal className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
         </div>
       </section>
     );
-  }, [currentWorkspace, lng, pathname, router, t, workspaceBoards]);
+  }, [currentWorkspace, lng, router, t]);
 
   const headerTitle = t("sidebar.team");
   const headerSubtitle = currentWorkspace

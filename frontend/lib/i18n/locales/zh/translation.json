@@ -86,6 +86,9 @@
     "dropzone": "拖到这里以移动任务",
     "urlHint": "当前频道通过 `view={{view}}` query state 同步 list / board 视图。",
     "backToServers": "返回服务器",
+    "legacyEntryTitle": "任务协作入口已迁移",
+    "legacyEntryDescription": "旧的 team issue 看板已经收口，请从 server / channel task 页面继续协作。",
+    "openNewView": "打开服务器频道",
     "actions": {
       "refresh": "刷新",
       "newTask": "新建任务",

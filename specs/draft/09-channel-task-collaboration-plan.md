@@ -8,7 +8,7 @@
 | **预期改动范围** | backend task models / task APIs / frontend channel task views / kanban/list UX / i18n copy / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 
@@ -16,7 +16,7 @@
 - [x] Phase 1: 建立 channel-native task 数据契约与 API (2026-05-04)
 - [x] Phase 2: 建立频道内 board/list 双视图 (2026-05-04)
 - [x] Phase 3: 建立 task detail、认领与 system message 协作流 (2026-05-04)
-- [ ] Phase 4: 验收与旧 issue 入口收口
+- [x] Phase 4: 验收与旧 issue 入口收口 (2026-05-04, pending user acceptance)
 
 ---
 
@@ -310,19 +310,32 @@
 
 **描述：** `frontend/features/issues/*` 和相关 backend issue API 在新主线稳定后，必须被明确收口：要么迁入新 task 模块，要么标记为过渡层。
 
+**实现记录：**
+
+- `frontend/app/[lng]/(shell)/team/issues/page.tsx` 现在直接重定向到 `/${lng}/servers`
+- `frontend/features/workspaces/ui/team-library-shell.tsx` 的 rail footer 不再暴露旧 board 列表，改为引导用户进入新的 server/channel task 页面
+- 旧 `frontend/features/issues/*` 当前保留为过渡实现资产，不再作为新增 channel task 需求的默认落点
+
 **验收标准：**
 
-- [ ] 新增协作需求不再默认落到旧 issue 页面
-- [ ] 旧 issue 相关 spec 的剩余有效部分被记录
+- [x] 新增协作需求不再默认落到旧 issue 页面
+- [x] 旧 issue 相关 spec 的剩余有效部分被记录
 
 #### 4.2 补齐测试与引用更新
 
 **描述：** 为 task API、board/list 视图、认领状态流和 system message 补齐基础测试。
 
+**实现记录：**
+
+- backend: `uv run python -m unittest tests.test_server_channel_task_service tests.test_server_channel_task_api`
+- frontend targeted: `pnpm exec node --test --experimental-strip-types --experimental-specifier-resolution=node features/channel-tasks/lib/channel-task-board.test.ts`
+- frontend global checks: `pnpm lint`、`pnpm build`
+- 说明：`pnpm test` 全量套件仍有仓库内既有失败，主要是 `features/projects/actions/project-actions.test.ts` 与 `features/task-composer/api/task-submit-api.test.ts` 的 alias 解析问题，以及 `features/workspaces/lib/team-sections.test.ts` 的既有断言不一致；本轮新增的 channel task 用例已通过
+
 **验收标准：**
 
-- [ ] task model / API / frontend view 有最小测试覆盖
-- [ ] 与 `07` 的可复用部分和替代关系被注明
+- [x] task model / API / frontend view 有最小测试覆盖
+- [x] 与 `07` 的可复用部分和替代关系被注明
 
 ---
 
