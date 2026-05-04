@@ -9,7 +9,9 @@ class AgentAssignmentResponse(BaseModel):
     assignment_id: UUID = Field(validation_alias="id")
     workspace_id: UUID
     issue_id: UUID
+    server_channel_task_id: UUID | None = None
     preset_id: int
+    agent_identity_id: UUID | None = None
     trigger_mode: Literal["persistent_sandbox", "scheduled_task"]
     session_id: UUID | None = None
     container_id: str | None = None

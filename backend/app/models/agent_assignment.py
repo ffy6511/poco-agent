@@ -29,9 +29,19 @@ class AgentAssignment(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
+    server_channel_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("server_channel_tasks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     preset_id: Mapped[int] = mapped_column(
         ForeignKey("presets.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    agent_identity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("agent_identities.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
     trigger_mode: Mapped[str] = mapped_column(String(50), nullable=False)

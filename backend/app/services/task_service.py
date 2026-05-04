@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import uuid
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -23,6 +24,7 @@ from app.services.model_config_service import (
     get_allowed_model_ids,
     infer_provider_id,
 )
+from app.services.agent_runtime_service import AgentRuntimeService
 from app.services.session_queue_service import SessionQueueService
 
 
@@ -397,6 +399,12 @@ class TaskService:
             )
             db.flush()
 
+        self._reserve_agent_runtime_if_needed(
+            db,
+            merged_config,
+            db_session.id,
+        )
+
         run_config_snapshot = dict(merged_config or {})
         merged_input_files = self._merge_input_files(
             self._build_project_input_files(db, project),
@@ -459,6 +467,28 @@ class TaskService:
             status=db_run.status,
             queued_query_count=session_queue_service.count_active_items(
                 db, db_session.id
+            ),
+        )
+
+    @staticmethod
+    def _reserve_agent_runtime_if_needed(
+        db: Session,
+        merged_config: dict | None,
+        session_id,
+    ) -> None:
+        if not isinstance(merged_config, dict):
+            return
+        agent_identity_id = merged_config.get("agent_identity_id")
+        runtime_mode = (merged_config.get("agent_runtime_mode") or "").strip().lower()
+        if not agent_identity_id or runtime_mode != "persistent":
+            return
+        channel_task_id = merged_config.get("channel_task_id")
+        AgentRuntimeService().reserve_persistent_runtime(
+            db,
+            agent_identity_id=uuid.UUID(str(agent_identity_id)),
+            session_id=session_id,
+            channel_task_id=(
+                uuid.UUID(str(channel_task_id)) if channel_task_id else None
             ),
         )
 

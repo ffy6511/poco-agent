@@ -37,6 +37,9 @@ class TaskConfig(BaseModel):
     subagent_ids: list[int] = Field(default_factory=list)
     subagent_configs: list[TaskSubAgentConfig] = Field(default_factory=list)
     container_mode: Literal["ephemeral", "persistent"] = "ephemeral"
+    agent_identity_id: UUID | None = None
+    channel_task_id: UUID | None = None
+    agent_runtime_mode: Literal["persistent", "temporary"] | None = None
     filesystem_mode: FilesystemMode = "sandbox"
     local_mounts: list[LocalMountConfig] = Field(default_factory=list)
     input_files: list[InputFile] = Field(default_factory=list)

@@ -14,8 +14,8 @@
 
 - [x] Phase 0: 收敛 agent 边界、目录结构与非目标 (2026-05-05)
 - [x] Phase 1: 建立 `AgentIdentity / RuntimePreset / PersistentState` 模型边界 (2026-05-05)
-- [ ] Phase 2: 建立单 agent 单可写 persistent runtime 语义
-- [ ] Phase 3: 建立 temporary runtime snapshot 与显式合并协议
+- [x] Phase 2: 建立单 agent 单可写 persistent runtime 语义 (2026-05-05)
+- [x] Phase 3: 建立 temporary runtime snapshot 与显式合并协议 (2026-05-05)
 - [ ] Phase 4: 建立前端可见性、操作入口与验收
 
 ---
@@ -239,10 +239,17 @@ agents/<agent_id>/
 - `executor_manager/app/services/container_pool.py`
 - `executor_manager/app/scheduler/task_dispatcher.py`
 
+**实现记录：**
+
+- `TaskConfig` 已新增 `agent_identity_id / channel_task_id / agent_runtime_mode`
+- `AgentRuntimeService.reserve_persistent_runtime()` 在 enqueue 阶段占用单 agent 可写 runtime
+- `agent_assignments` 已新增 `agent_identity_id / server_channel_task_id` 绑定字段
+- `executor_manager/app/services/container_pool.py` 在 persistent 模式下按 agent 复用容器 id
+
 **验收标准：**
 
-- [ ] 同一 agent identity 不会并发获得两个 writable persistent runtime
-- [ ] persistent runtime 有明确的 busy / idle / failed / retired 状态
+- [x] 同一 agent identity 不会并发获得两个 writable persistent runtime
+- [x] persistent runtime 有明确的 busy / idle / failed / retired 状态
 
 #### 2.2 建立任务排队或改派协议
 
@@ -253,10 +260,12 @@ agents/<agent_id>/
 - 进入 agent 内部队列
 - 返回 busy 提示，要求人工改派
 
+**实现记录：** 当前实现采用 `busy` 拒绝策略：当 persistent state 已绑定其他 active session 时，enqueue 直接返回 `Agent persistent runtime is busy`，由上层改派或稍后重试。
+
 **验收标准：**
 
-- [ ] spec 中明确 busy 时的新任务处理策略
-- [ ] 不允许“多个任务共享同一可写 runtime 并发写”
+- [x] spec 中明确 busy 时的新任务处理策略
+- [x] 不允许“多个任务共享同一可写 runtime 并发写”
 
 #### 2.3 收敛 assignment 与 runtime 的绑定关系
 
@@ -269,10 +278,12 @@ agents/<agent_id>/
 - `backend/app/schemas/agent_assignment.py`
 - `backend/app/services/agent_assignment_service.py`
 
+**实现记录：** assignment schema/model 已预留 `agent_identity_id` 与 `server_channel_task_id`，用于表达 task 绑定 agent identity 与 runtime 归属。
+
 **验收标准：**
 
-- [ ] assignment 能表达 agent identity 级 runtime 绑定
-- [ ] runtime 状态在 task detail 中可追踪
+- [x] assignment 能表达 agent identity 级 runtime 绑定
+- [x] runtime 状态在 task detail 中可追踪
 
 ---
 
@@ -295,27 +306,33 @@ agents/<agent_id>/
 - `executor/app/core/workspace.py`
 - `executor/app/hooks/workspace.py`
 
+**实现记录：** `ContainerPool` 已新增 agent state mount 解析：persistent 模式挂 live state 为 `rw`，temporary 模式挂 snapshot 为 `ro`，统一挂载到 `/agent_state`。
+
 **验收标准：**
 
-- [ ] temporary runtime 读取的是 persistent state snapshot
-- [ ] temporary runtime 默认没有长期状态目录写权限
+- [x] temporary runtime 读取的是 persistent state snapshot
+- [x] temporary runtime 默认没有长期状态目录写权限
 
 #### 3.2 定义 merge / promote 协议
 
 **描述：** temporary runtime 的输出如果要进入长期状态，必须通过显式 merge 或人工确认，而不是执行结束自动写回。
 
+**实现记录：** 当前只建立了 snapshot + read-only 挂载边界，不实现自动写回；任何 promote / merge 继续保持显式动作，避免临时执行结果静默进入长期状态。
+
 **验收标准：**
 
-- [ ] spec 中明确 merge / promote 是显式动作
-- [ ] 自动执行结果不会静默污染长期记忆
+- [x] spec 中明确 merge / promote 是显式动作
+- [x] 自动执行结果不会静默污染长期记忆
 
 #### 3.3 明确临时执行与长期知识的交互边界
 
 **描述：** 区分“这次任务产出”与“值得进入长期 knowledge base 的结论”，避免把所有执行日志都塞进 MEMORY。
 
+**实现记录：** 当前目录结构继续区分 `MEMORY.md`、`notes/active-context.md`、`state/task-state.json` 与 `artifacts/`，临时 runtime 只读 snapshot，不直接回写这些长期入口。
+
 **验收标准：**
 
-- [ ] spec 中明确长期知识、当前上下文、任务草稿三类产物的归属边界
+- [x] spec 中明确长期知识、当前上下文、任务草稿三类产物的归属边界
 
 ---
 

@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -68,6 +69,9 @@ class TaskConfig(BaseModel):
     agents: dict[str, AgentDefinition] = Field(default_factory=dict)
     subagent_ids: list[int] = Field(default_factory=list)
     subagent_configs: list[SubAgentConfig] = Field(default_factory=list)
+    agent_identity_id: UUID | None = None
+    channel_task_id: UUID | None = None
+    agent_runtime_mode: Literal["persistent", "temporary"] | None = None
     filesystem_mode: FilesystemMode = "sandbox"
     local_mounts: list[LocalMountConfig] = Field(default_factory=list)
     deployment_mode: DeploymentMode = "local"

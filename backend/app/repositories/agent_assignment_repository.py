@@ -35,6 +35,17 @@ class AgentAssignmentRepository:
         )
 
     @staticmethod
+    def get_by_server_channel_task_id(
+        session_db: Session,
+        server_channel_task_id: uuid.UUID,
+    ) -> AgentAssignment | None:
+        return (
+            session_db.query(AgentAssignment)
+            .filter(AgentAssignment.server_channel_task_id == server_channel_task_id)
+            .first()
+        )
+
+    @staticmethod
     def get_by_session_id(
         session_db: Session,
         session_id: uuid.UUID,

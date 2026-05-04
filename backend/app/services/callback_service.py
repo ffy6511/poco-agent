@@ -21,6 +21,7 @@ from app.schemas.callback import (
 from app.services.run_lifecycle_service import RunLifecycleService
 from app.services.im import ImEventService
 from app.services.agent_assignment_service import AgentAssignmentService
+from app.services.agent_runtime_service import AgentRuntimeService
 from app.services.pending_skill_creation_service import PendingSkillCreationService
 from app.services.session_queue_service import SessionQueueService
 from app.services.session_service import SessionService
@@ -43,6 +44,7 @@ class CallbackService:
         self._session_service = SessionService()
         self._im_events = ImEventService()
         self._assignment_service = AgentAssignmentService()
+        self._agent_runtime_service = AgentRuntimeService()
 
     def _parse_run_id(self, raw_run_id: str | None) -> uuid.UUID | None:
         if not raw_run_id:
@@ -577,12 +579,35 @@ class CallbackService:
             callback_status=callback.status.value,
             error_message=callback.error_message,
         )
+        self._sync_agent_runtime(db, db_session, callback.status.value)
 
         db.commit()
         return CallbackResponse(
             session_id=str(db_session.id),
             status=db_session.status,
             callback_status=callback.status,
+        )
+
+    def _sync_agent_runtime(
+        self,
+        db: Session,
+        db_session: AgentSession,
+        callback_status: str,
+    ) -> None:
+        config_snapshot = db_session.config_snapshot or {}
+        if not isinstance(config_snapshot, dict):
+            return
+        agent_identity_id = config_snapshot.get("agent_identity_id")
+        runtime_mode = (config_snapshot.get("agent_runtime_mode") or "").strip().lower()
+        if not agent_identity_id or runtime_mode != "persistent":
+            return
+        normalized = (callback_status or "").strip().lower()
+        if normalized not in {"completed", "failed", "cancelled", "canceled"}:
+            return
+        self._agent_runtime_service.release_runtime_for_session(
+            db,
+            session_id=db_session.id,
+            callback_status=normalized,
         )
 
 
