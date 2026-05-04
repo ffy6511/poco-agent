@@ -27,6 +27,11 @@ from app.models.preset_visual import PresetVisual
 from app.models.project import Project
 from app.models.project_file import ProjectFile
 from app.models.project_local_mount import ProjectLocalMount
+from app.models.server import Server
+from app.models.server_channel import ServerChannel
+from app.models.server_channel_member import ServerChannelMember
+from app.models.server_invite import ServerInvite
+from app.models.server_member import ServerMember
 from app.models.session_queue_item import AgentSessionQueueItem
 from app.models.skill import Skill
 from app.models.skill_import_job import SkillImportJob
@@ -76,6 +81,11 @@ __all__ = [
     "Project",
     "ProjectFile",
     "ProjectLocalMount",
+    "Server",
+    "ServerChannel",
+    "ServerChannelMember",
+    "ServerInvite",
+    "ServerMember",
     "Skill",
     "SkillImportJob",
     "SlashCommand",

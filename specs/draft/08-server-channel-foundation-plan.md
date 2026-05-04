@@ -13,7 +13,7 @@
 ## 实施阶段
 
 - [x] Phase 0: 收敛替换范围与命名边界 (2026-05-04)
-- [ ] Phase 1: 建立 `server / channel` 基础数据模型与 API
+- [x] Phase 1: 建立 `server / channel` 基础数据模型与 API (2026-05-04)
 - [ ] Phase 2: 建立 `message / thread` 协作基础层
 - [ ] Phase 3: 切换前端导航与协作主入口
 - [ ] Phase 4: 验收与旧入口收口
@@ -159,9 +159,9 @@
 
 **验收标准：**
 
-- [ ] 后端存在 server 级实体和成员关系
-- [ ] personal / shared 语义在新模型中有明确承接
-- [ ] server CRUD、成员管理、邀请流程具备明确 API
+- [x] 后端存在 server 级实体和成员关系
+- [x] personal / shared 语义在新模型中有明确承接
+- [x] server CRUD、成员管理、邀请流程具备明确 API
 
 #### 1.2 建立 channel 与频道成员模型
 
@@ -177,9 +177,9 @@
 
 **验收标准：**
 
-- [ ] 一个 server 下可创建多个 channel
-- [ ] channel 具备成员可见性与归属边界
-- [ ] channel 的归档、加入、离开语义被明确定义
+- [x] 一个 server 下可创建多个 channel
+- [x] channel 具备成员可见性与归属边界
+- [x] channel 的归档、加入、离开语义被明确定义
 
 #### 1.3 明确 personal server 的默认初始化
 
@@ -187,8 +187,10 @@
 
 **验收标准：**
 
-- [ ] spec 中明确 personal server 的创建时机和默认 channel
-- [ ] spec 中明确 personal channel 默认不是团队公共可见频道
+- [x] spec 中明确 personal server 的创建时机和默认 channel
+- [x] spec 中明确 personal channel 默认不是团队公共可见频道
+
+**实现记录：** `ServerService.ensure_personal_server()` 在用户首次读取 server 列表时创建 personal server，并同步创建 `Personal` private channel；创建 shared server 时同步创建 `general` public channel。
 
 ---
 
