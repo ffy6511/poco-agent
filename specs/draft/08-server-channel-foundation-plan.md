@@ -8,7 +8,7 @@
 | **预期改动范围** | backend collaboration models / backend APIs / frontend shell navigation / i18n copy / migration scripts / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 
@@ -16,7 +16,7 @@
 - [x] Phase 1: 建立 `server / channel` 基础数据模型与 API (2026-05-04)
 - [x] Phase 2: 建立 `message / thread` 协作基础层 (2026-05-04)
 - [x] Phase 3: 切换前端导航与协作主入口 (2026-05-04)
-- [ ] Phase 4: 验收与旧入口收口
+- [x] Phase 4: 验收与旧入口收口 (2026-05-04, pending user acceptance)
 
 ---
 
@@ -312,8 +312,14 @@
 
 **验收标准：**
 
-- [ ] 新增功能不再继续落到旧 workspace/team 命名下
-- [ ] 旧入口的剩余职责被文档化，避免后续继续扩散
+- [x] 新增功能不再继续落到旧 workspace/team 命名下
+- [x] 旧入口的剩余职责被文档化，避免后续继续扩散
+
+**旧入口剩余职责：**
+
+- `/team` 与 `features/workspaces` 暂时保留为旧 workspace/team/issue 迁移过渡入口，不再作为新协作主入口继续扩展。
+- 新增协作基础能力统一落在 `/servers`、`/servers/{server_id}/channels`、`server_*` schema/service/repository/model 命名下。
+- `workspace` 术语仍可用于 sandbox 文件系统、旧数据迁移和历史 workspace/team 兼容代码，不用于新的产品层协作入口。
 
 #### 4.2 补齐测试与文档引用
 
@@ -321,9 +327,18 @@
 
 **验收标准：**
 
-- [ ] 基础模型与 API 测试存在
-- [ ] 关键页面路由与导航有 smoke 覆盖
-- [ ] 本 spec 与 constitution 互相引用清晰
+- [x] 基础模型与 API 测试存在
+- [x] 关键页面路由与导航有 smoke 覆盖
+- [x] 本 spec 与 constitution 互相引用清晰
+
+**验证记录：**
+
+- `cd backend && uv run python -m unittest tests.test_server_api tests.test_server_service tests.test_server_channel_message_api tests.test_server_channel_message_service`
+- `cd backend && uv run alembic heads && uv run alembic current`
+- `cd frontend && pnpm lint`
+- `cd frontend && pnpm build`
+
+**关联决策：** 本 spec 以 `specs/constitution/2026-05-04-server-channel-agent-persistence.md` 为产品命名与持久化主线依据；后续 task/agent/runtime spec 应引用本 foundation 层，不再从旧 workspace/team 语义扩展。
 
 ---
 
