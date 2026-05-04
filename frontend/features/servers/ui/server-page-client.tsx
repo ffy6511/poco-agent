@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Hash, Lock, RefreshCw, Server, Users } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ import type {
   ServerChannelItem,
   ServerItem,
 } from "@/features/servers/model/types";
+import { useLanguage } from "@/hooks/use-language";
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -34,6 +36,7 @@ function formatDate(value: string): string {
 
 export function ServerPageClient() {
   const { t } = useT("translation");
+  const lng = useLanguage() || "en";
   const [servers, setServers] = React.useState<ServerItem[]>([]);
   const [channels, setChannels] = React.useState<ServerChannelItem[]>([]);
   const [selectedServerId, setSelectedServerId] = React.useState<string | null>(
@@ -215,9 +218,10 @@ export function ServerPageClient() {
                     const isPrivate = channel.visibility === "private";
                     const Icon = isPrivate ? Lock : Hash;
                     return (
-                      <article
+                      <Link
                         key={channel.id}
-                        className="min-w-0 rounded-md border border-border bg-card p-4"
+                        href={`/${lng}/servers/${selectedServer.id}/channels/${channel.id}`}
+                        className="min-w-0 rounded-md border border-border bg-card p-4 transition-colors hover:bg-muted/30"
                       >
                         <div className="flex min-w-0 items-start gap-3">
                           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -237,7 +241,7 @@ export function ServerPageClient() {
                             </Badge>
                           </div>
                         </div>
-                      </article>
+                      </Link>
                     );
                   })}
                 </div>

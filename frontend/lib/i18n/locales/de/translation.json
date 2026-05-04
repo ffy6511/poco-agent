@@ -76,6 +76,54 @@
       "channelsLoadFailed": "Channels konnten nicht geladen werden"
     }
   },
+  "channelTasks": {
+    "title": "Channel tasks",
+    "subtitle": "{{server}} / #{{channel}}",
+    "loading": "Loading channel task context",
+    "channelDescription": "Tasks stay inside the channel and can switch between board and list views without leaving the collaboration context.",
+    "threadReady": "Thread linked",
+    "updatedAt": "Updated {{date}}",
+    "dropzone": "Drop here to move task",
+    "urlHint": "This view is synced through the `view={{view}}` query state for the current channel.",
+    "backToServers": "Back to servers",
+    "actions": {
+      "refresh": "Refresh",
+      "newTask": "New task",
+      "createTask": "Create task"
+    },
+    "views": {
+      "list": "List",
+      "board": "Board"
+    },
+    "create": {
+      "title": "Create task",
+      "description": "Add a channel-native task that can move through the fixed workflow stages.",
+      "titlePlaceholder": "Task title",
+      "descriptionPlaceholder": "Describe the task context and expected outcome"
+    },
+    "statuses": {
+      "todo": "Todo",
+      "in_progress": "In progress",
+      "in_review": "In review",
+      "done": "Done"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "empty": {
+      "title": "No tasks yet",
+      "description": "Create the first task to start collaboration in this channel."
+    },
+    "toasts": {
+      "loadFailed": "Failed to load channel tasks",
+      "created": "Task created",
+      "createFailed": "Failed to create task",
+      "moveFailed": "Failed to move task"
+    }
+  },
   "workspaces": {
     "currentWorkspace": "Aktueller Workspace: {{name}}",
     "noWorkspace": "Kein Workspace ausgewählt",

@@ -76,6 +76,54 @@
       "channelsLoadFailed": "加载频道失败"
     }
   },
+  "channelTasks": {
+    "title": "频道任务",
+    "subtitle": "{{server}} / #{{channel}}",
+    "loading": "正在加载频道任务上下文",
+    "channelDescription": "任务留在当前频道内协作，可以在 list 和 board 视图之间切换，而不用离开频道。",
+    "threadReady": "已关联 thread",
+    "updatedAt": "更新于 {{date}}",
+    "dropzone": "拖到这里以移动任务",
+    "urlHint": "当前频道通过 `view={{view}}` query state 同步 list / board 视图。",
+    "backToServers": "返回服务器",
+    "actions": {
+      "refresh": "刷新",
+      "newTask": "新建任务",
+      "createTask": "创建任务"
+    },
+    "views": {
+      "list": "列表",
+      "board": "看板"
+    },
+    "create": {
+      "title": "创建任务",
+      "description": "添加一个属于当前频道的 task，并在固定工作流阶段之间流转。",
+      "titlePlaceholder": "任务标题",
+      "descriptionPlaceholder": "描述任务上下文和预期结果"
+    },
+    "statuses": {
+      "todo": "待开始",
+      "in_progress": "进行中",
+      "in_review": "评审中",
+      "done": "已完成"
+    },
+    "priorities": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "urgent": "紧急"
+    },
+    "empty": {
+      "title": "还没有任务",
+      "description": "创建第一个任务，开始在这个频道里协作。"
+    },
+    "toasts": {
+      "loadFailed": "加载频道任务失败",
+      "created": "任务已创建",
+      "createFailed": "创建任务失败",
+      "moveFailed": "移动任务失败"
+    }
+  },
   "workspaces": {
     "currentWorkspace": "当前空间：{{name}}",
     "noWorkspace": "未选择空间",

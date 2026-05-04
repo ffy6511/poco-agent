@@ -14,7 +14,7 @@
 
 - [x] Phase 0: 收敛 task 模型与旧 issue 的替代边界 (2026-05-04)
 - [x] Phase 1: 建立 channel-native task 数据契约与 API (2026-05-04)
-- [ ] Phase 2: 建立频道内 board/list 双视图
+- [x] Phase 2: 建立频道内 board/list 双视图 (2026-05-04)
 - [ ] Phase 3: 建立 task detail、认领与 system message 协作流
 - [ ] Phase 4: 验收与旧 issue 入口收口
 
@@ -201,10 +201,16 @@
 - 新的 `frontend/features/channels/*`、`frontend/features/tasks/*`（如采用）
 - `frontend/components/shared/page-header-shell.tsx`
 
+**实现记录：**
+
+- 新增 `frontend/features/channel-tasks/*` feature，按 `api / model / lib / ui` 分层承接 channel task 页面
+- 新增 `frontend/app/[lng]/(shell)/servers/[serverId]/channels/[channelId]/page.tsx`
+- server 页的 channel 卡片直接进入 channel task 页面，不再停留在静态目录页
+
 **验收标准：**
 
-- [ ] 用户可在 channel 内按列表浏览 task
-- [ ] task 与线程/消息上下文可联动查看
+- [x] 用户可在 channel 内按列表浏览 task
+- [x] task 与线程/消息上下文可联动查看
 
 #### 2.2 建立 channel task board 视图
 
@@ -216,20 +222,24 @@
 - `frontend/features/issues/lib/kanban-columns.ts`
 - `specs/draft/07-workspace-team-kanban-board-rebuild-plan.md`
 
+**实现记录：** 新页面保留固定四列 board，并通过原生拖拽 + `update-status` API 完成跨列与列内排序。
+
 **验收标准：**
 
-- [ ] board 视图按 `todo / in_progress / in_review / done` 展示 task
-- [ ] task 可拖拽变更状态与顺序
-- [ ] board 视图属于 channel，不再要求先选独立 board 实体
+- [x] board 视图按 `todo / in_progress / in_review / done` 展示 task
+- [x] task 可拖拽变更状态与顺序
+- [x] board 视图属于 channel，不再要求先选独立 board 实体
 
 #### 2.3 定义 board/list 切换与 URL 语义
 
 **描述：** 统一视图切换方式，避免旧 team/issues 页面和新 channel 页各自使用不同的导航模型。
 
+**实现记录：** 当前 channel 页使用 `view=list|board` query state 驱动视图切换，URL 语义落在 `server/channel` 路径下。
+
 **验收标准：**
 
-- [ ] 同一 channel 内可以切换 board / list
-- [ ] URL、query state 或内部 state 语义在产品层清晰一致
+- [x] 同一 channel 内可以切换 board / list
+- [x] URL、query state 或内部 state 语义在产品层清晰一致
 
 ---
 

@@ -192,6 +192,16 @@ export const API_ENDPOINTS = {
   serverChannels: (serverId: string) => `/servers/${serverId}/channels`,
   serverChannel: (serverId: string, channelId: string) =>
     `/servers/${serverId}/channels/${channelId}`,
+  serverChannelTasks: (serverId: string, channelId: string) =>
+    `/servers/${serverId}/channels/${channelId}/tasks`,
+  serverChannelTask: (serverId: string, channelId: string, taskId: string) =>
+    `/servers/${serverId}/channels/${channelId}/tasks/${taskId}`,
+  serverChannelTaskStatus: (serverId: string, channelId: string, taskId: string) =>
+    `/servers/${serverId}/channels/${channelId}/tasks/${taskId}/status`,
+  serverChannelTaskClaim: (serverId: string, channelId: string, taskId: string) =>
+    `/servers/${serverId}/channels/${channelId}/tasks/${taskId}/claim`,
+  serverChannelTaskUnclaim: (serverId: string, channelId: string, taskId: string) =>
+    `/servers/${serverId}/channels/${channelId}/tasks/${taskId}/unclaim`,
 
   // Workspaces
   workspaces: "/workspaces",
