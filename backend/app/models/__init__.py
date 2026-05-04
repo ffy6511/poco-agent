@@ -29,6 +29,7 @@ from app.models.project_file import ProjectFile
 from app.models.project_local_mount import ProjectLocalMount
 from app.models.server import Server
 from app.models.server_channel import ServerChannel
+from app.models.server_channel_message import ServerChannelMessage
 from app.models.server_channel_member import ServerChannelMember
 from app.models.server_invite import ServerInvite
 from app.models.server_member import ServerMember
@@ -83,6 +84,7 @@ __all__ = [
     "ProjectLocalMount",
     "Server",
     "ServerChannel",
+    "ServerChannelMessage",
     "ServerChannelMember",
     "ServerInvite",
     "ServerMember",

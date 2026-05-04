@@ -153,7 +153,7 @@ class ServerChannelServiceTests(unittest.TestCase):
 
         with (
             patch(
-                "app.services.server_channel_service.ServerMemberRepository.get_by_server_and_user",
+                "app.services.server_channel_service.require_server_member",
                 return_value=MagicMock(status="active", role="member"),
             ),
             patch(
@@ -208,7 +208,7 @@ class ServerChannelServiceTests(unittest.TestCase):
 
         with (
             patch(
-                "app.services.server_channel_service.ServerMemberRepository.get_by_server_and_user",
+                "app.services.server_channel_service.require_server_admin",
                 return_value=MagicMock(status="active", role="admin"),
             ),
             patch(

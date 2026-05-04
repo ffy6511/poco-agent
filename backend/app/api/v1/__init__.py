@@ -38,6 +38,7 @@ from app.api.v1 import (
     runs,
     schedules,
     search,
+    server_channel_messages,
     server_channels,
     server_invites,
     server_members,
@@ -93,6 +94,7 @@ api_v1_router.include_router(server_members.router)
 api_v1_router.include_router(server_invites.router)
 api_v1_router.include_router(server_invites.accept_router)
 api_v1_router.include_router(server_channels.router)
+api_v1_router.include_router(server_channel_messages.router)
 api_v1_router.include_router(im.router)
 api_v1_router.include_router(internal_claude_md.router)
 api_v1_router.include_router(internal_env_vars.router)

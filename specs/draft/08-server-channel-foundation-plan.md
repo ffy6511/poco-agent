@@ -14,7 +14,7 @@
 
 - [x] Phase 0: 收敛替换范围与命名边界 (2026-05-04)
 - [x] Phase 1: 建立 `server / channel` 基础数据模型与 API (2026-05-04)
-- [ ] Phase 2: 建立 `message / thread` 协作基础层
+- [x] Phase 2: 建立 `message / thread` 协作基础层 (2026-05-04)
 - [ ] Phase 3: 切换前端导航与协作主入口
 - [ ] Phase 4: 验收与旧入口收口
 
@@ -219,9 +219,11 @@
 
 **验收标准：**
 
-- [ ] channel 内存在统一 message 模型
-- [ ] thread 关系可以表达“主消息 + 回复流”
-- [ ] system message 与普通消息可区分
+- [x] channel 内存在统一 message 模型
+- [x] thread 关系可以表达“主消息 + 回复流”
+- [x] system message 与普通消息可区分
+
+**实现记录：** `server_channel_messages` 是产品层 channel 消息主表，`message_type` 区分 `user / system / task`，`thread_root_message_id` 表达主消息与回复流。
 
 #### 2.2 建立 history / send / pagination 基础 API
 
@@ -229,9 +231,9 @@
 
 **验收标准：**
 
-- [ ] 存在 message send / read / thread history API
-- [ ] 前端可以按 channel 读取消息流
-- [ ] 当前阶段不要求 WebSocket 成为必选前置
+- [x] 存在 message send / read / thread history API
+- [x] 前端可以按 channel 读取消息流
+- [x] 当前阶段不要求 WebSocket 成为必选前置
 
 #### 2.3 定义 system message 的职责边界
 
@@ -239,8 +241,14 @@
 
 **验收标准：**
 
-- [ ] spec 中明确哪些事件必须落成 system message
-- [ ] spec 中明确 system message 不是 task 的替代物，而是协作广播层
+- [x] spec 中明确哪些事件必须落成 system message
+- [x] spec 中明确 system message 不是 task 的替代物，而是协作广播层
+
+**system message 边界：**
+
+- task 创建、认领、取消、状态变更必须写入 `message_type = "system"` 的 channel message。
+- agent 开始运行、等待用户输入、完成、失败、重试必须写入 `message_type = "system"` 的 channel message。
+- system message 只负责广播协作事实和提供 thread 锚点，不替代 task 主表、agent run 主表或权限判断。
 
 ---
 
