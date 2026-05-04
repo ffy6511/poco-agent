@@ -186,6 +186,13 @@ export const API_ENDPOINTS = {
   projectFile: (projectId: string, fileId: number) =>
     `/projects/${projectId}/files/${fileId}`,
 
+  // Servers
+  servers: "/servers",
+  server: (serverId: string) => `/servers/${serverId}`,
+  serverChannels: (serverId: string) => `/servers/${serverId}/channels`,
+  serverChannel: (serverId: string, channelId: string) =>
+    `/servers/${serverId}/channels/${channelId}`,
+
   // Workspaces
   workspaces: "/workspaces",
   workspace: (workspaceId: string) => `/workspaces/${workspaceId}`,

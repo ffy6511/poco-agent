@@ -11,6 +11,7 @@
     "presets": "Préréglages",
     "openMain": "Ouvrir la barre latérale principale",
     "scheduledTasks": "Tâches planifiées",
+    "servers": "Serveurs",
     "team": "Équipe",
     "teamOverview": "Aperçu de l'équipe",
     "memories": "Mémoires",
@@ -48,6 +49,32 @@
     "more": "Plus",
     "repoLink": "Dépôt du projet",
     "repoName": "poco-ai/poco-agent"
+  },
+  "servers": {
+    "title": "Serveurs",
+    "currentServer": "Serveur actuel : {{name}}",
+    "noServer": "Aucun serveur sélectionné",
+    "refresh": "Actualiser",
+    "listTitle": "Liste des serveurs",
+    "listDescription": "Choisissez un serveur de collaboration avant d’ouvrir ses canaux.",
+    "createdAt": "Créé le {{date}}",
+    "selectPrompt": "Sélectionnez un serveur pour inspecter ses canaux.",
+    "channelsTitle": "Canaux",
+    "channelsDescription": "Les canaux publics et privés accueillent les messages et les fils de tâches.",
+    "emptyChannelsTitle": "Aucun canal",
+    "emptyChannelsDescription": "Créez ou rejoignez un canal pour commencer à collaborer ici.",
+    "kinds": {
+      "personal": "Personnel",
+      "shared": "Partagé"
+    },
+    "channelVisibility": {
+      "public": "Public",
+      "private": "Privé"
+    },
+    "toasts": {
+      "loadFailed": "Échec du chargement des serveurs",
+      "channelsLoadFailed": "Échec du chargement des canaux"
+    }
   },
   "workspaces": {
     "currentWorkspace": "Espace actuel : {{name}}",

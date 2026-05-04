@@ -11,6 +11,7 @@
     "presets": "プリセット",
     "openMain": "メインサイドバーを開く",
     "scheduledTasks": "スケジュールタスク",
+    "servers": "サーバー",
     "team": "チーム",
     "teamOverview": "チーム概要",
     "memories": "メモリ",
@@ -48,6 +49,32 @@
     "more": "その他",
     "repoLink": "プロジェクトリポジトリ",
     "repoName": "poco-ai/poco-agent"
+  },
+  "servers": {
+    "title": "サーバー",
+    "currentServer": "現在のサーバー: {{name}}",
+    "noServer": "サーバーが選択されていません",
+    "refresh": "更新",
+    "listTitle": "サーバー一覧",
+    "listDescription": "コラボレーション用サーバーを選択してからチャンネルを開きます。",
+    "createdAt": "作成日 {{date}}",
+    "selectPrompt": "チャンネルを確認するサーバーを選択してください。",
+    "channelsTitle": "チャンネル",
+    "channelsDescription": "公開・非公開チャンネルにメッセージとタスクスレッドを配置します。",
+    "emptyChannelsTitle": "チャンネルがありません",
+    "emptyChannelsDescription": "チャンネルを作成または参加すると、ここで共同作業を開始できます。",
+    "kinds": {
+      "personal": "個人",
+      "shared": "共有"
+    },
+    "channelVisibility": {
+      "public": "公開",
+      "private": "非公開"
+    },
+    "toasts": {
+      "loadFailed": "サーバーの読み込みに失敗しました",
+      "channelsLoadFailed": "チャンネルの読み込みに失敗しました"
+    }
   },
   "workspaces": {
     "currentWorkspace": "現在のワークスペース: {{name}}",

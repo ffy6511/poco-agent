@@ -11,6 +11,7 @@
     "presets": "Пресеты",
     "openMain": "Открыть основную боковую панель",
     "scheduledTasks": "Запланированные задачи",
+    "servers": "Серверы",
     "team": "Команда",
     "teamOverview": "Обзор команды",
     "memories": "Память",
@@ -48,6 +49,32 @@
     "more": "Ещё",
     "repoLink": "Репозиторий проекта",
     "repoName": "poco-ai/poco-agent"
+  },
+  "servers": {
+    "title": "Серверы",
+    "currentServer": "Текущий сервер: {{name}}",
+    "noServer": "Сервер не выбран",
+    "refresh": "Обновить",
+    "listTitle": "Список серверов",
+    "listDescription": "Выберите сервер совместной работы, затем откройте его каналы.",
+    "createdAt": "Создано {{date}}",
+    "selectPrompt": "Выберите сервер, чтобы посмотреть каналы.",
+    "channelsTitle": "Каналы",
+    "channelsDescription": "Публичные и приватные каналы содержат сообщения и ветки задач.",
+    "emptyChannelsTitle": "Каналов пока нет",
+    "emptyChannelsDescription": "Создайте канал или присоединитесь к нему, чтобы начать совместную работу.",
+    "kinds": {
+      "personal": "Личное",
+      "shared": "Общее"
+    },
+    "channelVisibility": {
+      "public": "Публичный",
+      "private": "Приватный"
+    },
+    "toasts": {
+      "loadFailed": "Не удалось загрузить серверы",
+      "channelsLoadFailed": "Не удалось загрузить каналы"
+    }
   },
   "workspaces": {
     "currentWorkspace": "Текущее пространство: {{name}}",

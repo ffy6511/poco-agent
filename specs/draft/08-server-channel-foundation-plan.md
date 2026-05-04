@@ -15,7 +15,7 @@
 - [x] Phase 0: 收敛替换范围与命名边界 (2026-05-04)
 - [x] Phase 1: 建立 `server / channel` 基础数据模型与 API (2026-05-04)
 - [x] Phase 2: 建立 `message / thread` 协作基础层 (2026-05-04)
-- [ ] Phase 3: 切换前端导航与协作主入口
+- [x] Phase 3: 切换前端导航与协作主入口 (2026-05-04)
 - [ ] Phase 4: 验收与旧入口收口
 
 ---
@@ -274,9 +274,11 @@
 
 **验收标准：**
 
-- [ ] shell 中存在 server / channel 导航入口
-- [ ] 用户可以先选 server，再进入 channel
-- [ ] 旧 team 导航不再是产品主入口
+- [x] shell 中存在 server / channel 导航入口
+- [x] 用户可以先选 server，再进入 channel
+- [x] 旧 team 导航不再是产品主入口
+
+**实现记录：** shell 顶层导航已从 Team 切换到 Servers，新增 `/servers` 页面先展示 server 列表，再展示所选 server 下的 public/private channel。
 
 #### 3.2 重构 team 路由到新的 server / channel 页面骨架
 
@@ -291,8 +293,8 @@
 
 **验收标准：**
 
-- [ ] 新页面骨架围绕 server / channel 组织
-- [ ] 旧 team 页面仅作为迁移过渡，不再继续扩功能
+- [x] 新页面骨架围绕 server / channel 组织
+- [x] 旧 team 页面仅作为迁移过渡，不再继续扩功能
 
 ---
 

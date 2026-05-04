@@ -9,10 +9,10 @@ import {
   PenSquare,
   Search,
   Sparkles,
+  Server,
   Bookmark,
   Clock,
   Brain,
-  Users,
 } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
@@ -63,11 +63,11 @@ const TOP_NAV_ITEMS = [
     href: "/capabilities/scheduled-tasks",
   },
   {
-    id: "team",
-    labelKey: "sidebar.team",
-    defaultLabel: "Team",
-    icon: Users,
-    href: "/team",
+    id: "servers",
+    labelKey: "sidebar.servers",
+    defaultLabel: "Servers",
+    icon: Server,
+    href: "/servers",
   },
   {
     id: "memories",
@@ -87,7 +87,8 @@ const ICON_ANIMATIONS: Record<string, string> = {
     "transition-transform duration-300 group-hover/menu-item:-translate-y-0.5 group-hover/menu-item:scale-110",
   "scheduled-tasks":
     "transition-transform duration-500 group-hover/menu-item:rotate-[360deg]",
-  team: "transition-transform duration-300 group-hover/menu-item:scale-110 group-hover/menu-item:-translate-y-0.5",
+  servers:
+    "transition-transform duration-300 group-hover/menu-item:scale-110 group-hover/menu-item:-translate-y-0.5",
   memories:
     "transition-transform duration-300 group-hover/menu-item:scale-110 group-hover/menu-item:rotate-6",
 };

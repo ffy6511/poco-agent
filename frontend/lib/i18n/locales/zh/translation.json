@@ -11,6 +11,7 @@
     "presets": "预设",
     "openMain": "打开主侧边栏",
     "scheduledTasks": "定时任务",
+    "servers": "服务器",
     "team": "团队",
     "teamOverview": "团队总览",
     "memories": "记忆",
@@ -48,6 +49,32 @@
     "more": "更多",
     "repoLink": "项目仓库",
     "repoName": "poco-ai/poco-agent"
+  },
+  "servers": {
+    "title": "服务器",
+    "currentServer": "当前服务器：{{name}}",
+    "noServer": "未选择服务器",
+    "refresh": "刷新",
+    "listTitle": "服务器列表",
+    "listDescription": "先选择协作服务器，再进入频道。",
+    "createdAt": "创建时间 {{date}}",
+    "selectPrompt": "选择一个服务器来查看频道。",
+    "channelsTitle": "频道",
+    "channelsDescription": "公共和私密频道承载消息流与任务 thread。",
+    "emptyChannelsTitle": "暂无频道",
+    "emptyChannelsDescription": "创建或加入频道后，即可在这里开始协作。",
+    "kinds": {
+      "personal": "个人",
+      "shared": "共享"
+    },
+    "channelVisibility": {
+      "public": "公开",
+      "private": "私密"
+    },
+    "toasts": {
+      "loadFailed": "加载服务器失败",
+      "channelsLoadFailed": "加载频道失败"
+    }
   },
   "workspaces": {
     "currentWorkspace": "当前空间：{{name}}",

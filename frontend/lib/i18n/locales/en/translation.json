@@ -11,6 +11,7 @@
     "presets": "Presets",
     "openMain": "Open main sidebar",
     "scheduledTasks": "Scheduled Tasks",
+    "servers": "Servers",
     "team": "Team",
     "teamOverview": "Team Overview",
     "memories": "Memories",
@@ -48,6 +49,32 @@
     "more": "More",
     "repoLink": "Project repository",
     "repoName": "poco-ai/poco-agent"
+  },
+  "servers": {
+    "title": "Servers",
+    "currentServer": "Current server: {{name}}",
+    "noServer": "No server selected",
+    "refresh": "Refresh",
+    "listTitle": "Server list",
+    "listDescription": "Choose a collaboration server before opening its channels.",
+    "createdAt": "Created {{date}}",
+    "selectPrompt": "Select a server to inspect channels.",
+    "channelsTitle": "Channels",
+    "channelsDescription": "Public and private channels define where messages and task threads live.",
+    "emptyChannelsTitle": "No channels yet",
+    "emptyChannelsDescription": "Create or join a channel to start collaboration here.",
+    "kinds": {
+      "personal": "Personal",
+      "shared": "Shared"
+    },
+    "channelVisibility": {
+      "public": "Public",
+      "private": "Private"
+    },
+    "toasts": {
+      "loadFailed": "Failed to load servers",
+      "channelsLoadFailed": "Failed to load channels"
+    }
   },
   "workspaces": {
     "currentWorkspace": "Current workspace: {{name}}",
