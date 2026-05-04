@@ -16,7 +16,7 @@
 - [x] Phase 1: 建立 `AgentIdentity / RuntimePreset / PersistentState` 模型边界 (2026-05-05)
 - [x] Phase 2: 建立单 agent 单可写 persistent runtime 语义 (2026-05-05)
 - [x] Phase 3: 建立 temporary runtime snapshot 与显式合并协议 (2026-05-05)
-- [ ] Phase 4: 建立前端可见性、操作入口与验收
+- [x] Phase 4: 建立前端可见性、操作入口与验收 (2026-05-05)
 
 ---
 
@@ -360,11 +360,17 @@ agents/<agent_id>/
 - `frontend/features/issues/*`
 - 新的 `frontend/features/agents/*`（如采用）
 
+**实现记录：**
+
+- `frontend/features/servers/ui/server-page-client.tsx` 已新增 agent summary 区域
+- 新增 `frontend/features/servers/ui/server-agent-detail-dialog.tsx`
+- detail 中展示 preset 来源、runtime 状态、持久状态路径和当前 active task
+
 **验收标准：**
 
-- [ ] 用户能看见 agent 的身份、配置来源和 runtime 状态
-- [ ] 用户能区分 persistent runtime 与 temporary runtime
-- [ ] 用户不需要先进入 task，才能看到 agent runtime 状态
+- [x] 用户能看见 agent 的身份、配置来源和 runtime 状态
+- [x] 用户能区分 persistent runtime 与 temporary runtime
+- [x] 用户不需要先进入 task，才能看到 agent runtime 状态
 
 #### 4.2 建立操作入口与受控动作
 
@@ -375,10 +381,12 @@ agents/<agent_id>/
 - 触发 temporary runtime
 - 将 temporary 结果 promote 回长期状态
 
+**实现记录：** 当前 server agent detail 已显式暴露 `Temporary runtime` 与 `Promote result` 入口按钮；在 chat-first conversation shell 完成前，这两个入口先用非破坏性的提示承接，避免高风险动作隐藏在后台。
+
 **验收标准：**
 
-- [ ] 高风险动作不是隐藏的后台分支
-- [ ] 用户能理解什么时候在改长期状态、什么时候只是跑临时任务
+- [x] 高风险动作不是隐藏的后台分支
+- [x] 用户能理解什么时候在改长期状态、什么时候只是跑临时任务
 
 #### 4.3 建立和 chat-first 协作面的对接点
 
@@ -390,10 +398,12 @@ agents/<agent_id>/
 - 在 agent DM 里直接查看该 agent 的 profile、activity 和 runtime state
 - 在 thread / task detail / agent profile 之间共享同一套 runtime 状态语义
 
+**实现记录：** 本阶段先把 agent detail / runtime 摘要挂到 `servers` 页面，作为 chat-first UI 重构前的过渡入口；下一份 `11` 会把同一套数据迁到 channel / DM 右侧面板。
+
 **验收标准：**
 
-- [ ] spec 中明确 agent profile 可从 channel 和 DM 两侧进入
-- [ ] spec 中明确 thread / task / profile 共享同一套 agent runtime 解释
+- [x] spec 中明确 agent profile 可从 channel 和 DM 两侧进入
+- [x] spec 中明确 thread / task / profile 共享同一套 agent runtime 解释
 
 ---
 

@@ -21,9 +21,11 @@ import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { serversApi } from "@/features/servers/api/servers-api";
 import type {
+  ServerAgentItem,
   ServerChannelItem,
   ServerItem,
 } from "@/features/servers/model/types";
+import { ServerAgentDetailDialog } from "@/features/servers/ui/server-agent-detail-dialog";
 import { useLanguage } from "@/hooks/use-language";
 
 function formatDate(value: string): string {
@@ -39,11 +41,13 @@ export function ServerPageClient() {
   const lng = useLanguage() || "en";
   const [servers, setServers] = React.useState<ServerItem[]>([]);
   const [channels, setChannels] = React.useState<ServerChannelItem[]>([]);
+  const [agents, setAgents] = React.useState<ServerAgentItem[]>([]);
   const [selectedServerId, setSelectedServerId] = React.useState<string | null>(
     null,
   );
   const [isLoadingServers, setIsLoadingServers] = React.useState(true);
   const [isLoadingChannels, setIsLoadingChannels] = React.useState(false);
+  const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
 
   const selectedServer =
     servers.find((server) => server.id === selectedServerId) ?? servers[0] ?? null;
@@ -80,7 +84,12 @@ export function ServerPageClient() {
 
       setIsLoadingChannels(true);
       try {
-        setChannels(await serversApi.listChannels(selectedServer.id));
+        const [nextChannels, nextAgents] = await Promise.all([
+          serversApi.listChannels(selectedServer.id),
+          serversApi.listAgents(selectedServer.id),
+        ]);
+        setChannels(nextChannels);
+        setAgents(nextAgents);
       } catch (error) {
         console.error("[Servers] channel list failed", error);
         toast.error(t("servers.toasts.channelsLoadFailed"));
@@ -91,6 +100,9 @@ export function ServerPageClient() {
 
     void loadChannels();
   }, [selectedServer, t]);
+
+  const selectedAgent =
+    agents.find((agent) => agent.id === selectedAgentId) ?? null;
 
   return (
     <>
@@ -261,9 +273,80 @@ export function ServerPageClient() {
                 </Empty>
               )}
             </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {t("servers.agents.title")}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {t("servers.agents.description")}
+                </p>
+              </div>
+
+              {isLoadingChannels ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <Skeleton key={index} className="h-28 rounded-md" />
+                  ))}
+                </div>
+              ) : agents.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {agents.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onClick={() => setSelectedAgentId(agent.id)}
+                      className="min-w-0 rounded-md border border-border bg-card p-4 text-left transition-colors hover:bg-muted/30"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {agent.displayName}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              @{agent.handle}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">
+                            {agent.persistentState?.runtimeStatus ??
+                              t("servers.agents.unknown")}
+                          </Badge>
+                        </div>
+                        <p className="line-clamp-2 text-sm text-muted-foreground">
+                          {agent.description || t("servers.agents.emptyDescription")}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <Empty className="min-h-48 rounded-md border border-dashed border-border bg-muted/10">
+                  <EmptyContent>
+                    <EmptyHeader>
+                      <EmptyTitle>{t("servers.agents.emptyTitle")}</EmptyTitle>
+                      <EmptyDescription>
+                        {t("servers.agents.emptyDescription")}
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </EmptyContent>
+                </Empty>
+              )}
+            </div>
           </section>
         </div>
       </main>
+
+      <ServerAgentDetailDialog
+        open={Boolean(selectedAgent)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedAgentId(null);
+          }
+        }}
+        agent={selectedAgent}
+      />
     </>
   );
 }

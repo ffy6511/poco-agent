@@ -71,6 +71,27 @@
       "public": "公开",
       "private": "私密"
     },
+    "agents": {
+      "title": "Agents",
+      "description": "在 chat-first 会话壳子落地前，先在这里查看 server 内长期 agent 的 runtime 状态。",
+      "emptyTitle": "还没有 agent",
+      "emptyDescription": "先创建或接入 agent identity，再开始协作。",
+      "profileTitle": "Agent 档案",
+      "runtimeStatus": "运行时状态",
+      "lastSynced": "最近同步",
+      "stateSummaryTitle": "持久状态摘要",
+      "stateSummaryDescription": "这些路径定义了 agent identity 持有的长期记忆与状态边界。",
+      "stateRoot": "状态根目录",
+      "memoryFile": "记忆文件",
+      "activeTask": "当前任务",
+      "preset": "Preset #{{id}}",
+      "tempRuntime": "临时 runtime",
+      "promote": "提升结果",
+      "tempRuntimeHint": "临时 runtime 的具体操作会在下一阶段挂到 conversation panel 里。",
+      "promoteHint": "snapshot promote 的显式动作会在后续阶段接到这里。",
+      "unknown": "未知",
+      "emptyValue": "暂无"
+    },
     "toasts": {
       "loadFailed": "加载服务器失败",
       "channelsLoadFailed": "加载频道失败"

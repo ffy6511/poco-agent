@@ -71,6 +71,27 @@
       "public": "Öffentlich",
       "private": "Privat"
     },
+    "agents": {
+      "title": "Agents",
+      "description": "Long-lived agents in this server expose their runtime state here before the chat-first conversation shell lands.",
+      "emptyTitle": "No agents yet",
+      "emptyDescription": "Create or attach an agent identity to start collaboration.",
+      "profileTitle": "Agent profile",
+      "runtimeStatus": "Runtime status",
+      "lastSynced": "Last synced",
+      "stateSummaryTitle": "Persistent state summary",
+      "stateSummaryDescription": "These paths define the long-lived memory and state boundary owned by the agent identity.",
+      "stateRoot": "State root",
+      "memoryFile": "Memory file",
+      "activeTask": "Active task",
+      "preset": "Preset #{{id}}",
+      "tempRuntime": "Temporary runtime",
+      "promote": "Promote result",
+      "tempRuntimeHint": "Temporary runtime controls move into the conversation panel in the next phase.",
+      "promoteHint": "Explicit promote actions will attach here after snapshot workflows land.",
+      "unknown": "Unknown",
+      "emptyValue": "Not available"
+    },
     "toasts": {
       "loadFailed": "Server konnten nicht geladen werden",
       "channelsLoadFailed": "Channels konnten nicht geladen werden"
