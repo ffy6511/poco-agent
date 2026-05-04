@@ -8,11 +8,11 @@
 | **预期改动范围** | backend collaboration models / backend APIs / frontend shell navigation / i18n copy / migration scripts / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | drafting |
+| **状态** | in-progress |
 
 ## 实施阶段
 
-- [ ] Phase 0: 收敛替换范围与命名边界
+- [x] Phase 0: 收敛替换范围与命名边界 (2026-05-04)
 - [ ] Phase 1: 建立 `server / channel` 基础数据模型与 API
 - [ ] Phase 2: 建立 `message / thread` 协作基础层
 - [ ] Phase 3: 切换前端导航与协作主入口
@@ -65,6 +65,36 @@
 
 先明确这次 plan 到底替换哪些旧概念、保留哪些实现层资产，避免边做边猜。
 
+### 新旧概念映射
+
+| 旧概念 | 新概念 | 本计划中的处理方式 |
+| --- | --- | --- |
+| `workspace` | `server` | 新产品层以 server 作为协作空间、成员、邀请和默认个人容器的命名边界；旧 workspace 代码仅可作为迁移参考或内部兼容层。 |
+| `workspace_member` | `server_member` | 成员角色仍保留 `owner / admin / member`，但新 API、schema、前端文案必须使用 server member。 |
+| `workspace_invite` | `server_invite` | 邀请流程迁移到 server invite；旧 workspace invite 不再作为新增入口。 |
+| `team` | server 下的协作导航 | 前端主导航不再暴露 Team 作为顶层心智，改为先选择 server，再进入 channel。 |
+| `board` | task view（后续 spec） | 本计划不继续扩展 board 作为组织上下文，只允许旧 issues 页面在迁移期读取已有 board 数据。 |
+| `issue` | task / message-thread 工作项（后续 spec） | 新协作面不再从 issue 第一视角扩展；任务创建与状态广播应落到 channel message / thread 基础层。 |
+| IM `Channel` | 外部 IM 适配 channel | 保留为 IM 集成实现细节，不作为 Poco 产品层 channel 的数据模型或 API 命名来源。 |
+
+### 禁止双语义区
+
+从本计划开始，新增产品层代码不得继续引入以下命名作为主语义：
+
+- 新 public API 路径不得新增 `/workspaces`、`/workspace-*`、`/team` 作为 server/channel foundation 的入口。
+- 新前端页面、导航、i18n key 不得继续把协作空间称为 workspace/team；与 sandbox 文件系统相关的 workspace 术语不在本禁区内。
+- 新业务 schema、service、repository 不得以 workspace/team 命名承接 server/channel 能力。
+- 旧 workspace/team/board/issue 模块在迁移期只允许作为兼容读写或实现参考，不继续承载 task、agent identity、persistent runtime 的新能力。
+
+### 直接切换原则
+
+当前 Poco 尚未上线，本计划按“直接语义切换”执行：
+
+- server/channel foundation 使用新的 public API、schema 和前端入口，不为旧 workspace/team 命名保留长期双入口。
+- 已存在的 workspace 数据迁移到 server 表结构时，可以保留一次性 Alembic 迁移、数据 backfill 脚本和短期内部适配代码。
+- 迁移脚本的职责只限于把已有个人/共享空间、成员、邀请关系搬到新模型；新功能完成后不得继续把旧表当作写入源。
+- 外部 IM 集成的 channel 表保持原职责，后续如果需要与产品层 channel 关联，应通过显式映射字段或独立关联表完成，不能共享同一张表混用语义。
+
 ### 任务清单
 
 #### 0.1 定义新旧概念映射与禁止双语义区
@@ -85,8 +115,8 @@
 
 **验收标准：**
 
-- [ ] spec 中明确列出新旧概念映射
-- [ ] spec 中明确哪些旧语义不得继续出现在新页面和新 API 中
+- [x] spec 中明确列出新旧概念映射
+- [x] spec 中明确哪些旧语义不得继续出现在新页面和新 API 中
 
 #### 0.2 定义本次直接切换的迁移原则
 
@@ -94,8 +124,8 @@
 
 **验收标准：**
 
-- [ ] spec 中明确“未上线前提下允许直接切换，不保留长期双入口”
-- [ ] spec 中明确实现过程中哪些脚本或一次性迁移仍然需要存在
+- [x] spec 中明确“未上线前提下允许直接切换，不保留长期双入口”
+- [x] spec 中明确实现过程中哪些脚本或一次性迁移仍然需要存在
 
 ---
 
