@@ -8,12 +8,12 @@
 | **预期改动范围** | backend task models / task APIs / frontend channel task views / kanban/list UX / i18n copy / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | drafting |
+| **状态** | in-progress |
 
 ## 实施阶段
 
-- [ ] Phase 0: 收敛 task 模型与旧 issue 的替代边界
-- [ ] Phase 1: 建立 channel-native task 数据契约与 API
+- [x] Phase 0: 收敛 task 模型与旧 issue 的替代边界 (2026-05-04)
+- [x] Phase 1: 建立 channel-native task 数据契约与 API (2026-05-04)
 - [ ] Phase 2: 建立频道内 board/list 双视图
 - [ ] Phase 3: 建立 task detail、认领与 system message 协作流
 - [ ] Phase 4: 验收与旧 issue 入口收口
@@ -90,10 +90,16 @@
 - due_date（可选）
 - thread root / reply relationship
 
+**当前实现说明：**
+
+- 后端新增 `server_channel_tasks` 表与 `thread_root_message_id` 锚点，task 直接归属于 `server/channel`
+- assignee 继续复用 `user` / `preset(agent)` 双模，但不复用 `agent_assignment` 作为 task 主表
+- MVP 不纳入旧 issue 的 `type`、独立 `board_id`、`workspace_id`、自定义字段和值表，也不把执行 session 状态并入 task 主字段
+
 **验收标准：**
 
-- [ ] spec 中明确 task 的最小字段集
-- [ ] spec 中明确哪些旧 issue 字段不进入 MVP
+- [x] spec 中明确 task 的最小字段集
+- [x] spec 中明确哪些旧 issue 字段不进入 MVP
 
 #### 0.2 定义旧 issue 的替代边界
 
@@ -101,8 +107,8 @@
 
 **验收标准：**
 
-- [ ] spec 中明确 task 是新的产品主语
-- [ ] spec 中明确旧 issue 在 MVP 里若被复用，也仅为过渡实现资产
+- [x] spec 中明确 task 是新的产品主语
+- [x] spec 中明确旧 issue 在 MVP 里若被复用，也仅为过渡实现资产
 
 ---
 
@@ -132,11 +138,19 @@
 - `backend/app/schemas/agent_assignment.py`
 - 新的 task repository / service / schema
 
+**实现记录：**
+
+- 新增 `backend/app/models/server_channel_task.py`
+- 新增 `backend/app/repositories/server_channel_task_repository.py`
+- 新增 `backend/app/services/server_channel_task_service.py`
+- 新增 `backend/app/schemas/server_channel_task.py`
+- 迁移脚本：`backend/alembic/versions/5dabd02f9e77_add_server_channel_tasks.py`
+
 **验收标准：**
 
-- [ ] task 有独立的数据契约和 service 边界
-- [ ] task 支持固定四阶段状态流
-- [ ] task assignee 支持人类与 agent 双模但保持互斥
+- [x] task 有独立的数据契约和 service 边界
+- [x] task 支持固定四阶段状态流
+- [x] task assignee 支持人类与 agent 双模但保持互斥
 
 #### 1.2 建立 task API
 
@@ -148,19 +162,23 @@
 - `backend/app/schemas/`
 - `backend/app/services/`
 
+**实现记录：** 新增 `/servers/{server_id}/channels/{channel_id}/tasks` 路由，提供 create / list / detail / patch / claim / unclaim / update-status。
+
 **验收标准：**
 
-- [ ] 存在 task create / list / detail / claim / update-status API
-- [ ] 读取 channel task 时，不需要通过旧 issue 路由绕行
+- [x] 存在 task create / list / detail / claim / update-status API
+- [x] 读取 channel task 时，不需要通过旧 issue 路由绕行
 
 #### 1.3 建立 task system message 广播协议
 
 **描述：** task 的创建、认领、状态流转和完成结果，必须通过 channel system message 广播给协作面，而不是只改 task 表状态。
 
+**实现记录：** task 创建会写入顶层 `task` message 作为 thread root；claim / unclaim / status change 会在同一 thread 下追加 `system` message。
+
 **验收标准：**
 
-- [ ] task 状态变化会产生可读的 system message
-- [ ] 认领和完成结果在频道中可追溯
+- [x] task 状态变化会产生可读的 system message
+- [x] 认领和完成结果在频道中可追溯
 
 ---
 

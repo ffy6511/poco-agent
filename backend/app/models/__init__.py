@@ -31,6 +31,7 @@ from app.models.server import Server
 from app.models.server_channel import ServerChannel
 from app.models.server_channel_message import ServerChannelMessage
 from app.models.server_channel_member import ServerChannelMember
+from app.models.server_channel_task import ServerChannelTask
 from app.models.server_invite import ServerInvite
 from app.models.server_member import ServerMember
 from app.models.session_queue_item import AgentSessionQueueItem
@@ -86,6 +87,7 @@ __all__ = [
     "ServerChannel",
     "ServerChannelMessage",
     "ServerChannelMember",
+    "ServerChannelTask",
     "ServerInvite",
     "ServerMember",
     "Skill",
