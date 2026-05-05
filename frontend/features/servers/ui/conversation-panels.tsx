@@ -11,12 +11,14 @@ export function SearchPanel({
   search,
   onSearchChange,
   items,
+  savedMessageIds,
   onOpenThread,
   onToggleSaved,
 }: {
   search: string;
   onSearchChange: (value: string) => void;
   items: FeedItem[];
+  savedMessageIds: Set<string>;
   onOpenThread: (item: FeedItem) => void;
   onToggleSaved: (messageId: string) => void;
 }) {
@@ -59,6 +61,7 @@ export function SearchPanel({
               key={item.message.id}
               message={item.message}
               channelLabel={item.channel.name}
+              isSaved={savedMessageIds.has(item.message.id)}
               onOpenThread={() => onOpenThread(item)}
               onToggleSaved={() => onToggleSaved(item.message.id)}
             />
@@ -84,11 +87,13 @@ export function SearchPanel({
 export function FeedPanel({
   mode,
   items,
+  savedMessageIds,
   onOpenThread,
   onToggleSaved,
 }: {
   mode: "inbox" | "saved";
   items: FeedItem[];
+  savedMessageIds: Set<string>;
   onOpenThread: (item: FeedItem) => void;
   onToggleSaved: (messageId: string) => void;
 }) {
@@ -99,11 +104,17 @@ export function FeedPanel({
       <div className="border-b border-border px-6 py-5">
         <div className="flex items-center gap-4">
           <div className="flex size-11 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-            {isSaved ? <Bookmark className="size-5" /> : <Inbox className="size-5" />}
+            {isSaved ? (
+              <Bookmark className="size-5" />
+            ) : (
+              <Inbox className="size-5" />
+            )}
           </div>
           <div>
             <p className="text-2xl font-semibold text-foreground">
-              {isSaved ? t("conversationView.saved") : t("conversationView.inbox")}
+              {isSaved
+                ? t("conversationView.saved")
+                : t("conversationView.inbox")}
             </p>
             <p className="text-base text-muted-foreground">
               {isSaved
@@ -132,6 +143,7 @@ export function FeedPanel({
               key={item.message.id}
               message={item.message}
               channelLabel={item.channel.name}
+              isSaved={savedMessageIds.has(item.message.id)}
               onOpenThread={() => onOpenThread(item)}
               onToggleSaved={() => onToggleSaved(item.message.id)}
             />
@@ -139,7 +151,9 @@ export function FeedPanel({
         ) : (
           <div className="flex h-full items-center justify-center px-8 text-center">
             <p className="text-lg text-muted-foreground">
-              {isSaved ? t("conversationView.noSaved") : t("conversationView.noInbox")}
+              {isSaved
+                ? t("conversationView.noSaved")
+                : t("conversationView.noInbox")}
             </p>
           </div>
         )}

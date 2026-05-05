@@ -9,7 +9,12 @@ from app.models.server_channel import ServerChannel
 from app.models.server_invite import ServerInvite
 from app.models.user import User
 from app.schemas.server import ServerCreateRequest
-from app.schemas.server_channel import DirectMessageCreateRequest, ServerChannelCreateRequest
+from app.schemas.server_channel import (
+    DirectMessageCreateRequest,
+    ServerChannelMemberAddRequest,
+    ServerChannelCreateRequest,
+    ServerChannelUpdateRequest,
+)
 from app.schemas.server_invite import ServerInviteAcceptRequest
 from app.services.server_channel_service import ServerChannelService
 from app.services.server_invite_service import ServerInviteService
@@ -230,6 +235,144 @@ class ServerChannelServiceTests(unittest.TestCase):
         self.db.commit.assert_called_once()
         self.assertIsNotNone(channel.archived_at)
         self.assertEqual(result.channel_id, channel.id)
+
+    def test_admin_can_update_channel_name_and_description(self) -> None:
+        service = ServerChannelService()
+        channel = ServerChannel(
+            id=uuid.uuid4(),
+            server_id=self.server.id,
+            name="planning",
+            slug="planning",
+            description=None,
+            conversation_type="channel",
+            visibility="public",
+            created_by="user-1",
+            archived_at=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        with (
+            patch(
+                "app.services.server_channel_service.require_server_admin",
+                return_value=MagicMock(status="active", role="admin"),
+            ),
+            patch(
+                "app.services.server_channel_service.ServerChannelRepository.get_by_id",
+                return_value=channel,
+            ),
+            patch(
+                "app.services.server_channel_service.ServerChannelRepository.get_by_server_slug",
+                return_value=None,
+            ),
+        ):
+            result = service.update_channel(
+                self.db,
+                self.user,
+                self.server.id,
+                channel.id,
+                ServerChannelUpdateRequest(
+                    name="Roadmap",
+                    description="Roadmap planning",
+                ),
+            )
+
+        self.db.commit.assert_called_once()
+        self.assertEqual(channel.name, "Roadmap")
+        self.assertEqual(channel.slug, "roadmap")
+        self.assertEqual(channel.description, "Roadmap planning")
+        self.assertEqual(result.description, "Roadmap planning")
+
+    def test_admin_can_delete_channel(self) -> None:
+        service = ServerChannelService()
+        channel = ServerChannel(
+            id=uuid.uuid4(),
+            server_id=self.server.id,
+            name="planning",
+            slug="planning",
+            conversation_type="channel",
+            visibility="public",
+            created_by="user-1",
+            archived_at=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        with (
+            patch(
+                "app.services.server_channel_service.require_server_admin",
+                return_value=MagicMock(status="active", role="admin"),
+            ),
+            patch(
+                "app.services.server_channel_service.ServerChannelRepository.get_by_id",
+                return_value=channel,
+            ),
+            patch(
+                "app.services.server_channel_service.ServerChannelRepository.delete"
+            ) as delete_channel,
+        ):
+            service.delete_channel(self.db, self.user, self.server.id, channel.id)
+
+        delete_channel.assert_called_once_with(self.db, channel)
+        self.db.commit.assert_called_once()
+
+    def test_admin_can_add_active_server_member_to_private_channel(self) -> None:
+        service = ServerChannelService()
+        channel = ServerChannel(
+            id=uuid.uuid4(),
+            server_id=self.server.id,
+            name="planning",
+            slug="planning",
+            conversation_type="channel",
+            visibility="private",
+            created_by="user-1",
+            archived_at=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        with (
+            patch(
+                "app.services.server_channel_service.require_server_admin",
+                return_value=MagicMock(status="active", role="admin"),
+            ),
+            patch(
+                "app.services.server_channel_service.ServerChannelRepository.get_by_id",
+                return_value=channel,
+            ),
+            patch(
+                "app.services.server_channel_service.ServerMemberRepository.get_by_server_and_user",
+                return_value=MagicMock(status="active"),
+            ),
+            patch(
+                "app.services.server_channel_service.ServerChannelMemberRepository.get_by_channel_and_user",
+                return_value=None,
+            ),
+            patch(
+                "app.services.server_channel_service.ServerChannelMemberRepository.create"
+            ) as create_member,
+        ):
+            def build_member(_db, membership):
+                now = datetime.now(UTC)
+                membership.id = 1
+                membership.joined_at = now
+                membership.created_at = now
+                membership.updated_at = now
+                return membership
+
+            create_member.side_effect = build_member
+
+            result = service.add_channel_member(
+                self.db,
+                self.user,
+                self.server.id,
+                channel.id,
+                ServerChannelMemberAddRequest(user_id="user-2"),
+            )
+
+        create_member.assert_called_once()
+        self.db.commit.assert_called_once()
+        self.assertEqual(result.user_id, "user-2")
 
     def test_member_can_create_direct_message_with_agent(self) -> None:
         service = ServerChannelService()

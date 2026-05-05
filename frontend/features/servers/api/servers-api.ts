@@ -2,6 +2,7 @@ import { apiClient, API_ENDPOINTS } from "@/services/api-client";
 import type {
   ServerAgentItem,
   ServerChannelItem,
+  ServerChannelMemberItem,
   ServerChannelVisibility,
   ServerConversationMessage,
   ServerConversationType,
@@ -24,12 +25,24 @@ interface ServerChannelResponse {
   server_id: string;
   name: string;
   slug: string;
+  description?: string | null;
   conversation_type: ServerConversationType;
   visibility: ServerChannelVisibility;
   direct_user_id?: string | null;
   direct_agent_identity_id?: string | null;
   created_by: string | null;
   archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ServerChannelMemberResponse {
+  membership_id: number;
+  channel_id: string;
+  user_id: string;
+  role: string;
+  joined_at: string;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -103,6 +116,7 @@ function mapChannel(channel: ServerChannelResponse): ServerChannelItem {
     serverId: channel.server_id,
     name: channel.name,
     slug: channel.slug,
+    description: channel.description,
     conversationType: channel.conversation_type,
     visibility: channel.visibility,
     directUserId: channel.direct_user_id,
@@ -111,6 +125,21 @@ function mapChannel(channel: ServerChannelResponse): ServerChannelItem {
     archivedAt: channel.archived_at,
     createdAt: channel.created_at,
     updatedAt: channel.updated_at,
+  };
+}
+
+function mapChannelMember(
+  member: ServerChannelMemberResponse,
+): ServerChannelMemberItem {
+  return {
+    id: member.membership_id,
+    channelId: member.channel_id,
+    userId: member.user_id,
+    role: member.role,
+    joinedAt: member.joined_at,
+    status: member.status,
+    createdAt: member.created_at,
+    updatedAt: member.updated_at,
   };
 }
 
@@ -168,7 +197,9 @@ function mapConversationMessage(
 
 export const serversApi = {
   listServers: async (): Promise<ServerItem[]> => {
-    const servers = await apiClient.get<ServerResponse[]>(API_ENDPOINTS.servers);
+    const servers = await apiClient.get<ServerResponse[]>(
+      API_ENDPOINTS.servers,
+    );
     return servers.map(mapServer);
   },
 
@@ -254,5 +285,62 @@ export const serversApi = {
       },
     );
     return mapChannel(channel);
+  },
+
+  updateChannel: async (
+    serverId: string,
+    channelId: string,
+    input: {
+      name?: string | null;
+      description?: string | null;
+    },
+  ): Promise<ServerChannelItem> => {
+    const channel = await apiClient.patch<ServerChannelResponse>(
+      `/servers/${serverId}/channels/${channelId}`,
+      input,
+    );
+    return mapChannel(channel);
+  },
+
+  archiveChannel: async (
+    serverId: string,
+    channelId: string,
+  ): Promise<ServerChannelItem> => {
+    const channel = await apiClient.post<ServerChannelResponse>(
+      `/servers/${serverId}/channels/${channelId}/archive`,
+    );
+    return mapChannel(channel);
+  },
+
+  deleteChannel: async (serverId: string, channelId: string): Promise<void> => {
+    await apiClient.delete(`/servers/${serverId}/channels/${channelId}`);
+  },
+
+  listChannelMembers: async (
+    serverId: string,
+    channelId: string,
+  ): Promise<ServerChannelMemberItem[]> => {
+    const members = await apiClient.get<ServerChannelMemberResponse[]>(
+      `/servers/${serverId}/channels/${channelId}/members`,
+    );
+    return members.map(mapChannelMember);
+  },
+
+  addChannelMember: async (
+    serverId: string,
+    channelId: string,
+    input: {
+      userId: string;
+      role?: string;
+    },
+  ): Promise<ServerChannelMemberItem> => {
+    const member = await apiClient.post<ServerChannelMemberResponse>(
+      `/servers/${serverId}/channels/${channelId}/members`,
+      {
+        user_id: input.userId,
+        role: input.role ?? "member",
+      },
+    );
+    return mapChannelMember(member);
   },
 };

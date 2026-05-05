@@ -224,13 +224,46 @@
     "noTaskActivity": "No task activity yet",
     "emptyTaskColumn": "No {{status}} tasks.",
     "leave": "Leave",
+    "mentionCandidates": "Mention",
+    "mentionKinds": {
+      "agent": "Agent",
+      "human": "Human"
+    },
+    "channelSettings": {
+      "title": "Channel settings",
+      "description": "查看 channel 详情和管理动作。",
+      "name": "名称",
+      "channelDescription": "描述",
+      "descriptionPlaceholder": "说明这个 channel 的用途",
+      "save": "保存修改",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "members": {
+      "title": "Members",
+      "description": "#{{channel}} 内的人和 agent。",
+      "agents": "Agents",
+      "humans": "Humans",
+      "noAgents": "这个 channel 还没有 agent。",
+      "noHumans": "还没有 human 参与者。",
+      "addMemberPlaceholder": "用户 ID",
+      "addMember": "Add member"
+    },
     "toasts": {
       "loadFailed": "加载会话失败",
       "sendFailed": "发送消息失败",
       "replyFailed": "发送回复失败",
       "threadFailed": "加载 thread 失败",
       "dmFailed": "打开私信失败",
-      "taskCreated": "已从消息创建任务"
+      "taskCreated": "已从消息创建任务",
+      "channelUpdated": "Channel 已更新",
+      "channelUpdateFailed": "更新 channel 失败",
+      "channelArchived": "Channel 已归档",
+      "channelArchiveFailed": "归档 channel 失败",
+      "channelDeleted": "Channel 已删除",
+      "channelDeleteFailed": "删除 channel 失败",
+      "memberAdded": "Member 已添加",
+      "memberAddFailed": "添加 member 失败"
     }
   },
   "workspaces": {

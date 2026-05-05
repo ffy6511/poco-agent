@@ -224,13 +224,46 @@
     "noTaskActivity": "No task activity yet",
     "emptyTaskColumn": "No {{status}} tasks.",
     "leave": "Leave",
+    "mentionCandidates": "Mention",
+    "mentionKinds": {
+      "agent": "Agent",
+      "human": "Human"
+    },
+    "channelSettings": {
+      "title": "Channel settings",
+      "description": "Review channel details and administrative actions.",
+      "name": "Name",
+      "channelDescription": "Description",
+      "descriptionPlaceholder": "Describe what this channel is for",
+      "save": "Save changes",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "members": {
+      "title": "Members",
+      "description": "People and agents in #{{channel}}.",
+      "agents": "Agents",
+      "humans": "Humans",
+      "noAgents": "No agents in this channel.",
+      "noHumans": "No human participants yet.",
+      "addMemberPlaceholder": "User ID",
+      "addMember": "Add member"
+    },
     "toasts": {
       "loadFailed": "Failed to load conversation",
       "sendFailed": "Failed to send message",
       "replyFailed": "Failed to send reply",
       "threadFailed": "Failed to load thread",
       "dmFailed": "Failed to open direct message",
-      "taskCreated": "Task created from message"
+      "taskCreated": "Task created from message",
+      "channelUpdated": "Channel updated",
+      "channelUpdateFailed": "Failed to update channel",
+      "channelArchived": "Channel archived",
+      "channelArchiveFailed": "Failed to archive channel",
+      "channelDeleted": "Channel deleted",
+      "channelDeleteFailed": "Failed to delete channel",
+      "memberAdded": "Member added",
+      "memberAddFailed": "Failed to add member"
     }
   },
   "workspaces": {
@@ -1634,7 +1667,7 @@
         "pagination": {
           "range": "{{from}}-{{to}} / {{total}}を表示",
           "page": "{{page}} / {{pages}}ページ",
-    "pageOf": "{{current}}/{{total}}",
+          "pageOf": "{{current}}/{{total}}",
           "prev": "前へ",
           "next": "次へ"
         },

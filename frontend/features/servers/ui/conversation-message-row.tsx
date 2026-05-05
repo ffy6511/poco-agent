@@ -32,7 +32,9 @@ export function formatRelativeDate(value: string): string {
   if (diffDays === 1) {
     return "Yesterday";
   }
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+    date,
+  );
 }
 
 export function getInitials(value: string): string {
@@ -100,11 +102,13 @@ function renderMentions(text: string) {
 export function MessageRow({
   message,
   channelLabel,
+  isSaved = false,
   onOpenThread,
   onToggleSaved,
 }: {
   message: ServerConversationMessage;
   channelLabel?: string;
+  isSaved?: boolean;
   onOpenThread: () => void;
   onToggleSaved: () => void;
 }) {
@@ -120,48 +124,50 @@ export function MessageRow({
       <div className="min-w-0 flex-1 space-y-3">
         <div className="flex items-start justify-between gap-3 text-sm">
           <div className="min-w-0 flex flex-wrap items-center gap-3">
-            <span className="text-lg font-semibold text-foreground">{author}</span>
+            <span className="text-lg font-semibold text-foreground">
+              {author}
+            </span>
             <span className="text-sm text-muted-foreground">
-              {formatRelativeDate(message.createdAt)} {formatTime(message.createdAt)}
+              {formatRelativeDate(message.createdAt)}{" "}
+              {formatTime(message.createdAt)}
             </span>
             {channelLabel ? (
-              <span className="text-sm text-muted-foreground">#{channelLabel}</span>
+              <span className="text-sm text-muted-foreground">
+                #{channelLabel}
+              </span>
             ) : null}
           </div>
           <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               type="button"
               onClick={onOpenThread}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/30"
+              aria-label={t("conversationView.reply")}
+              className="inline-flex size-8 items-center justify-center gap-1 rounded-md border border-border bg-background text-xs font-medium text-foreground transition-colors hover:bg-muted/30"
             >
               <MessageSquare className="size-3.5" />
               {message.replyCount > 0 ? (
-                <span>{message.replyCount}</span>
+                <span className="tabular-nums">{message.replyCount}</span>
               ) : null}
             </button>
             <button
               type="button"
               onClick={onToggleSaved}
-              className="inline-flex items-center justify-center rounded-md border border-border bg-background p-1.5 text-foreground transition-colors hover:bg-muted/30"
+              aria-label={
+                isSaved
+                  ? t("conversationView.unsave")
+                  : t("conversationView.save")
+              }
+              className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-muted/30"
             >
-              <Bookmark className="size-3.5" />
+              <Bookmark
+                className={isSaved ? "size-3.5 fill-current" : "size-3.5"}
+              />
             </button>
           </div>
         </div>
         <div className="text-base leading-7 text-foreground">
           {renderMentions(text || t("conversationView.emptyMessage"))}
         </div>
-        {message.replyCount > 0 ? (
-          <div>
-            <button
-              type="button"
-              onClick={onOpenThread}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/30"
-            >
-              {t("conversationView.replyCount", { count: message.replyCount })}
-            </button>
-          </div>
-        ) : null}
       </div>
     </article>
   );

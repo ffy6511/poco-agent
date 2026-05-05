@@ -13,6 +13,16 @@ class ServerChannelCreateRequest(BaseModel):
     visibility: ServerChannelVisibility = "public"
 
 
+class ServerChannelUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+class ServerChannelMemberAddRequest(BaseModel):
+    user_id: str
+    role: str = "member"
+
+
 class DirectMessageCreateRequest(BaseModel):
     target_user_id: str | None = None
     target_agent_identity_id: UUID | None = None
@@ -23,6 +33,7 @@ class ServerChannelResponse(BaseModel):
     server_id: UUID
     name: str
     slug: str
+    description: str | None = None
     conversation_type: ServerConversationType
     visibility: ServerChannelVisibility
     direct_user_id: str | None = None

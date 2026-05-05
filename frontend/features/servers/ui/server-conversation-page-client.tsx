@@ -2,22 +2,35 @@
 
 import * as React from "react";
 import {
+  Archive,
   Bookmark,
+  Bot,
   Hash,
   Inbox,
   LayoutGrid,
   LayoutList,
   Lock,
   MessageSquare,
+  Plus,
   Search,
   Settings2,
-  Square,
+  Trash2,
+  UserRound,
   Users,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -42,16 +55,24 @@ import { serversApi } from "@/features/servers";
 import type {
   ServerAgentItem,
   ServerChannelItem,
+  ServerChannelMemberItem,
   ServerConversationMessage,
   ServerItem,
 } from "@/features/servers/model/types";
-import { AgentDrawer, TaskDrawer, ThreadDrawer } from "@/features/servers/ui/conversation-drawers";
+import {
+  AgentDrawer,
+  TaskDrawer,
+  ThreadDrawer,
+} from "@/features/servers/ui/conversation-drawers";
 import {
   getMessageAuthor,
   getMessageText,
   MessageRow,
 } from "@/features/servers/ui/conversation-message-row";
-import { FeedPanel, SearchPanel } from "@/features/servers/ui/conversation-panels";
+import {
+  FeedPanel,
+  SearchPanel,
+} from "@/features/servers/ui/conversation-panels";
 import type {
   DrawerState,
   FeedItem,
@@ -116,11 +137,44 @@ function loadLastSelection(): Record<string, string | null> | null {
   }
 }
 
+type MentionCandidate = {
+  id: string;
+  label: string;
+  handle: string;
+  kind: "agent" | "human";
+  description?: string | null;
+};
+
+function getMentionTrigger(
+  value: string,
+): { start: number; query: string } | null {
+  const match = value.match(/(?:^|\s)@([A-Za-z0-9._-]*)$/);
+  if (!match || match.index === undefined) {
+    return null;
+  }
+  return {
+    start: match.index + match[0].lastIndexOf("@"),
+    query: match[1].toLowerCase(),
+  };
+}
+
+function buildHumanMentionCandidates(
+  members: ServerChannelMemberItem[],
+): MentionCandidate[] {
+  return members.map((member) => ({
+    id: member.userId,
+    label: member.userId,
+    handle: member.userId,
+    kind: "human",
+  }));
+}
+
 function ConversationContent({
   channel,
-  server,
   agents,
+  members,
   messages,
+  savedMessageIds,
   draft,
   asTask,
   isLoading,
@@ -128,13 +182,16 @@ function ConversationContent({
   onAsTaskChange,
   onSend,
   onOpenThread,
-  onOpenAgents,
+  onOpenSettings,
+  onOpenMembers,
+  onToggleSaved,
   isSending,
 }: {
   channel: ServerChannelItem | null;
-  server: ServerItem | null;
   agents: ServerAgentItem[];
+  members: ServerChannelMemberItem[];
   messages: ServerConversationMessage[];
+  savedMessageIds: Set<string>;
   draft: string;
   asTask: boolean;
   isLoading: boolean;
@@ -142,11 +199,44 @@ function ConversationContent({
   onAsTaskChange: (value: boolean) => void;
   onSend: () => void;
   onOpenThread: (message: ServerConversationMessage) => void;
-  onOpenAgents: () => void;
+  onOpenSettings: () => void;
+  onOpenMembers: () => void;
+  onToggleSaved: (messageId: string) => void;
   isSending: boolean;
 }) {
   const { t } = useT("translation");
   const Icon = channel?.conversationType === "direct_message" ? Lock : Hash;
+  const mentionTrigger = React.useMemo(() => getMentionTrigger(draft), [draft]);
+  const mentionCandidates = React.useMemo<MentionCandidate[]>(() => {
+    const humans = buildHumanMentionCandidates(members);
+    const agentCandidates = agents.map((agent) => ({
+      id: agent.id,
+      label: agent.displayName,
+      handle: agent.handle,
+      kind: "agent" as const,
+      description: agent.description,
+    }));
+    const candidates = [...agentCandidates, ...humans];
+    if (!mentionTrigger) {
+      return [];
+    }
+    return candidates
+      .filter((candidate) => {
+        const haystack = `${candidate.label} ${candidate.handle}`.toLowerCase();
+        return haystack.includes(mentionTrigger.query);
+      })
+      .slice(0, 8);
+  }, [agents, mentionTrigger, members]);
+
+  const insertMention = (candidate: MentionCandidate) => {
+    if (!mentionTrigger) {
+      return;
+    }
+    const mention = `@${candidate.handle} `;
+    onDraftChange(
+      `${draft.slice(0, mentionTrigger.start)}${mention}${draft.slice(mentionTrigger.start + mentionTrigger.query.length + 1)}`,
+    );
+  };
 
   return (
     <section className="flex min-w-0 flex-1 flex-col">
@@ -160,22 +250,26 @@ function ConversationContent({
               <h2 className="truncate text-2xl font-semibold text-foreground">
                 {channel?.name ?? t("conversationView.loading")}
               </h2>
-              <p className="truncate text-base text-muted-foreground">
-                {server?.name ?? ""}
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm">
-              <Square className="size-4" />
-            </Button>
-            <Button type="button" variant="outline" size="sm">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenSettings}
+            >
               <Settings2 className="size-4" />
             </Button>
             <Button type="button" variant="outline" size="sm">
               {t("conversationView.leave")}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onOpenAgents}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenMembers}
+            >
               <Users className="size-4" />
               {agents.length}
             </Button>
@@ -197,7 +291,8 @@ function ConversationContent({
                 key={message.id}
                 message={message}
                 onOpenThread={() => onOpenThread(message)}
-                onToggleSaved={() => undefined}
+                isSaved={savedMessageIds.has(message.id)}
+                onToggleSaved={() => onToggleSaved(message.id)}
               />
             ))}
           </div>
@@ -205,13 +300,51 @@ function ConversationContent({
       </div>
 
       <div className="border-t border-border px-6 py-5">
-        <Textarea
-          value={draft}
-          onChange={(event) => onDraftChange(event.target.value)}
-          rows={4}
-          placeholder={t("conversationView.messagePlaceholder", { name: channel?.name ?? "" })}
-          className="rounded-md border-border bg-background text-base shadow-none"
-        />
+        <div className="relative">
+          {mentionTrigger && mentionCandidates.length > 0 ? (
+            <div className="absolute bottom-full left-0 z-20 mb-2 w-full max-w-md rounded-md border border-border bg-popover p-2 shadow-[var(--shadow-lg)]">
+              <div className="px-2 pb-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                {t("conversationView.mentionCandidates")}
+              </div>
+              <div className="space-y-1">
+                {mentionCandidates.map((candidate) => {
+                  const CandidateIcon =
+                    candidate.kind === "agent" ? Bot : UserRound;
+                  return (
+                    <button
+                      key={`${candidate.kind}-${candidate.id}`}
+                      type="button"
+                      onClick={() => insertMention(candidate)}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted/30"
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
+                        <CandidateIcon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {candidate.label}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          @{candidate.handle} /{" "}
+                          {t(`conversationView.mentionKinds.${candidate.kind}`)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+          <Textarea
+            value={draft}
+            onChange={(event) => onDraftChange(event.target.value)}
+            rows={4}
+            placeholder={t("conversationView.messagePlaceholder", {
+              name: channel?.name ?? "",
+            })}
+            className="rounded-md border-border bg-background text-base shadow-none"
+          />
+        </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <label className="flex items-center gap-3 text-base text-foreground">
             <input
@@ -223,13 +356,259 @@ function ConversationContent({
             {t("conversationView.asTask")}
           </label>
           <div className="flex items-center gap-2">
-            <Button type="button" size="sm" onClick={onSend} disabled={isSending || !draft.trim()}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onSend}
+              disabled={isSending || !draft.trim()}
+            >
               {t("conversationView.send")}
             </Button>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function ChannelSettingsDialog({
+  open,
+  channel,
+  isArchiving,
+  onOpenChange,
+  onSave,
+  onArchive,
+  onDelete,
+}: {
+  open: boolean;
+  channel: ServerChannelItem | null;
+  isArchiving: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (input: { name: string; description: string }) => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useT("translation");
+  const [name, setName] = React.useState(channel?.name ?? "");
+  const [description, setDescription] = React.useState(
+    channel?.description ?? "",
+  );
+
+  React.useEffect(() => {
+    if (open) {
+      setName(channel?.name ?? "");
+      setDescription(channel?.description ?? "");
+    }
+  }, [channel?.description, channel?.name, open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {t("conversationView.channelSettings.title")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("conversationView.channelSettings.description")}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              {t("conversationView.channelSettings.name")}
+            </label>
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              {t("conversationView.channelSettings.channelDescription")}
+            </label>
+            <Textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={4}
+              placeholder={t(
+                "conversationView.channelSettings.descriptionPlaceholder",
+              )}
+              className="rounded-md border-border bg-background shadow-none"
+            />
+          </div>
+        </div>
+        <DialogFooter className="items-center sm:justify-between">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onArchive}
+              disabled={isArchiving || !channel}
+            >
+              <Archive className="size-4" />
+              {t("conversationView.channelSettings.archive")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              disabled={!channel}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="size-4" />
+              {t("conversationView.channelSettings.delete")}
+            </Button>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => onSave({ name, description })}
+            disabled={!name.trim()}
+          >
+            {t("conversationView.channelSettings.save")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ChannelMembersDialog({
+  open,
+  channel,
+  agents,
+  humans,
+  onOpenChange,
+  onOpenDm,
+  onAddMember,
+}: {
+  open: boolean;
+  channel: ServerChannelItem | null;
+  agents: ServerAgentItem[];
+  humans: MentionCandidate[];
+  onOpenChange: (open: boolean) => void;
+  onOpenDm: (agentId: string) => void;
+  onAddMember: (userId: string) => void;
+}) {
+  const { t } = useT("translation");
+  const [memberUserId, setMemberUserId] = React.useState("");
+
+  React.useEffect(() => {
+    if (!open) {
+      setMemberUserId("");
+    }
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{t("conversationView.members.title")}</DialogTitle>
+          <DialogDescription>
+            {t("conversationView.members.description", {
+              channel: channel?.name ?? t("conversationView.loading"),
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">
+                {t("conversationView.members.agents")}
+              </p>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {agents.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {agents.length > 0 ? (
+                agents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    onClick={() => onOpenDm(agent.id)}
+                    className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted/20"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
+                      <Bot className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {agent.displayName}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        @{agent.handle}
+                      </span>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                  {t("conversationView.members.noAgents")}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">
+                {t("conversationView.members.humans")}
+              </p>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {humans.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {humans.length > 0 ? (
+                humans.map((human) => (
+                  <div
+                    key={human.id}
+                    className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-3"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
+                      <UserRound className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {human.label}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        @{human.handle}
+                      </span>
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                  {t("conversationView.members.noHumans")}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+        <DialogFooter>
+          <div className="flex w-full flex-col gap-2 sm:flex-row">
+            <Input
+              value={memberUserId}
+              onChange={(event) => setMemberUserId(event.target.value)}
+              placeholder={t("conversationView.members.addMemberPlaceholder")}
+            />
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => onAddMember(memberUserId)}
+              disabled={!memberUserId.trim()}
+            >
+              <Plus className="size-4" />
+              {t("conversationView.members.addMember")}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -253,29 +632,43 @@ export function ServerConversationPageClient({
   const [messagesByChannel, setMessagesByChannel] = React.useState<
     Record<string, ServerConversationMessage[]>
   >({});
-  const [channelAgents, setChannelAgents] = React.useState<ServerAgentItem[]>([]);
+  const [channelAgents, setChannelAgents] = React.useState<ServerAgentItem[]>(
+    [],
+  );
+  const [channelMembers, setChannelMembers] = React.useState<
+    ServerChannelMemberItem[]
+  >([]);
   const [tasks, setTasks] = React.useState<ChannelTask[]>([]);
-  const [threadMessages, setThreadMessages] = React.useState<ServerConversationMessage[]>([]);
-  const [taskActivity, setTaskActivity] = React.useState<ChannelTaskActivityMessage[]>([]);
+  const [threadMessages, setThreadMessages] = React.useState<
+    ServerConversationMessage[]
+  >([]);
+  const [taskActivity, setTaskActivity] = React.useState<
+    ChannelTaskActivityMessage[]
+  >([]);
   const [draft, setDraft] = React.useState("");
   const [threadDraft, setThreadDraft] = React.useState("");
   const [searchValue, setSearchValue] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSending, setIsSending] = React.useState(false);
   const [asTask, setAsTask] = React.useState(false);
-  const [savedMessageIds, setSavedMessageIds] = React.useState<Set<string>>(new Set());
+  const [savedMessageIds, setSavedMessageIds] = React.useState<Set<string>>(
+    new Set(),
+  );
   const [mode, setMode] = React.useState<WorkspaceMode>(
     channelId
-      ? (searchParams.get("mode") === "tasks" ? "tasks" : "conversation")
+      ? searchParams.get("mode") === "tasks"
+        ? "tasks"
+        : "conversation"
       : "search",
   );
   const [taskView, setTaskView] = React.useState<ChannelTaskView>(
     resolveChannelTaskView(searchParams.get("view")),
   );
   const [drawer, setDrawer] = React.useState<DrawerState>({ type: "none" });
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [membersOpen, setMembersOpen] = React.useState(false);
+  const [isArchivingChannel, setIsArchivingChannel] = React.useState(false);
 
-  const selectedServer =
-    servers.find((server) => server.id === selectedServerId) ?? null;
   const activeChannelId = channelId ?? null;
   const selectedChannel =
     channels.find((channel) => channel.id === activeChannelId) ?? null;
@@ -285,17 +678,22 @@ export function ServerConversationPageClient({
   const directMessages = channels.filter(
     (channel) => channel.conversationType === "direct_message",
   );
-  const currentMessages = activeChannelId
-    ? (messagesByChannel[activeChannelId] ?? [])
-    : [];
+  const currentMessages = React.useMemo(
+    () => (activeChannelId ? (messagesByChannel[activeChannelId] ?? []) : []),
+    [activeChannelId, messagesByChannel],
+  );
   const selectedTask = React.useMemo(
     () =>
       drawer.type === "task"
-        ? tasks.find((task) => task.taskId === drawer.taskId) ?? null
+        ? (tasks.find((task) => task.taskId === drawer.taskId) ?? null)
         : null,
     [drawer, tasks],
   );
   const tasksModeActive = Boolean(channelId) && mode === "tasks";
+  const humanCandidates = React.useMemo(
+    () => buildHumanMentionCandidates(channelMembers),
+    [channelMembers],
+  );
 
   const allFeedItems = React.useMemo<FeedItem[]>(() => {
     return channels
@@ -306,7 +704,10 @@ export function ServerConversationPageClient({
         })),
       )
       .sort((left, right) => {
-        return Date.parse(right.message.createdAt) - Date.parse(left.message.createdAt);
+        return (
+          Date.parse(right.message.createdAt) -
+          Date.parse(left.message.createdAt)
+        );
       });
   }, [channels, messagesByChannel]);
 
@@ -316,7 +717,8 @@ export function ServerConversationPageClient({
       return [];
     }
     return allFeedItems.filter((item) => {
-      const haystack = `${item.channel.name} ${getMessageText(item.message)} ${getMessageAuthor(item.message)}`.toLowerCase();
+      const haystack =
+        `${item.channel.name} ${getMessageText(item.message)} ${getMessageAuthor(item.message)}`.toLowerCase();
       return haystack.includes(keyword);
     });
   }, [allFeedItems, searchValue]);
@@ -334,7 +736,10 @@ export function ServerConversationPageClient({
     const requestedServerId = serverId || searchParams.get("server");
     const lastSelection = loadLastSelection();
     const preferredServerId =
-      requestedServerId || lastSelection?.serverId || nextServers[0]?.id || null;
+      requestedServerId ||
+      lastSelection?.serverId ||
+      nextServers[0]?.id ||
+      null;
     setSelectedServerId(preferredServerId);
 
     if (!channelId && lastSelection?.mode && !searchParams.get("mode")) {
@@ -377,22 +782,28 @@ export function ServerConversationPageClient({
 
         const previews = await Promise.all(
           nextChannels.map(async (channel) => {
-            const messages = await serversApi.listMessages(selectedServerId, channel.id);
+            const messages = await serversApi.listMessages(
+              selectedServerId,
+              channel.id,
+            );
             return [channel.id, messages] as const;
           }),
         );
         setMessagesByChannel(Object.fromEntries(previews));
 
         if (activeChannelId) {
-          const [nextTasks, nextAgents] = await Promise.all([
+          const [nextTasks, nextAgents, nextMembers] = await Promise.all([
             channelTasksApi.listTasks(selectedServerId, activeChannelId),
             serversApi.listChannelAgents(selectedServerId, activeChannelId),
+            serversApi.listChannelMembers(selectedServerId, activeChannelId),
           ]);
           setTasks(nextTasks);
           setChannelAgents(nextAgents);
+          setChannelMembers(nextMembers);
         } else {
           setTasks([]);
           setChannelAgents([]);
+          setChannelMembers([]);
         }
       } catch (error) {
         console.error("[ServersWorkspace] load failed", error);
@@ -445,7 +856,11 @@ export function ServerConversationPageClient({
 
   React.useEffect(() => {
     const loadTaskActivity = async () => {
-      if (!selectedServerId || !activeChannelId || !selectedTask?.threadRootMessageId) {
+      if (
+        !selectedServerId ||
+        !activeChannelId ||
+        !selectedTask?.threadRootMessageId
+      ) {
         setTaskActivity([]);
         return;
       }
@@ -476,7 +891,47 @@ export function ServerConversationPageClient({
       serverId: selectedServerId,
       channelId: null,
     });
-    router.replace(`/${lng}/servers?mode=${nextMode}&server=${selectedServerId}`);
+    router.replace(
+      `/${lng}/servers?mode=${nextMode}&server=${selectedServerId}`,
+    );
+  };
+
+  const openTaskMode = () => {
+    if (!selectedServerId) {
+      return;
+    }
+    const targetChannelId =
+      activeChannelId ??
+      selectedChannel?.id ??
+      topLevelChannels[0]?.id ??
+      channels[0]?.id ??
+      null;
+    if (!targetChannelId) {
+      setMode("tasks");
+      return;
+    }
+    setMode("tasks");
+    setDrawer({ type: "none" });
+    saveLastSelection({
+      mode: "tasks",
+      serverId: selectedServerId,
+      channelId: targetChannelId,
+    });
+    router.replace(
+      `/${lng}/servers/${selectedServerId}/channels/${targetChannelId}?tab=chat&mode=tasks&view=${taskView}`,
+      { scroll: false },
+    );
+  };
+
+  const updateTaskView = (nextView: ChannelTaskView) => {
+    setTaskView(nextView);
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+    router.replace(
+      `/${lng}/servers/${selectedServerId}/channels/${activeChannelId}?tab=chat&mode=tasks&view=${nextView}`,
+      { scroll: false },
+    );
   };
 
   const openChannel = (channel: ServerChannelItem) => {
@@ -488,7 +943,9 @@ export function ServerConversationPageClient({
       serverId: selectedServerId,
       channelId: channel.id,
     });
-    router.push(`/${lng}/servers/${selectedServerId}/channels/${channel.id}?tab=chat`);
+    router.push(
+      `/${lng}/servers/${selectedServerId}/channels/${channel.id}?tab=chat`,
+    );
   };
 
   const handleSend = async () => {
@@ -517,10 +974,18 @@ export function ServerConversationPageClient({
       }
       setDraft("");
       setAsTask(false);
-      const messages = await serversApi.listMessages(selectedServerId, activeChannelId);
-      setMessagesByChannel((current) => ({ ...current, [activeChannelId]: messages }));
+      const messages = await serversApi.listMessages(
+        selectedServerId,
+        activeChannelId,
+      );
+      setMessagesByChannel((current) => ({
+        ...current,
+        [activeChannelId]: messages,
+      }));
       if (asTask) {
-        setTasks(await channelTasksApi.listTasks(selectedServerId, activeChannelId));
+        setTasks(
+          await channelTasksApi.listTasks(selectedServerId, activeChannelId),
+        );
       }
     } catch (error) {
       console.error("[ServersWorkspace] send failed", error);
@@ -531,11 +996,7 @@ export function ServerConversationPageClient({
   };
 
   const handleReply = async () => {
-    if (
-      drawer.type !== "thread" ||
-      !selectedServerId ||
-      !threadDraft.trim()
-    ) {
+    if (drawer.type !== "thread" || !selectedServerId || !threadDraft.trim()) {
       return;
     }
     setIsSending(true);
@@ -547,9 +1008,16 @@ export function ServerConversationPageClient({
       setThreadDraft("");
       const [messages, thread] = await Promise.all([
         serversApi.listMessages(selectedServerId, drawer.channelId),
-        serversApi.getThread(selectedServerId, drawer.channelId, drawer.rootMessageId),
+        serversApi.getThread(
+          selectedServerId,
+          drawer.channelId,
+          drawer.rootMessageId,
+        ),
       ]);
-      setMessagesByChannel((current) => ({ ...current, [drawer.channelId]: messages }));
+      setMessagesByChannel((current) => ({
+        ...current,
+        [drawer.channelId]: messages,
+      }));
       setThreadMessages(thread);
     } catch (error) {
       console.error("[ServersWorkspace] reply failed", error);
@@ -587,6 +1055,106 @@ export function ServerConversationPageClient({
     });
   };
 
+  const handleArchiveChannel = async () => {
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+    setIsArchivingChannel(true);
+    try {
+      const archived = await serversApi.archiveChannel(
+        selectedServerId,
+        activeChannelId,
+      );
+      setChannels((current) =>
+        current.map((channel) =>
+          channel.id === archived.id ? archived : channel,
+        ),
+      );
+      setSettingsOpen(false);
+      toast.success(t("conversationView.toasts.channelArchived"));
+    } catch (error) {
+      console.error("[ServersWorkspace] archive channel failed", error);
+      toast.error(t("conversationView.toasts.channelArchiveFailed"));
+    } finally {
+      setIsArchivingChannel(false);
+    }
+  };
+
+  const handleUpdateChannel = async (input: {
+    name: string;
+    description: string;
+  }) => {
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+    try {
+      const updated = await serversApi.updateChannel(
+        selectedServerId,
+        activeChannelId,
+        {
+          name: input.name.trim(),
+          description: input.description.trim(),
+        },
+      );
+      setChannels((current) =>
+        current.map((channel) =>
+          channel.id === updated.id ? updated : channel,
+        ),
+      );
+      setSettingsOpen(false);
+      toast.success(t("conversationView.toasts.channelUpdated"));
+    } catch (error) {
+      console.error("[ServersWorkspace] update channel failed", error);
+      toast.error(t("conversationView.toasts.channelUpdateFailed"));
+    }
+  };
+
+  const handleDeleteChannel = async () => {
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+    try {
+      await serversApi.deleteChannel(selectedServerId, activeChannelId);
+      setChannels((current) =>
+        current.filter((channel) => channel.id !== activeChannelId),
+      );
+      setSettingsOpen(false);
+      saveLastSelection({
+        mode: "search",
+        serverId: selectedServerId,
+        channelId: null,
+      });
+      router.replace(`/${lng}/servers?mode=search&server=${selectedServerId}`);
+      toast.success(t("conversationView.toasts.channelDeleted"));
+    } catch (error) {
+      console.error("[ServersWorkspace] delete channel failed", error);
+      toast.error(t("conversationView.toasts.channelDeleteFailed"));
+    }
+  };
+
+  const handleAddChannelMember = async (userId: string) => {
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+    try {
+      const member = await serversApi.addChannelMember(
+        selectedServerId,
+        activeChannelId,
+        {
+          userId: userId.trim(),
+        },
+      );
+      setChannelMembers((current) => {
+        const withoutExisting = current.filter((item) => item.id !== member.id);
+        return [...withoutExisting, member];
+      });
+      toast.success(t("conversationView.toasts.memberAdded"));
+    } catch (error) {
+      console.error("[ServersWorkspace] add channel member failed", error);
+      toast.error(t("conversationView.toasts.memberAddFailed"));
+    }
+  };
+
   return (
     <main className="flex h-[calc(100vh-4rem)] min-h-0 flex-1 overflow-hidden border-t border-border bg-background">
       <aside className="hidden w-[17rem] shrink-0 border-r border-border bg-card md:flex md:flex-col lg:w-[18rem]">
@@ -613,36 +1181,30 @@ export function ServerConversationPageClient({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          <div className="space-y-0">
-            {([
-              ["searchInServer", Search, "search"],
-              ["tasksTab", LayoutGrid, "tasks"],
-              ["inbox", Inbox, "inbox"],
-              ["saved", Bookmark, "saved"],
-            ] as const).map(([key, Icon, nextMode]) => {
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+          <div className="space-y-1">
+            {(
+              [
+                ["searchInServer", Search, "search"],
+                ["tasksTab", LayoutGrid, "tasks"],
+                ["inbox", Inbox, "inbox"],
+                ["saved", Bookmark, "saved"],
+              ] as const
+            ).map(([key, Icon, nextMode]) => {
               const isActive = mode === nextMode;
               return (
                 <button
                   key={nextMode}
                   type="button"
                   onClick={() => {
-                    setMode(nextMode as WorkspaceMode);
-                    setDrawer({ type: "none" });
-                    if (!selectedServerId) {
+                    if (nextMode === "tasks") {
+                      openTaskMode();
                       return;
                     }
-                    if (channelId) {
-                      router.replace(
-                        `/${lng}/servers/${selectedServerId}/channels/${channelId}?tab=chat${nextMode === "tasks" ? "&mode=tasks" : ""}`,
-                        { scroll: false },
-                      );
-                    } else {
-                      openMode(nextMode as WorkspaceMode);
-                    }
+                    openMode(nextMode as WorkspaceMode);
                   }}
                   className={cn(
-                    "flex w-full items-center justify-between px-4 py-3 text-left transition-colors",
+                    "flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left transition-colors",
                     isActive
                       ? "bg-muted text-foreground"
                       : "text-foreground hover:bg-muted/20",
@@ -653,9 +1215,13 @@ export function ServerConversationPageClient({
                     {t(`conversationView.${key}`)}
                   </span>
                   {nextMode === "inbox" ? (
-                    <span className="text-sm text-muted-foreground">{inboxItems.length}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {inboxItems.length}
+                    </span>
                   ) : nextMode === "saved" ? (
-                    <span className="text-sm text-muted-foreground">{savedItems.length}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {savedItems.length}
+                    </span>
                   ) : null}
                 </button>
               );
@@ -696,7 +1262,9 @@ export function ServerConversationPageClient({
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {t("conversationView.directMessages")}
               </p>
-              <span className="text-xs text-muted-foreground">{directMessages.length}</span>
+              <span className="text-xs text-muted-foreground">
+                {directMessages.length}
+              </span>
             </div>
             <div className="space-y-2">
               {directMessages.map((channel) => (
@@ -727,6 +1295,7 @@ export function ServerConversationPageClient({
               search={searchValue}
               onSearchChange={setSearchValue}
               items={filteredSearchItems}
+              savedMessageIds={savedMessageIds}
               onOpenThread={(item) =>
                 setDrawer({
                   type: "thread",
@@ -740,6 +1309,7 @@ export function ServerConversationPageClient({
             <FeedPanel
               mode="saved"
               items={savedItems}
+              savedMessageIds={savedMessageIds}
               onOpenThread={(item) =>
                 setDrawer({
                   type: "thread",
@@ -753,6 +1323,7 @@ export function ServerConversationPageClient({
             <FeedPanel
               mode="inbox"
               items={inboxItems}
+              savedMessageIds={savedMessageIds}
               onOpenThread={(item) =>
                 setDrawer({
                   type: "thread",
@@ -764,93 +1335,78 @@ export function ServerConversationPageClient({
             />
           )}
         </section>
-      ) : (
-        tasksModeActive ? (
-          <section className="flex min-w-0 flex-1 flex-col">
-            <div className="border-b border-border px-6 py-5">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex size-12 items-center justify-center rounded-md border border-border bg-primary/15 text-foreground">
-                    <LayoutGrid className="size-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-semibold text-foreground">
-                      {t("conversationView.tasksTab")}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {tasks.length} {t("conversationView.channelTasksLabel")}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant={taskView === "board" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTaskView("board")}
-                  >
-                    <LayoutGrid className="size-4" />
-                    {t("conversationView.boardView")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={taskView === "list" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTaskView("list")}
-                  >
-                    <LayoutList className="size-4" />
-                    {t("conversationView.listView")}
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="border-b border-border px-6 py-5">
-              <Select
-                value={activeChannelId ?? ""}
-                onValueChange={(value) => {
-                  router.push(
-                    `/${lng}/servers/${selectedServerId}/channels/${value}?tab=chat&mode=tasks`,
-                  );
-                }}
+      ) : tasksModeActive ? (
+        <section className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
+            <Select
+              value={activeChannelId ?? ""}
+              onValueChange={(value) => {
+                router.push(
+                  `/${lng}/servers/${selectedServerId}/channels/${value}?tab=chat&mode=tasks&view=${taskView}`,
+                );
+              }}
+            >
+              <SelectTrigger className="w-fit min-w-[180px] border-border bg-background text-sm">
+                <SelectValue placeholder={t("conversationView.channels")} />
+              </SelectTrigger>
+              <SelectContent>
+                {topLevelChannels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1">
+              <Button
+                type="button"
+                variant={taskView === "board" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => updateTaskView("board")}
               >
-                <SelectTrigger className="w-fit min-w-[180px] border-border bg-background text-sm">
-                  <SelectValue placeholder={t("conversationView.channels")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {topLevelChannels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      {channel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <LayoutGrid className="size-4" />
+                {t("conversationView.boardView")}
+              </Button>
+              <Button
+                type="button"
+                variant={taskView === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => updateTaskView("list")}
+              >
+                <LayoutList className="size-4" />
+                {t("conversationView.listView")}
+              </Button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-              {taskView === "board" ? (
-                <div className="grid gap-4 xl:grid-cols-4">
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+            {taskView === "board" ? (
+              <div className="overflow-x-auto">
+                <div className="grid min-w-[980px] grid-cols-4 gap-4">
                   {buildChannelTaskColumns(tasks).map((column) => (
                     <section
                       key={column.status}
-                      className="rounded-md border border-border bg-card p-3"
+                      className="flex min-h-[32rem] flex-col rounded-md border border-border bg-muted/10 p-3"
                     >
-                      <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="mb-3 flex items-center justify-between gap-3 px-1">
                         <div className="flex items-center gap-3">
-                          <span className="rounded-sm bg-primary/15 px-2 py-1 text-xs font-semibold uppercase text-foreground">
+                          <span className="text-sm font-semibold text-foreground">
                             {t(`channelTasks.statuses.${column.status}`)}
                           </span>
-                          <span className="text-sm text-muted-foreground">
-                            {column.tasks.length}
-                          </span>
                         </div>
+                        <span className="rounded-md border border-border bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                          {column.tasks.length}
+                        </span>
                       </div>
-                      <div className="space-y-3">
+                      <div className="min-h-0 flex-1 space-y-3">
                         {column.tasks.length > 0 ? (
                           column.tasks.map((task) => (
                             <button
                               key={task.taskId}
                               type="button"
-                              onClick={() => setDrawer({ type: "task", taskId: task.taskId })}
-                              className="w-full rounded-md border border-border bg-background px-4 py-4 text-left"
+                              onClick={() =>
+                                setDrawer({ type: "task", taskId: task.taskId })
+                              }
+                              className="w-full rounded-md border border-border bg-card px-4 py-4 text-left transition-colors hover:bg-muted/20"
                             >
                               <p className="text-xs font-medium text-muted-foreground">
                                 #{task.taskId.slice(0, 4)}
@@ -866,9 +1422,11 @@ export function ServerConversationPageClient({
                             </button>
                           ))
                         ) : (
-                          <div className="rounded-md border border-dashed border-border px-4 py-10 text-sm text-muted-foreground">
+                          <div className="flex min-h-32 items-center rounded-md border border-dashed border-border bg-background/70 px-4 py-10 text-sm text-muted-foreground">
                             {t("conversationView.emptyTaskColumn", {
-                              status: t(`channelTasks.statuses.${column.status}`),
+                              status: t(
+                                `channelTasks.statuses.${column.status}`,
+                              ),
                             })}
                           </div>
                         )}
@@ -876,61 +1434,66 @@ export function ServerConversationPageClient({
                     </section>
                   ))}
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {buildChannelTaskListGroups(tasks).map((group) => (
-                    <section key={group.status} className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <span className="rounded-sm bg-primary/15 px-2 py-1 text-xs font-semibold uppercase text-foreground">
-                          {t(`channelTasks.statuses.${group.status}`)}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {group.tasks.length}
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {group.tasks.map((task) => (
-                          <button
-                            key={task.taskId}
-                            type="button"
-                            onClick={() => setDrawer({ type: "task", taskId: task.taskId })}
-                            className="w-full rounded-md border border-border bg-card px-4 py-4 text-left hover:bg-muted/20"
-                          >
-                            <p className="text-base font-semibold text-foreground">
-                              {task.title}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        ) : (
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {buildChannelTaskListGroups(tasks).map((group) => (
+                  <section key={group.status} className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-sm bg-primary/15 px-2 py-1 text-xs font-semibold uppercase text-foreground">
+                        {t(`channelTasks.statuses.${group.status}`)}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {group.tasks.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {group.tasks.map((task) => (
+                        <button
+                          key={task.taskId}
+                          type="button"
+                          onClick={() =>
+                            setDrawer({ type: "task", taskId: task.taskId })
+                          }
+                          className="w-full rounded-md border border-border bg-card px-4 py-4 text-left hover:bg-muted/20"
+                        >
+                          <p className="text-base font-semibold text-foreground">
+                            {task.title}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      ) : (
         <ConversationContent
           channel={selectedChannel}
-          server={selectedServer}
           agents={channelAgents}
+          members={channelMembers}
           messages={currentMessages}
+          savedMessageIds={savedMessageIds}
           draft={draft}
           asTask={asTask}
           isLoading={isLoading}
-            onDraftChange={setDraft}
-            onAsTaskChange={setAsTask}
-            onSend={() => void handleSend()}
-            onOpenThread={(message) =>
-              setDrawer({
-                type: "thread",
-                channelId: activeChannelId!,
-                rootMessageId: message.id,
-              })
+          onDraftChange={setDraft}
+          onAsTaskChange={setAsTask}
+          onSend={() => void handleSend()}
+          onOpenThread={(message) =>
+            setDrawer({
+              type: "thread",
+              channelId: activeChannelId!,
+              rootMessageId: message.id,
+            })
           }
-          onOpenAgents={() => setDrawer({ type: "agent" })}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenMembers={() => setMembersOpen(true)}
+          onToggleSaved={toggleSaved}
           isSending={isSending}
         />
-        )
       )}
 
       {drawer.type === "thread" ? (
@@ -957,6 +1520,28 @@ export function ServerConversationPageClient({
           onOpenDm={handleOpenDm}
         />
       ) : null}
+
+      <ChannelSettingsDialog
+        open={settingsOpen}
+        channel={selectedChannel}
+        isArchiving={isArchivingChannel}
+        onOpenChange={setSettingsOpen}
+        onSave={(input) => void handleUpdateChannel(input)}
+        onArchive={() => void handleArchiveChannel()}
+        onDelete={() => void handleDeleteChannel()}
+      />
+      <ChannelMembersDialog
+        open={membersOpen}
+        channel={selectedChannel}
+        agents={channelAgents}
+        humans={humanCandidates}
+        onOpenChange={setMembersOpen}
+        onOpenDm={(agentId) => {
+          setMembersOpen(false);
+          void handleOpenDm(agentId);
+        }}
+        onAddMember={(userId) => void handleAddChannelMember(userId)}
+      />
     </main>
   );
 }

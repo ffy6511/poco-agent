@@ -50,12 +50,24 @@ export interface ServerChannelItem {
   serverId: string;
   name: string;
   slug: string;
+  description?: string | null;
   conversationType: ServerConversationType;
   visibility: ServerChannelVisibility;
   directUserId?: string | null;
   directAgentIdentityId?: string | null;
   createdBy: string | null;
   archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServerChannelMemberItem {
+  id: number;
+  channelId: string;
+  userId: string;
+  role: string;
+  joinedAt: string;
+  status: string;
   createdAt: string;
   updatedAt: string;
 }

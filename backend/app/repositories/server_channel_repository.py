@@ -30,16 +30,20 @@ class ServerChannelRepository:
         session_db: Session,
         server_id: uuid.UUID,
         slug: str,
+        *,
+        exclude_channel_id: uuid.UUID | None = None,
     ) -> ServerChannel | None:
-        return (
+        query = (
             session_db.query(ServerChannel)
             .filter(
                 ServerChannel.server_id == server_id,
                 ServerChannel.slug == slug,
                 ServerChannel.archived_at.is_(None),
             )
-            .first()
         )
+        if exclude_channel_id is not None:
+            query = query.filter(ServerChannel.id != exclude_channel_id)
+        return query.first()
 
     @staticmethod
     def list_by_server_for_user(
@@ -93,6 +97,10 @@ class ServerChannelRepository:
             query = query.filter(ServerChannel.direct_agent_identity_id.is_(None))
         return query.first()
 
+    @staticmethod
+    def delete(session_db: Session, channel: ServerChannel) -> None:
+        session_db.delete(channel)
+
 
 class ServerChannelMemberRepository:
     @staticmethod
@@ -117,3 +125,20 @@ class ServerChannelMemberRepository:
             )
             .first()
         )
+
+    @staticmethod
+    def list_by_channel(
+        session_db: Session,
+        channel_id: uuid.UUID,
+        *,
+        active_only: bool = True,
+    ) -> list[ServerChannelMember]:
+        query = session_db.query(ServerChannelMember).filter(
+            ServerChannelMember.channel_id == channel_id,
+        )
+        if active_only:
+            query = query.filter(ServerChannelMember.status == "active")
+        return query.order_by(
+            ServerChannelMember.joined_at.asc(),
+            ServerChannelMember.id.asc(),
+        ).all()

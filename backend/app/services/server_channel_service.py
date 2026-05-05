@@ -22,9 +22,11 @@ from app.repositories.server_channel_repository import (
 from app.repositories.server_repository import ServerRepository
 from app.schemas.server_channel import (
     DirectMessageCreateRequest,
+    ServerChannelMemberAddRequest,
     ServerChannelCreateRequest,
     ServerChannelMemberResponse,
     ServerChannelResponse,
+    ServerChannelUpdateRequest,
 )
 from app.services.server_member_service import (
     require_server_admin,
@@ -44,6 +46,29 @@ class ServerChannelService:
         suffix = 2
         while (
             ServerChannelRepository.get_by_server_slug(db, server_id, slug) is not None
+        ):
+            slug = f"{base_slug}-{suffix}"
+            suffix += 1
+        return slug
+
+    @classmethod
+    def _unique_slug_for_channel(
+        cls,
+        db: Session,
+        server_id: uuid.UUID,
+        base_slug: str,
+        channel_id: uuid.UUID,
+    ) -> str:
+        slug = base_slug
+        suffix = 2
+        while (
+            ServerChannelRepository.get_by_server_slug(
+                db,
+                server_id,
+                slug,
+                exclude_channel_id=channel_id,
+            )
+            is not None
         ):
             slug = f"{base_slug}-{suffix}"
             suffix += 1
@@ -129,6 +154,149 @@ class ServerChannelService:
         channel.archived_at = datetime.now(UTC)
         db.commit()
         return self._build_channel_response(channel)
+
+    def update_channel(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        channel_id: uuid.UUID,
+        request: ServerChannelUpdateRequest,
+    ) -> ServerChannelResponse:
+        require_server_admin(db, server_id, current_user.id)
+        channel = ServerChannelRepository.get_by_id(db, channel_id)
+        if channel is None or channel.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel not found: {channel_id}",
+            )
+
+        if request.name is not None:
+            name = request.name.strip()
+            if not name:
+                raise AppException(
+                    error_code=ErrorCode.BAD_REQUEST,
+                    message="Channel name cannot be empty",
+                )
+            if name != channel.name:
+                channel.name = name
+                channel.slug = self._unique_slug_for_channel(
+                    db,
+                    server_id,
+                    self._slugify(name),
+                    channel.id,
+                )
+
+        if request.description is not None:
+            description = request.description.strip()
+            channel.description = description or None
+
+        db.commit()
+        db.refresh(channel)
+        return self._build_channel_response(channel)
+
+    def delete_channel(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        channel_id: uuid.UUID,
+    ) -> None:
+        require_server_admin(db, server_id, current_user.id)
+        channel = ServerChannelRepository.get_by_id(db, channel_id)
+        if channel is None or channel.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel not found: {channel_id}",
+            )
+        ServerChannelRepository.delete(db, channel)
+        db.commit()
+
+    def list_channel_members(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        channel_id: uuid.UUID,
+    ) -> list[ServerChannelMemberResponse]:
+        require_server_member(db, server_id, current_user.id)
+        channel = ServerChannelRepository.get_by_id(db, channel_id)
+        if channel is None or channel.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel not found: {channel_id}",
+            )
+        if channel.visibility != "public":
+            membership = ServerChannelMemberRepository.get_by_channel_and_user(
+                db,
+                channel_id,
+                current_user.id,
+            )
+            if membership is None or membership.status != "active":
+                raise AppException(
+                    error_code=ErrorCode.FORBIDDEN,
+                    message="Private channel membership is required",
+                )
+        memberships = ServerChannelMemberRepository.list_by_channel(db, channel_id)
+        return [
+            ServerChannelMemberResponse.model_validate(membership)
+            for membership in memberships
+        ]
+
+    def add_channel_member(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        channel_id: uuid.UUID,
+        request: ServerChannelMemberAddRequest,
+    ) -> ServerChannelMemberResponse:
+        require_server_admin(db, server_id, current_user.id)
+        channel = ServerChannelRepository.get_by_id(db, channel_id)
+        if channel is None or channel.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel not found: {channel_id}",
+            )
+
+        target_user_id = request.user_id.strip()
+        if not target_user_id:
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message="Channel member user id cannot be empty",
+            )
+        server_membership = ServerMemberRepository.get_by_server_and_user(
+            db,
+            server_id,
+            target_user_id,
+        )
+        if server_membership is None or server_membership.status != "active":
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message="Channel member must be an active server member",
+            )
+
+        membership = ServerChannelMemberRepository.get_by_channel_and_user(
+            db,
+            channel_id,
+            target_user_id,
+        )
+        if membership is None:
+            membership = ServerChannelMemberRepository.create(
+                db,
+                ServerChannelMember(
+                    channel_id=channel.id,
+                    user_id=target_user_id,
+                    role=request.role or "member",
+                    status="active",
+                ),
+            )
+        else:
+            membership.role = request.role or membership.role
+            membership.status = "active"
+        db.commit()
+        db.refresh(membership)
+        return ServerChannelMemberResponse.model_validate(membership)
 
     def join_channel(
         self,
