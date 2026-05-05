@@ -177,6 +177,7 @@
   "conversationView": {
     "title": "Chat",
     "search": "Search",
+    "searchInServer": "Search in server",
     "inbox": "Inbox",
     "saved": "Saved",
     "channels": "Channels",
@@ -205,6 +206,7 @@
     "searchEverythingDescription": "Search channels, DMs, people, agents, and message history.",
     "activeCount": "{{count}} active",
     "savedCount": "{{count}} saved",
+    "channelTasksLabel": "channel tasks",
     "all": "All",
     "unread": "Unread",
     "noInbox": "No inbox items yet",
@@ -220,6 +222,7 @@
     "taskDetail": "Task detail",
     "taskActivity": "Task activity",
     "noTaskActivity": "No task activity yet",
+    "emptyTaskColumn": "No {{status}} tasks.",
     "leave": "Leave",
     "toasts": {
       "loadFailed": "Failed to load conversation",
