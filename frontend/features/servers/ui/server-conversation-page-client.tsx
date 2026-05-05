@@ -85,6 +85,18 @@ import { cn } from "@/lib/utils";
 const LAST_SELECTION_KEY = "poco-servers-last-selection-v1";
 const SAVED_MESSAGES_KEY = "poco-saved-messages-v1";
 
+function resolveWorkspaceMode(value: string | null): WorkspaceMode | null {
+  if (
+    value === "search" ||
+    value === "tasks" ||
+    value === "inbox" ||
+    value === "saved"
+  ) {
+    return value;
+  }
+  return null;
+}
+
 function loadSavedMessageIds(): Set<string> {
   if (typeof window === "undefined") {
     return new Set();
@@ -655,11 +667,8 @@ export function ServerConversationPageClient({
     new Set(),
   );
   const [mode, setMode] = React.useState<WorkspaceMode>(
-    channelId
-      ? searchParams.get("mode") === "tasks"
-        ? "tasks"
-        : "conversation"
-      : "search",
+    resolveWorkspaceMode(searchParams.get("mode")) ??
+      (channelId ? "conversation" : "search"),
   );
   const [taskView, setTaskView] = React.useState<ChannelTaskView>(
     resolveChannelTaskView(searchParams.get("view")),
@@ -689,6 +698,8 @@ export function ServerConversationPageClient({
         : null,
     [drawer, tasks],
   );
+  const feedModeActive =
+    mode === "search" || mode === "inbox" || mode === "saved";
   const tasksModeActive = Boolean(channelId) && mode === "tasks";
   const humanCandidates = React.useMemo(
     () => buildHumanMentionCandidates(channelMembers),
@@ -742,24 +753,19 @@ export function ServerConversationPageClient({
       null;
     setSelectedServerId(preferredServerId);
 
-    if (!channelId && lastSelection?.mode && !searchParams.get("mode")) {
+    const routeMode = resolveWorkspaceMode(searchParams.get("mode"));
+    if (routeMode) {
+      setMode(routeMode);
+    } else if (!channelId && lastSelection?.mode) {
       setMode(
         lastSelection.mode === "channel" || lastSelection.mode === "dm"
           ? "search"
           : (lastSelection.mode as WorkspaceMode),
       );
     } else if (!channelId) {
-      const routeMode = searchParams.get("mode");
-      if (
-        routeMode === "search" ||
-        routeMode === "inbox" ||
-        routeMode === "saved" ||
-        routeMode === "tasks"
-      ) {
-        setMode(routeMode);
-      }
+      setMode("search");
     } else {
-      setMode(searchParams.get("mode") === "tasks" ? "tasks" : "conversation");
+      setMode("conversation");
     }
   }, [channelId, searchParams, serverId]);
 
@@ -882,7 +888,6 @@ export function ServerConversationPageClient({
 
   const openMode = (nextMode: WorkspaceMode) => {
     setMode(nextMode);
-    setDrawer({ type: "none" });
     if (nextMode === "conversation" || !selectedServerId) {
       return;
     }
@@ -891,9 +896,10 @@ export function ServerConversationPageClient({
       serverId: selectedServerId,
       channelId: null,
     });
-    router.replace(
-      `/${lng}/servers?mode=${nextMode}&server=${selectedServerId}`,
-    );
+    const targetUrl = activeChannelId
+      ? `/${lng}/servers/${selectedServerId}/channels/${activeChannelId}?tab=chat&mode=${nextMode}`
+      : `/${lng}/servers?mode=${nextMode}&server=${selectedServerId}`;
+    router.replace(targetUrl, { scroll: false });
   };
 
   const openTaskMode = () => {
@@ -911,7 +917,6 @@ export function ServerConversationPageClient({
       return;
     }
     setMode("tasks");
-    setDrawer({ type: "none" });
     saveLastSelection({
       mode: "tasks",
       serverId: selectedServerId,
@@ -1156,13 +1161,10 @@ export function ServerConversationPageClient({
   };
 
   return (
-    <main className="flex h-[calc(100vh-4rem)] min-h-0 flex-1 overflow-hidden border-t border-border bg-background">
+    <main className="relative flex h-[calc(100vh-4rem)] min-h-0 flex-1 overflow-hidden border-t border-border bg-background">
       <aside className="hidden w-[17rem] shrink-0 border-r border-border bg-card md:flex md:flex-col lg:w-[18rem]">
         <div className="border-b border-border px-4 py-4">
-          <p className="text-xl font-semibold text-foreground">
-            {t("conversationView.title")}
-          </p>
-          <div className="mt-3">
+          <div>
             <Select
               value={selectedServerId ?? ""}
               onValueChange={(value) => setSelectedServerId(value)}
@@ -1288,7 +1290,7 @@ export function ServerConversationPageClient({
         </div>
       </aside>
 
-      {!channelId ? (
+      {feedModeActive ? (
         <section className="flex min-w-0 flex-1 flex-col">
           {mode === "search" ? (
             <SearchPanel
@@ -1435,7 +1437,7 @@ export function ServerConversationPageClient({
                   ))}
                 </div>
               </div>
-            ) : (
+            ) : buildChannelTaskListGroups(tasks).length > 0 ? (
               <div className="space-y-6">
                 {buildChannelTaskListGroups(tasks).map((group) => (
                   <section key={group.status} className="space-y-3">
@@ -1465,6 +1467,18 @@ export function ServerConversationPageClient({
                     </div>
                   </section>
                 ))}
+              </div>
+            ) : (
+              <div className="flex min-h-[28rem] items-center justify-center rounded-md border border-dashed border-border bg-muted/10 px-6 py-12 text-center">
+                <div className="max-w-sm space-y-2">
+                  <LayoutList className="mx-auto size-8 text-muted-foreground" />
+                  <p className="text-sm font-semibold text-foreground">
+                    {t("conversationView.emptyTaskListTitle")}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("conversationView.emptyTaskListDescription")}
+                  </p>
+                </div>
               </div>
             )}
           </div>

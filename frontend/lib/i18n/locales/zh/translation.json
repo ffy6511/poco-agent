@@ -223,6 +223,8 @@
     "taskActivity": "Task activity",
     "noTaskActivity": "No task activity yet",
     "emptyTaskColumn": "No {{status}} tasks.",
+    "emptyTaskListTitle": "暂无任务",
+    "emptyTaskListDescription": "消息被转换为任务后，会在这里展示为列表。",
     "leave": "Leave",
     "mentionCandidates": "Mention",
     "mentionKinds": {

@@ -223,6 +223,8 @@
     "taskActivity": "Task activity",
     "noTaskActivity": "No task activity yet",
     "emptyTaskColumn": "No {{status}} tasks.",
+    "emptyTaskListTitle": "No tasks yet",
+    "emptyTaskListDescription": "Channel tasks will appear here once messages are converted into work.",
     "leave": "Leave",
     "mentionCandidates": "Mention",
     "mentionKinds": {

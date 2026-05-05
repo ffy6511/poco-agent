@@ -89,7 +89,7 @@ function renderMentions(text: string) {
       return (
         <span
           key={`${token}-${index}`}
-          className="rounded-md border border-border bg-primary/10 px-1.5 py-0.5 text-sm font-semibold text-foreground"
+          className="cursor-text select-text rounded-md border border-border bg-primary/10 px-1.5 py-0.5 text-sm font-semibold text-foreground"
         >
           {token}
         </span>
@@ -121,10 +121,10 @@ export function MessageRow({
       <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-sm font-semibold text-foreground">
         {getInitials(author)}
       </div>
-      <div className="min-w-0 flex-1 space-y-3">
+      <div className="relative min-w-0 flex-1 space-y-1.5">
         <div className="flex items-start justify-between gap-3 text-sm">
           <div className="min-w-0 flex flex-wrap items-center gap-3">
-            <span className="text-lg font-semibold text-foreground">
+            <span className="text-sm font-semibold text-foreground">
               {author}
             </span>
             <span className="text-sm text-muted-foreground">
@@ -137,7 +137,7 @@ export function MessageRow({
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="absolute right-0 top-0 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               type="button"
               onClick={onOpenThread}
@@ -165,7 +165,7 @@ export function MessageRow({
             </button>
           </div>
         </div>
-        <div className="text-base leading-7 text-foreground">
+        <div className="cursor-text select-text text-base leading-7 text-foreground">
           {renderMentions(text || t("conversationView.emptyMessage"))}
         </div>
       </div>

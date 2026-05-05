@@ -1,16 +1,25 @@
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { ChannelTask, ChannelTaskActivityMessage } from "@/features/channel-tasks/model/types";
-import type { ServerAgentItem, ServerConversationMessage } from "@/features/servers/model/types";
+import type {
+  ChannelTask,
+  ChannelTaskActivityMessage,
+} from "@/features/channel-tasks/model/types";
+import type {
+  ServerAgentItem,
+  ServerConversationMessage,
+} from "@/features/servers/model/types";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 import { MessageRow } from "./conversation-message-row";
+
+const overlayDrawerClassName =
+  "absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:w-[24rem] xl:shrink-0";
 
 export function ThreadDrawer({
   thread,
@@ -29,14 +38,21 @@ export function ThreadDrawer({
 }) {
   const { t } = useT("translation");
   return (
-    <aside className="hidden w-[24rem] shrink-0 border-l border-border bg-card lg:flex lg:flex-col">
+    <aside className={overlayDrawerClassName}>
       <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-5">
-        <div>
+        <div className="flex min-w-0 items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label={t("conversationView.backToContext")}
+            className="shrink-0 xl:hidden"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
           <p className="text-xl font-semibold text-foreground">
             {t("conversationView.threadTitle")}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t("conversationView.threadDescription")}
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -62,7 +78,12 @@ export function ThreadDrawer({
           className="rounded-md border-border bg-background text-sm shadow-none"
         />
         <div className="mt-4 flex justify-end">
-          <Button type="button" size="sm" onClick={onSend} disabled={isSending || !draft.trim()}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={onSend}
+            disabled={isSending || !draft.trim()}
+          >
             {t("conversationView.send")}
           </Button>
         </div>
@@ -88,14 +109,21 @@ export function AgentDrawer({
   const selectedAgent =
     agents.find((agent) => agent.id === selectedAgentId) ?? agents[0] ?? null;
   return (
-    <aside className="hidden w-[24rem] shrink-0 border-l border-border bg-card lg:flex lg:flex-col">
+    <aside className={overlayDrawerClassName}>
       <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-5">
-        <div>
+        <div className="flex min-w-0 items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label={t("conversationView.backToContext")}
+            className="shrink-0 xl:hidden"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
           <p className="text-xl font-semibold text-foreground">
             {t("servers.agents.title")}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t("servers.agents.description")}
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -116,22 +144,30 @@ export function AgentDrawer({
                   : "border-border bg-card hover:bg-muted/20",
               )}
             >
-              <p className="text-base font-semibold text-foreground">{agent.displayName}</p>
-              <p className="mt-1 text-sm text-muted-foreground">@{agent.handle}</p>
+              <p className="text-base font-semibold text-foreground">
+                {agent.displayName}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                @{agent.handle}
+              </p>
             </button>
           ))}
         </div>
         {selectedAgent ? (
           <div className="mt-6 space-y-4 border-t border-border pt-6">
             <div className="space-y-2">
-              <p className="text-lg font-semibold text-foreground">{selectedAgent.displayName}</p>
+              <p className="text-lg font-semibold text-foreground">
+                {selectedAgent.displayName}
+              </p>
               <p className="text-sm text-muted-foreground">
-                {selectedAgent.description || t("servers.agents.emptyDescription")}
+                {selectedAgent.description ||
+                  t("servers.agents.emptyDescription")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">
-                {selectedAgent.persistentState?.runtimeStatus ?? t("servers.agents.unknown")}
+                {selectedAgent.persistentState?.runtimeStatus ??
+                  t("servers.agents.unknown")}
               </Badge>
               <Badge variant="outline">@{selectedAgent.handle}</Badge>
             </div>
@@ -156,7 +192,11 @@ export function AgentDrawer({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" onClick={() => onOpenDm(selectedAgent.id)}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onOpenDm(selectedAgent.id)}
+              >
                 <MessageSquare className="size-4" />
                 {t("conversationView.messageAgent")}
               </Button>
@@ -179,13 +219,20 @@ export function TaskDrawer({
 }) {
   const { t } = useT("translation");
   return (
-    <aside className="hidden w-[24rem] shrink-0 border-l border-border bg-card lg:flex lg:flex-col">
+    <aside className={overlayDrawerClassName}>
       <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-5">
-        <div>
+        <div className="flex min-w-0 items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label={t("conversationView.backToContext")}
+            className="shrink-0 xl:hidden"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
           <p className="text-xl font-semibold text-foreground">{task.title}</p>
-          <p className="text-sm text-muted-foreground">
-            {t(`channelTasks.statuses.${task.status}`)}
-          </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           {t("conversationView.close")}
@@ -208,7 +255,10 @@ export function TaskDrawer({
             <div className="mt-3 space-y-3">
               {activity.length > 0 ? (
                 activity.map((item) => (
-                  <div key={item.messageId} className="rounded-md border border-border px-3 py-3 text-sm text-foreground">
+                  <div
+                    key={item.messageId}
+                    className="rounded-md border border-border px-3 py-3 text-sm text-foreground"
+                  >
                     {item.textPreview || t("conversationView.emptyMessage")}
                   </div>
                 ))
