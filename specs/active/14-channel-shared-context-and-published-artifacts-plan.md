@@ -8,7 +8,7 @@
 | **预期改动范围** | backend channel shared context / published artifacts model and APIs / agent trigger context assembly / frontend conversation fourth drawer / file preview and grouped tree / permissions and visibility rules |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 
@@ -16,7 +16,7 @@
 - [x] Phase 1: 建立频道公共成果树的后端模型与授权 (2026-05-06)
 - [x] Phase 2: 建立右侧第四抽屉文件树与预览体验 (2026-05-06)
 - [x] Phase 3: 把公共成果树接入 agent 可读上下文 (2026-05-06)
-- [ ] Phase 4: 补齐验证与风险收口
+- [x] Phase 4: 补齐验证与风险收口 (2026-05-06)
 
 ## 实现记录
 
@@ -27,6 +27,7 @@
 - 2026-05-06: 已新增 `channel_artifacts` 后端模型、迁移、repository、service 和频道读取 API；workspace export ready 后会自动把当前 session 的可见文件索引同步到频道公共成果树。
 - 2026-05-06: 前端频道页已新增 `Shared files` 第四抽屉，复用现有 `FileSidebar` 与 `DocumentViewer`，支持按 agent 分组浏览树形文件和预览公开材料。
 - 2026-05-06: 已新增 `ChannelSharedContextService` 与 `ServerAgentTriggerService`；频道 `@agent` 和 agent DM 现会以 `persistent` runtime 模式复用现有 task enqueue/session queue 链路触发，并把公共成果树中的文本材料纳入共享上下文 prompt。
+- 2026-05-06: 最终验证已完成：`cd backend && uv run -m alembic upgrade head`、`cd backend && uv run python -m unittest tests.test_server_channel_artifact_api tests.test_channel_artifact_service tests.test_server_channel_api tests.test_server_channel_message_api tests.test_server_channel_message_service tests.test_channel_shared_context_service tests.test_server_agent_trigger_service`、`cd frontend && pnpm lint`、`cd frontend && pnpm build`。
 
 ---
 
@@ -362,8 +363,8 @@
 
 **验收标准：**
 
-- [ ] spec 明确主要验证面
-- [ ] spec 明确私有状态泄露属于高优先级回归风险
+- [x] spec 明确主要验证面
+- [x] spec 明确私有状态泄露属于高优先级回归风险
 
 #### 4.2 风险收口
 
@@ -380,7 +381,7 @@
 
 **验收标准：**
 
-- [ ] spec 中对主要风险都有缓解策略
+- [x] spec 中对主要风险都有缓解策略
 
 ---
 
