@@ -202,6 +202,7 @@
     "searchPlaceholder": "Search channels, DMs, messages...",
     "myMessages": "My messages",
     "anyTime": "Any time",
+    "today": "Today",
     "searchEverything": "Search everything",
     "searchEverythingDescription": "Search channels, DMs, people, agents, and message history.",
     "activeCount": "{{count}} active",

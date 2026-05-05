@@ -1,11 +1,12 @@
 "use client";
 
+import * as React from "react";
 import { Bookmark, ChevronDown, Inbox, Search } from "lucide-react";
 
 import type { FeedItem } from "@/features/servers/ui/server-workspace-types";
 import { useT } from "@/lib/i18n/client";
 
-import { MessageRow } from "./conversation-message-row";
+import { getMessageAuthor, MessageRow } from "./conversation-message-row";
 
 export function SearchPanel({
   search,
@@ -23,40 +24,75 @@ export function SearchPanel({
   onToggleSaved: (messageId: string) => void;
 }) {
   const { t } = useT("translation");
+  const [mineOnly, setMineOnly] = React.useState(false);
+  const [todayOnly, setTodayOnly] = React.useState(false);
+
+  const visibleItems = React.useMemo(() => {
+    const now = new Date();
+    return items.filter((item) => {
+      if (
+        mineOnly &&
+        getMessageAuthor(item.message) !== item.message.authorUserId
+      ) {
+        return false;
+      }
+      if (todayOnly) {
+        const createdAt = new Date(item.message.createdAt);
+        return (
+          createdAt.getFullYear() === now.getFullYear() &&
+          createdAt.getMonth() === now.getMonth() &&
+          createdAt.getDate() === now.getDate()
+        );
+      }
+      return true;
+    });
+  }, [items, mineOnly, todayOnly]);
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="border-b border-border px-6 py-5">
-        <div className="flex items-center gap-4">
-          <div className="flex size-11 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-            <Search className="size-5" />
+      <div className="border-b border-border px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-md border border-border bg-muted text-foreground">
+            <Search className="size-4" />
           </div>
-          <div className="flex-1 rounded-md border border-border bg-background px-4 py-3">
+          <div className="flex-1 rounded-md border border-border bg-background px-3 py-2.5">
             <input
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={t("conversationView.searchPlaceholder")}
-              className="w-full border-none bg-transparent text-lg text-foreground outline-none placeholder:text-muted-foreground"
+              className="w-full border-none bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
             />
-          </div>
-          <div className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground">
-            ESC
           </div>
         </div>
       </div>
-      <div className="border-b border-border px-6 py-5">
-        <div className="flex flex-wrap gap-3">
-          <div className="rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground">
+      <div className="border-b border-border px-6 py-4">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setMineOnly((value) => !value)}
+            className={`rounded-md border border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-foreground transition-colors ${
+              mineOnly ? "bg-primary/15" : "bg-card hover:bg-muted/20"
+            }`}
+          >
             {t("conversationView.myMessages")}
-          </div>
-          <div className="flex items-center gap-2 rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground">
-            {t("conversationView.anyTime")}
-            <ChevronDown className="size-5" />
-          </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTodayOnly((value) => !value)}
+            className={`flex items-center gap-2 rounded-md border border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-foreground transition-colors ${
+              todayOnly ? "bg-primary/15" : "bg-card hover:bg-muted/20"
+            }`}
+          >
+            {todayOnly
+              ? t("conversationView.today")
+              : t("conversationView.anyTime")}
+            <ChevronDown className="size-4" />
+          </button>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto bg-background">
-        {items.length > 0 ? (
-          items.map((item) => (
+        {visibleItems.length > 0 ? (
+          visibleItems.map((item) => (
             <MessageRow
               key={item.message.id}
               message={item.message}
@@ -68,12 +104,12 @@ export function SearchPanel({
           ))
         ) : (
           <div className="flex h-full min-h-[20rem] items-center justify-center px-8 text-center">
-            <div className="space-y-4">
-              <Search className="mx-auto size-16 text-muted-foreground/40" />
-              <p className="text-3xl font-semibold text-foreground">
+            <div className="space-y-3">
+              <Search className="mx-auto size-10 text-muted-foreground/40" />
+              <p className="text-xl font-semibold text-foreground">
                 {t("conversationView.searchEverything")}
               </p>
-              <p className="max-w-3xl text-lg text-muted-foreground">
+              <p className="max-w-md text-sm text-muted-foreground">
                 {t("conversationView.searchEverythingDescription")}
               </p>
             </div>
