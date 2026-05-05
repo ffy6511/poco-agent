@@ -20,6 +20,21 @@ class ServerInviteRepository:
         )
 
     @staticmethod
+    def get_by_server_and_creator(
+        session_db: Session,
+        server_id: uuid.UUID,
+        created_by: str,
+    ) -> ServerInvite | None:
+        return (
+            session_db.query(ServerInvite)
+            .filter(
+                ServerInvite.server_id == server_id,
+                ServerInvite.created_by == created_by,
+            )
+            .first()
+        )
+
+    @staticmethod
     def list_by_server(
         session_db: Session,
         server_id: uuid.UUID,

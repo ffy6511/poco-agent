@@ -15,7 +15,10 @@ from app.schemas.server_channel import (
     ServerChannelCreateRequest,
     ServerChannelUpdateRequest,
 )
-from app.schemas.server_invite import ServerInviteAcceptRequest
+from app.schemas.server_invite import (
+    ServerInviteAcceptRequest,
+    ServerInviteCreateRequest,
+)
 from app.services.server_channel_service import ServerChannelService
 from app.services.server_invite_service import ServerInviteService
 from app.services.server_service import ServerService
@@ -461,6 +464,63 @@ class ServerInviteServiceTests(unittest.TestCase):
             kind="shared",
             owner_user_id="user-1",
         )
+
+    def test_create_invite_reuses_stable_key_for_server_and_creator(self) -> None:
+        service = ServerInviteService()
+        existing = ServerInvite(
+            id=uuid.uuid4(),
+            server_id=self.server.id,
+            token="existing-token",
+            role="member",
+            expires_at=datetime.now(UTC) + timedelta(days=1),
+            created_by=self.user.id,
+            max_uses=1,
+            used_count=1,
+            revoked_at=datetime.now(UTC),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        with (
+            patch(
+                "app.services.server_invite_service.ServerRepository.get_by_id",
+                return_value=self.server,
+            ),
+            patch(
+                "app.services.server_invite_service.require_server_admin",
+                return_value=MagicMock(status="active", role="admin"),
+            ),
+            patch(
+                "app.services.server_invite_service.ServerInviteRepository.get_by_server_and_creator",
+                return_value=existing,
+            ) as get_by_server_and_creator,
+            patch(
+                "app.services.server_invite_service.ServerInviteRepository.create"
+            ) as create_invite,
+        ):
+            result = service.create_invite(
+                self.db,
+                self.user,
+                self.server.id,
+                ServerInviteCreateRequest(
+                    role="admin",
+                    expires_in_days=14,
+                    max_uses=20,
+                ),
+            )
+
+        get_by_server_and_creator.assert_called_once_with(
+            self.db,
+            self.server.id,
+            self.user.id,
+        )
+        create_invite.assert_not_called()
+        self.assertEqual(existing.role, "admin")
+        self.assertEqual(existing.max_uses, 20)
+        self.assertEqual(existing.used_count, 0)
+        self.assertIsNone(existing.revoked_at)
+        self.db.commit.assert_called_once()
+        self.assertEqual(result.invite_id, existing.id)
 
     def test_accept_invite_creates_server_membership(self) -> None:
         service = ServerInviteService()

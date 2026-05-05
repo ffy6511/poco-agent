@@ -13,7 +13,14 @@ if TYPE_CHECKING:
 
 class ServerInvite(Base, TimestampMixin):
     __tablename__ = "server_invites"
-    __table_args__ = (UniqueConstraint("token", name="uq_server_invites_token"),)
+    __table_args__ = (
+        UniqueConstraint("token", name="uq_server_invites_token"),
+        UniqueConstraint(
+            "server_id",
+            "created_by",
+            name="uq_server_invites_server_id_created_by",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,

@@ -34,6 +34,7 @@ def build_channel_response(server_id: uuid.UUID) -> ServerChannelResponse:
         server_id=server_id,
         name="general",
         slug="general",
+        conversation_type="channel",
         visibility="public",
         created_by="user-1",
         archived_at=None,

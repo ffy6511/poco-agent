@@ -1,4 +1,4 @@
-import secrets
+import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -24,6 +24,11 @@ from app.services.server_member_service import require_server_admin
 
 class ServerInviteService:
     @staticmethod
+    def _stable_invite_token(server_id: uuid.UUID, user_id: str) -> str:
+        digest = hashlib.sha256(f"{server_id}:{user_id}".encode("utf-8")).hexdigest()
+        return f"srv_{digest[:32]}"
+
+    @staticmethod
     def _build_invite_response(invite: ServerInvite) -> ServerInviteResponse:
         return ServerInviteResponse.model_validate(invite)
 
@@ -42,18 +47,33 @@ class ServerInviteService:
             )
         require_server_admin(db, server_id, current_user.id)
 
-        invite = ServerInviteRepository.create(
+        expires_at = datetime.now(UTC) + timedelta(days=request.expires_in_days)
+        token = self._stable_invite_token(server.id, current_user.id)
+        invite = ServerInviteRepository.get_by_server_and_creator(
             db,
-            ServerInvite(
-                server_id=server.id,
-                token=secrets.token_urlsafe(24),
-                role=request.role,
-                expires_at=datetime.now(UTC) + timedelta(days=request.expires_in_days),
-                created_by=current_user.id,
-                max_uses=request.max_uses,
-                used_count=0,
-            ),
+            server.id,
+            current_user.id,
         )
+        if invite is None:
+            invite = ServerInviteRepository.create(
+                db,
+                ServerInvite(
+                    server_id=server.id,
+                    token=token,
+                    role=request.role,
+                    expires_at=expires_at,
+                    created_by=current_user.id,
+                    max_uses=request.max_uses,
+                    used_count=0,
+                ),
+            )
+        else:
+            invite.token = token
+            invite.role = request.role
+            invite.expires_at = expires_at
+            invite.max_uses = request.max_uses
+            invite.used_count = 0
+            invite.revoked_at = None
         db.commit()
         db.refresh(invite)
         return self._build_invite_response(invite)
