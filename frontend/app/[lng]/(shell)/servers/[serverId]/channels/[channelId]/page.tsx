@@ -1,4 +1,4 @@
-import { ChannelTaskPageClient } from "@/features/channel-tasks";
+import { ServerConversationPageClient } from "@/features/servers/ui/server-conversation-page-client";
 
 export default async function ServerChannelPage({
   params,
@@ -6,5 +6,5 @@ export default async function ServerChannelPage({
   params: Promise<{ serverId: string; channelId: string }>;
 }) {
   const { serverId, channelId } = await params;
-  return <ChannelTaskPageClient serverId={serverId} channelId={channelId} />;
+  return <ServerConversationPageClient serverId={serverId} channelId={channelId} />;
 }

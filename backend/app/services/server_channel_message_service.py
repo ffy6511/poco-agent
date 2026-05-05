@@ -26,8 +26,12 @@ class ServerChannelMessageService:
     @staticmethod
     def _build_message_response(
         message: ServerChannelMessage,
+        *,
+        reply_count: int = 0,
     ) -> ServerChannelMessageResponse:
-        return ServerChannelMessageResponse.model_validate(message)
+        return ServerChannelMessageResponse.model_validate(
+            message,
+        ).model_copy(update={"reply_count": reply_count})
 
     def _require_channel_access(
         self,
@@ -112,7 +116,14 @@ class ServerChannelMessageService:
             before_message_id=before_message_id,
             limit=safe_limit,
         )
-        return [self._build_message_response(item) for item in messages]
+        reply_counts = ServerChannelMessageRepository.count_replies_by_roots(
+            db,
+            [item.id for item in messages],
+        )
+        return [
+            self._build_message_response(item, reply_count=reply_counts.get(item.id, 0))
+            for item in messages
+        ]
 
     def get_thread(
         self,

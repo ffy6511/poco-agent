@@ -14,9 +14,9 @@
 
 - [x] Phase 0: 收敛 chat-first 主线与 task 派生边界 (2026-05-05)
 - [x] Phase 1: 建立 channel / DM 会话模型与成员语义 (2026-05-05)
-- [ ] Phase 2: 建立桌面端三模块三列协作布局
-- [ ] Phase 3: 建立消息、mentions、thread 与右侧上下文面板
-- [ ] Phase 4: 建立 create-as-task 流程与 task tab 投影
+- [x] Phase 2: 建立桌面端三模块三列协作布局 (2026-05-05)
+- [x] Phase 3: 建立消息、mentions、thread 与右侧上下文面板 (2026-05-05)
+- [x] Phase 4: 建立 create-as-task 流程与 task tab 投影 (2026-05-05, pending browser QA)
 
 ---
 
@@ -167,10 +167,12 @@
 - inbox
 - saved
 
+**实现记录：** `frontend/features/servers/ui/server-conversation-page-client.tsx` 的左列已接入 search / inbox / saved 预留位，并按 `channels / direct messages` 拆分 conversation 导航。
+
 **验收标准：**
 
-- [ ] 左列至少展示 channels 和 direct messages
-- [ ] 可选能力如 search / inbox / saved 以预留位或非 MVP 标识出现
+- [x] 左列至少展示 channels 和 direct messages
+- [x] 可选能力如 search / inbox / saved 以预留位或非 MVP 标识出现
 
 #### 2.2 定义中间主会话列
 
@@ -181,10 +183,12 @@
 - message stream 或 task stream
 - composer
 
+**实现记录：** 当前 channel route 已切到 `ServerConversationPageClient`，中列支持 `Chat / Tasks` 双 tab，并保留旧 `view=list|board` 参数作为 task tab 的兼容切换语义。
+
 **验收标准：**
 
-- [ ] channel 默认落在 chat tab，而不是 tasks tab
-- [ ] tasks 以 tab 或显式切换存在于同一 conversation 内
+- [x] channel 默认落在 chat tab，而不是 tasks tab
+- [x] tasks 以 tab 或显式切换存在于同一 conversation 内
 
 #### 2.3 定义右侧上下文列
 
@@ -194,10 +198,12 @@
 - agent activity / profile
 - task detail / task activity
 
+**实现记录：** 右列已支持 `thread / agent / task` 三种上下文模式切换；thread 和 task 都不再跳页，而是在当前会话右侧替换。
+
 **验收标准：**
 
-- [ ] reply 打开后替代右侧面板内容
-- [ ] agent profile / activity 可在右侧显示，而不是强依赖独立页面
+- [x] reply 打开后替代右侧面板内容
+- [x] agent profile / activity 可在右侧显示，而不是强依赖独立页面
 
 ---
 
@@ -218,28 +224,34 @@
 - mentions 的高亮或 tag 表示
 - reply 数与打开入口
 
+**实现记录：** 中列消息卡片已包含头像、作者、时间、message type badge、mentions 高亮与 reply 入口；reply count 通过 backend `reply_count` 字段提供。
+
 **验收标准：**
 
-- [ ] 消息项具备头像、作者、时间和 mention 表示
-- [ ] reply 数是显式可点击入口
+- [x] 消息项具备头像、作者、时间和 mention 表示
+- [x] reply 数是显式可点击入口
 
 #### 3.2 建立 thread 右侧替换流
 
 **描述：** 点击 reply 后，右侧面板进入 thread 视图，保留左侧会话导航和中间主消息上下文。
 
+**实现记录：** 右侧 `ThreadPanel` 已支持查看 root + replies，并可直接发送 thread reply。
+
 **验收标准：**
 
-- [ ] thread 不要求跳出当前 conversation
-- [ ] 右侧 thread 面板支持查看和回复
+- [x] thread 不要求跳出当前 conversation
+- [x] 右侧 thread 面板支持查看和回复
 
 #### 3.3 建立 agent 与用户的 mention 协议
 
 **描述：** 在 channel 内，人类和 agent 都需要能被显式 @ 到。
 
+**实现记录：** 当前消息渲染先按 `@handle` 文本高亮 mentions；agent roster 与 direct message 入口已经落地，为后续 autocomplete mention 留出结构。
+
 **验收标准：**
 
-- [ ] spec 中明确 human / agent mention 都是一等交互
-- [ ] mention 不依赖 task 才能发生
+- [x] spec 中明确 human / agent mention 都是一等交互
+- [x] mention 不依赖 task 才能发生
 
 ---
 
@@ -258,19 +270,23 @@
 - composer 中的 `As Task` 开关
 - 消息发送后的上下文动作 `Create as task`
 
+**实现记录：** 主 composer 已新增 `As Task` 开关；勾选后发送会直接派生 channel task，而不是先进入独立 task 页面。
+
 **验收标准：**
 
-- [ ] task 创建不再是进入 conversation 的前置动作
-- [ ] 用户可以在聊天时显式选择 “create as task”
+- [x] task 创建不再是进入 conversation 的前置动作
+- [x] 用户可以在聊天时显式选择 “create as task”
 
 #### 4.2 定义消息到 task 的关联
 
 **描述：** 派生出的 task 必须保留来源消息、来源 conversation 和 thread root。
 
+**实现记录：** 当前 `As Task` 流程直接复用 channel task API，task root message 仍落在当前 conversation 中；tasks 右侧上下文会回读对应 thread activity。
+
 **验收标准：**
 
-- [ ] task 能追溯到来源消息或 thread
-- [ ] task tab 和 task detail 能反向回到来源会话上下文
+- [x] task 能追溯到来源消息或 thread
+- [x] task tab 和 task detail 能反向回到来源会话上下文
 
 #### 4.3 定义 channel 内 chat / tasks 双 tab
 
@@ -279,10 +295,12 @@
 - `Chat` 是默认落点
 - `Tasks` 负责聚合该 conversation 下派生的任务
 
+**实现记录：** 中列顶部已切成 `Chat / Tasks` 双 tab；`Tasks` tab 支持 list / board 投影，并在右侧显示 task context。
+
 **验收标准：**
 
-- [ ] channel 主入口默认是 chat
-- [ ] tasks tab 展示该 conversation 派生的 task，而不是另一个脱离会话的领域页面
+- [x] channel 主入口默认是 chat
+- [x] tasks tab 展示该 conversation 派生的 task，而不是另一个脱离会话的领域页面
 
 ---
 

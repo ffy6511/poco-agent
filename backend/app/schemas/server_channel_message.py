@@ -22,6 +22,7 @@ class ServerChannelMessageResponse(BaseModel):
     content: dict[str, Any]
     text_preview: str | None = None
     thread_root_message_id: UUID | None = None
+    reply_count: int = 0
     created_at: datetime
     updated_at: datetime
 

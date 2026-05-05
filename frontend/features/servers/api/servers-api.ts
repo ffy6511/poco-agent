@@ -3,6 +3,8 @@ import type {
   ServerAgentItem,
   ServerChannelItem,
   ServerChannelVisibility,
+  ServerConversationMessage,
+  ServerConversationType,
   ServerItem,
   ServerKind,
 } from "@/features/servers/model/types";
@@ -22,7 +24,10 @@ interface ServerChannelResponse {
   server_id: string;
   name: string;
   slug: string;
+  conversation_type: ServerConversationType;
   visibility: ServerChannelVisibility;
+  direct_user_id?: string | null;
+  direct_agent_identity_id?: string | null;
   created_by: string | null;
   archived_at: string | null;
   created_at: string;
@@ -62,6 +67,24 @@ interface ServerAgentResponse {
   updated_at: string;
 }
 
+interface ServerConversationMessageResponse {
+  message_id: string;
+  channel_id: string;
+  author_user_id?: string | null;
+  message_type: "user" | "system" | "task";
+  content: Record<string, unknown>;
+  text_preview?: string | null;
+  thread_root_message_id?: string | null;
+  reply_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ServerConversationThreadResponse {
+  root: ServerConversationMessageResponse;
+  replies: ServerConversationMessageResponse[];
+}
+
 function mapServer(server: ServerResponse): ServerItem {
   return {
     id: server.server_id,
@@ -80,7 +103,10 @@ function mapChannel(channel: ServerChannelResponse): ServerChannelItem {
     serverId: channel.server_id,
     name: channel.name,
     slug: channel.slug,
+    conversationType: channel.conversation_type,
     visibility: channel.visibility,
+    directUserId: channel.direct_user_id,
+    directAgentIdentityId: channel.direct_agent_identity_id,
     createdBy: channel.created_by,
     archivedAt: channel.archived_at,
     createdAt: channel.created_at,
@@ -123,6 +149,23 @@ function mapAgent(agent: ServerAgentResponse): ServerAgentItem {
   };
 }
 
+function mapConversationMessage(
+  message: ServerConversationMessageResponse,
+): ServerConversationMessage {
+  return {
+    id: message.message_id,
+    channelId: message.channel_id,
+    authorUserId: message.author_user_id,
+    messageType: message.message_type,
+    content: message.content,
+    textPreview: message.text_preview,
+    threadRootMessageId: message.thread_root_message_id,
+    replyCount: message.reply_count,
+    createdAt: message.created_at,
+    updatedAt: message.updated_at,
+  };
+}
+
 export const serversApi = {
   listServers: async (): Promise<ServerItem[]> => {
     const servers = await apiClient.get<ServerResponse[]>(API_ENDPOINTS.servers);
@@ -141,5 +184,75 @@ export const serversApi = {
       `/servers/${serverId}/agents`,
     );
     return agents.map(mapAgent);
+  },
+
+  listChannelAgents: async (
+    serverId: string,
+    channelId: string,
+  ): Promise<ServerAgentItem[]> => {
+    const agents = await apiClient.get<ServerAgentResponse[]>(
+      `/servers/${serverId}/channels/${channelId}/agents`,
+    );
+    return agents.map(mapAgent);
+  },
+
+  listMessages: async (
+    serverId: string,
+    channelId: string,
+  ): Promise<ServerConversationMessage[]> => {
+    const messages = await apiClient.get<ServerConversationMessageResponse[]>(
+      `/servers/${serverId}/channels/${channelId}/messages`,
+    );
+    return messages.map(mapConversationMessage);
+  },
+
+  sendMessage: async (
+    serverId: string,
+    channelId: string,
+    input: {
+      text: string;
+      threadRootMessageId?: string | null;
+    },
+  ): Promise<ServerConversationMessage> => {
+    const message = await apiClient.post<ServerConversationMessageResponse>(
+      `/servers/${serverId}/channels/${channelId}/messages`,
+      {
+        message_type: "user",
+        text_preview: input.text,
+        thread_root_message_id: input.threadRootMessageId ?? null,
+        content: {
+          text: input.text,
+        },
+      },
+    );
+    return mapConversationMessage(message);
+  },
+
+  getThread: async (
+    serverId: string,
+    channelId: string,
+    threadRootMessageId: string,
+  ): Promise<ServerConversationMessage[]> => {
+    const thread = await apiClient.get<ServerConversationThreadResponse>(
+      `/servers/${serverId}/channels/${channelId}/threads/${threadRootMessageId}`,
+    );
+    return [thread.root, ...thread.replies].map(mapConversationMessage);
+  },
+
+  createDirectMessage: async (
+    serverId: string,
+    input: {
+      targetUserId?: string | null;
+      targetAgentIdentityId?: string | null;
+    },
+  ): Promise<ServerChannelItem> => {
+    const channel = await apiClient.post<ServerChannelResponse>(
+      `/servers/${serverId}/direct-messages`,
+      {
+        target_user_id: input.targetUserId ?? null,
+        target_agent_identity_id: input.targetAgentIdentityId ?? null,
+      },
+    );
+    return mapChannel(channel);
   },
 };

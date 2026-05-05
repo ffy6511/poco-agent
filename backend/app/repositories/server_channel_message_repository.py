@@ -1,5 +1,6 @@
 import uuid
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.server_channel_message import ServerChannelMessage
@@ -72,3 +73,21 @@ class ServerChannelMessageRepository:
             .limit(limit)
             .all()
         )
+
+    @staticmethod
+    def count_replies_by_roots(
+        session_db: Session,
+        root_ids: list[uuid.UUID],
+    ) -> dict[uuid.UUID, int]:
+        if not root_ids:
+            return {}
+        rows = (
+            session_db.query(
+                ServerChannelMessage.thread_root_message_id,
+                func.count(ServerChannelMessage.id),
+            )
+            .filter(ServerChannelMessage.thread_root_message_id.in_(root_ids))
+            .group_by(ServerChannelMessage.thread_root_message_id)
+            .all()
+        )
+        return {root_id: count for root_id, count in rows if root_id is not None}
