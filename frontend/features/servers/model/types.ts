@@ -2,6 +2,12 @@ export type ServerKind = "personal" | "shared";
 export type ServerChannelVisibility = "public" | "private";
 export type ServerConversationType = "channel" | "direct_message";
 
+export interface ServerUserPublicProfile {
+  userId: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+}
+
 export interface ServerAgentPersistentState {
   id: string;
   stateRootPath: string;
@@ -49,6 +55,7 @@ export interface ServerMemberItem {
   id: number;
   serverId: string;
   userId: string;
+  user?: ServerUserPublicProfile | null;
   role: string;
   joinedAt: string;
   invitedBy?: string | null;
@@ -91,6 +98,7 @@ export interface ServerChannelMemberItem {
   id: number;
   channelId: string;
   userId: string;
+  user?: ServerUserPublicProfile | null;
   role: string;
   joinedAt: string;
   status: string;
@@ -102,6 +110,7 @@ export interface ServerConversationMessage {
   id: string;
   channelId: string;
   authorUserId?: string | null;
+  authorUser?: ServerUserPublicProfile | null;
   messageType: "user" | "system" | "task";
   content: Record<string, unknown>;
   textPreview?: string | null;

@@ -14,13 +14,14 @@
 
 - [x] Phase 0: 固化公开用户资料设计与实施边界 (2026-05-05)
 - [x] Phase 1: 扩展后端会话契约以返回公开用户资料 (2026-05-05)
-- [ ] Phase 2: 接入前端成员、消息和头像展示
+- [x] Phase 2: 接入前端成员、消息和头像展示 (2026-05-05)
 - [ ] Phase 3: 完成验证并回写 spec 状态
 
 ## 实现记录
 
 - 2026-05-05: 已新增 `UserPublicProfileResponse` 与 profile resolver，`server members / channel members / conversation messages / thread responses` 现可返回公开用户资料。
 - 2026-05-05: 已补 `backend` 定向用例，覆盖 server member、channel member 与 message author profile 的 API envelope 和 message service 返回结构。
+- 2026-05-05: 前端 `servers` 数据模型已接入公开资料；members 面板、colleague detail、message row、search/filter 和 human mention label 已统一优先显示昵称，并在有头像时显示第三方头像。
 
 ---
 
@@ -223,8 +224,8 @@ human 成员展示时应优先显示昵称，但 message mention 检测与输入
 
 **验收标准：**
 
-- [ ] member 与 message 前端模型具备公开资料字段
-- [ ] 旧字段如 `userId / authorUserId` 继续保留给逻辑使用
+- [x] member 与 message 前端模型具备公开资料字段
+- [x] 旧字段如 `userId / authorUserId` 继续保留给逻辑使用
 
 #### 2.2 更新成员列表与详情展示
 
@@ -238,9 +239,9 @@ human 成员展示时应优先显示昵称，但 message mention 检测与输入
 
 **验收标准：**
 
-- [ ] human member 优先显示昵称
-- [ ] 有头像时显示头像，无头像时保持现有 fallback 风格
-- [ ] 样式与现有 conversation 面板对齐
+- [x] human member 优先显示昵称
+- [x] 有头像时显示头像，无头像时保持现有 fallback 风格
+- [x] 样式与现有 conversation 面板对齐
 
 #### 2.3 更新消息作者与 human mention 候选
 
@@ -254,9 +255,9 @@ human 成员展示时应优先显示昵称，但 message mention 检测与输入
 
 **验收标准：**
 
-- [ ] user message 作者名优先展示昵称
-- [ ] 消息行头像优先展示第三方头像
-- [ ] mention 候选 label 使用昵称，handle 仍保持稳定 id
+- [x] user message 作者名优先展示昵称
+- [x] 消息行头像优先展示第三方头像
+- [x] mention 候选 label 使用昵称，handle 仍保持稳定 id
 
 ---
 

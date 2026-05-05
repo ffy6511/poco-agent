@@ -14,13 +14,14 @@ import type { FeedItem } from "@/features/servers/ui/server-workspace-types";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
-import { getMessageAuthor, MessageRow } from "./conversation-message-row";
+import { MessageRow } from "./conversation-message-row";
 
 export function SearchPanel({
   search,
   onSearchChange,
   items,
   savedMessageIds,
+  currentUserId,
   onOpenThread,
   onToggleSaved,
 }: {
@@ -28,6 +29,7 @@ export function SearchPanel({
   onSearchChange: (value: string) => void;
   items: FeedItem[];
   savedMessageIds: Set<string>;
+  currentUserId?: string | null;
   onOpenThread: (item: FeedItem) => void;
   onToggleSaved: (messageId: string) => void;
 }) {
@@ -38,10 +40,7 @@ export function SearchPanel({
   const visibleItems = React.useMemo(() => {
     const now = new Date();
     return items.filter((item) => {
-      if (
-        mineOnly &&
-        getMessageAuthor(item.message) !== item.message.authorUserId
-      ) {
+      if (mineOnly && item.message.authorUserId !== currentUserId) {
         return false;
       }
       if (timeFilter === "today") {
@@ -54,7 +53,7 @@ export function SearchPanel({
       }
       return true;
     });
-  }, [items, mineOnly, timeFilter]);
+  }, [currentUserId, items, mineOnly, timeFilter]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">

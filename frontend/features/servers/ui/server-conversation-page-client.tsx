@@ -59,6 +59,7 @@ import type {
 import { useServerMembership } from "@/features/servers/hooks/use-server-membership";
 import {
   buildHumanMentionCandidates,
+  getUserDisplayName,
   hasInboxSignal,
   sortMessagesChronologically,
   type MentionCandidate,
@@ -465,7 +466,9 @@ function CreateChannelDialog({
       if (!keyword) {
         return true;
       }
-      return member.userId.toLowerCase().includes(keyword);
+      return `${getUserDisplayName(member.user, member.userId)} ${member.userId}`
+        .toLowerCase()
+        .includes(keyword);
     });
 
   const toggleSelected = (
@@ -621,7 +624,7 @@ function CreateChannelDialog({
                           <UserRound className="size-4" />
                         </span>
                         <span className="min-w-0 flex-1 truncate">
-                          {member.userId}
+                          {getUserDisplayName(member.user, member.userId)}
                         </span>
                         {selected ? <Check className="size-4 text-primary" /> : null}
                       </button>
@@ -1049,8 +1052,8 @@ export function ServerConversationPageClient({
     return null;
   }, [drawer, serverAgents, serverMembers]);
   const humanCandidates = React.useMemo(
-    () => buildHumanMentionCandidates(channelMembers),
-    [channelMembers],
+    () => buildHumanMentionCandidates(channelMembers, profile?.id),
+    [channelMembers, profile?.id],
   );
   const isChannelOwner = Boolean(
     selectedChannel &&
@@ -1753,6 +1756,7 @@ export function ServerConversationPageClient({
                   onSearchChange={setSearchValue}
                   items={filteredSearchItems}
                   savedMessageIds={savedMessageIds}
+                  currentUserId={profile?.id}
                   onOpenThread={(item) =>
                     setDrawer({
                       type: "thread",

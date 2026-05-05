@@ -1,8 +1,13 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bot, Plus, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  getUserAvatarUrl,
+  getUserDisplayName,
+} from "@/features/servers/lib/server-conversation-view";
 import type {
   ServerAgentItem,
   ServerMemberItem,
@@ -111,12 +116,26 @@ export function ColleaguesPanel({
                       : "border-transparent hover:bg-muted/20",
                   )}
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-                    <UserRound className="size-4" />
-                  </span>
+                  {getUserAvatarUrl(member.user) ? (
+                    <Avatar className="size-8 shrink-0 rounded-md border border-border">
+                      <AvatarImage
+                        src={getUserAvatarUrl(member.user) ?? undefined}
+                        alt={getUserDisplayName(member.user, member.userId)}
+                      />
+                      <AvatarFallback className="rounded-md bg-muted text-xs font-semibold text-foreground">
+                        {getUserDisplayName(member.user, member.userId)
+                          .charAt(0)
+                          .toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
+                      <UserRound className="size-4" />
+                    </span>
+                  )}
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-foreground">
-                      {member.userId}
+                      {getUserDisplayName(member.user, member.userId)}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {member.role}

@@ -1,6 +1,7 @@
 import type {
   ServerChannelMemberItem,
   ServerConversationMessage,
+  ServerUserPublicProfile,
 } from "@/features/servers/model/types";
 
 export interface MentionCandidate {
@@ -9,6 +10,24 @@ export interface MentionCandidate {
   handle: string;
   kind: "agent" | "human";
   description?: string | null;
+}
+
+export function getUserDisplayName(
+  profile: ServerUserPublicProfile | null | undefined,
+  fallbackUserId?: string | null,
+): string {
+  const displayName = profile?.displayName?.trim();
+  if (displayName) {
+    return displayName;
+  }
+  return fallbackUserId?.trim() || "User";
+}
+
+export function getUserAvatarUrl(
+  profile: ServerUserPublicProfile | null | undefined,
+): string | null {
+  const avatarUrl = profile?.avatarUrl?.trim();
+  return avatarUrl || null;
 }
 
 function getMessageTimestamp(message: ServerConversationMessage): number {
@@ -37,7 +56,7 @@ export function buildHumanMentionCandidates(
     .filter((member) => !excludedUserId || member.userId !== excludedUserId)
     .map((member) => ({
       id: member.userId,
-      label: member.userId,
+      label: getUserDisplayName(member.user, member.userId),
       handle: member.userId,
       kind: "human",
     }));

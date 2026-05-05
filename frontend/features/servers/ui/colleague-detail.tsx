@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowLeft,
   Bot,
@@ -13,6 +14,10 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  getUserAvatarUrl,
+  getUserDisplayName,
+} from "@/features/servers/lib/server-conversation-view";
 import type {
   ServerAgentItem,
   ServerMemberItem,
@@ -126,12 +131,35 @@ export function ColleagueDetail({
         ) : selectedMember ? (
           <div className="space-y-5 px-6 py-6">
             <div className="flex items-start gap-4">
-              <span className="flex size-14 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-                <UserRound className="size-6" />
-              </span>
+              {getUserAvatarUrl(selectedMember.user) ? (
+                <Avatar className="size-14 shrink-0 rounded-md border border-border">
+                  <AvatarImage
+                    src={getUserAvatarUrl(selectedMember.user) ?? undefined}
+                    alt={getUserDisplayName(
+                      selectedMember.user,
+                      selectedMember.userId,
+                    )}
+                  />
+                  <AvatarFallback className="rounded-md bg-muted text-lg font-semibold text-foreground">
+                    {getUserDisplayName(
+                      selectedMember.user,
+                      selectedMember.userId,
+                    )
+                      .charAt(0)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
+                  <UserRound className="size-6" />
+                </span>
+              )}
               <div className="min-w-0">
                 <p className="truncate text-lg font-semibold text-foreground">
-                  {selectedMember.userId}
+                  {getUserDisplayName(
+                    selectedMember.user,
+                    selectedMember.userId,
+                  )}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {selectedMember.status}

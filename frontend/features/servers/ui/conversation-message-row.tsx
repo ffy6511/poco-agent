@@ -3,6 +3,11 @@
 import * as React from "react";
 import { Bookmark, MessageSquare } from "lucide-react";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  getUserAvatarUrl,
+  getUserDisplayName,
+} from "@/features/servers/lib/server-conversation-view";
 import type { ServerConversationMessage } from "@/features/servers/model/types";
 import { useT } from "@/lib/i18n/client";
 
@@ -79,7 +84,7 @@ export function getMessageAuthor(message: ServerConversationMessage): string {
     }
     return "Task";
   }
-  return message.authorUserId?.trim() || "User";
+  return getUserDisplayName(message.authorUser, message.authorUserId);
 }
 
 function renderMentions(text: string) {
@@ -115,12 +120,16 @@ export function MessageRow({
   const { t } = useT("translation");
   const author = getMessageAuthor(message);
   const text = getMessageText(message);
+  const avatarUrl = getUserAvatarUrl(message.authorUser);
 
   return (
     <article className="group flex gap-4 border-b border-border px-6 py-5 last:border-b-0">
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-sm font-semibold text-foreground">
-        {getInitials(author)}
-      </div>
+      <Avatar className="size-11 shrink-0 rounded-md border border-border">
+        {avatarUrl ? <AvatarImage src={avatarUrl} alt={author} /> : null}
+        <AvatarFallback className="rounded-md bg-muted text-sm font-semibold text-foreground">
+          {getInitials(author)}
+        </AvatarFallback>
+      </Avatar>
       <div className="relative min-w-0 flex-1 space-y-1.5">
         <div className="flex items-start justify-between gap-3 text-sm">
           <div className="min-w-0 flex flex-wrap items-center gap-3">

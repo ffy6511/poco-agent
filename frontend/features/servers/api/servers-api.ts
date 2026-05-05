@@ -10,7 +10,14 @@ import type {
   ServerItem,
   ServerKind,
   ServerMemberItem,
+  ServerUserPublicProfile,
 } from "@/features/servers/model/types";
+
+interface ServerUserPublicProfileResponse {
+  user_id: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+}
 
 interface ServerResponse {
   server_id: string;
@@ -42,6 +49,7 @@ interface ServerChannelMemberResponse {
   membership_id: number;
   channel_id: string;
   user_id: string;
+  user?: ServerUserPublicProfileResponse | null;
   role: string;
   joined_at: string;
   status: string;
@@ -86,6 +94,7 @@ interface ServerMemberResponse {
   membership_id: number;
   server_id: string;
   user_id: string;
+  user?: ServerUserPublicProfileResponse | null;
   role: string;
   joined_at: string;
   invited_by?: string | null;
@@ -112,6 +121,7 @@ interface ServerConversationMessageResponse {
   message_id: string;
   channel_id: string;
   author_user_id?: string | null;
+  author_user?: ServerUserPublicProfileResponse | null;
   message_type: "user" | "system" | "task";
   content: Record<string, unknown>;
   text_preview?: string | null;
@@ -135,6 +145,19 @@ function mapServer(server: ServerResponse): ServerItem {
     ownerUserId: server.owner_user_id,
     createdAt: server.created_at,
     updatedAt: server.updated_at,
+  };
+}
+
+function mapUserProfile(
+  profile?: ServerUserPublicProfileResponse | null,
+): ServerUserPublicProfile | null {
+  if (!profile) {
+    return null;
+  }
+  return {
+    userId: profile.user_id,
+    displayName: profile.display_name,
+    avatarUrl: profile.avatar_url,
   };
 }
 
@@ -163,6 +186,7 @@ function mapChannelMember(
     id: member.membership_id,
     channelId: member.channel_id,
     userId: member.user_id,
+    user: mapUserProfile(member.user),
     role: member.role,
     joinedAt: member.joined_at,
     status: member.status,
@@ -211,6 +235,7 @@ function mapServerMember(member: ServerMemberResponse): ServerMemberItem {
     id: member.membership_id,
     serverId: member.server_id,
     userId: member.user_id,
+    user: mapUserProfile(member.user),
     role: member.role,
     joinedAt: member.joined_at,
     invitedBy: member.invited_by,
@@ -243,6 +268,7 @@ function mapConversationMessage(
     id: message.message_id,
     channelId: message.channel_id,
     authorUserId: message.author_user_id,
+    authorUser: mapUserProfile(message.author_user),
     messageType: message.message_type,
     content: message.content,
     textPreview: message.text_preview,
