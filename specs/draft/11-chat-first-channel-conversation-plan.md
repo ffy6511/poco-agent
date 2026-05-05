@@ -8,7 +8,7 @@
 | **预期改动范围** | frontend server shell / conversation layout / DM and channel navigation / composer UX / thread panel / backend conversation APIs / task derivation entry / i18n copy / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 

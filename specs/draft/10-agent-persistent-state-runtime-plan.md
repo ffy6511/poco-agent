@@ -8,7 +8,7 @@
 | **预期改动范围** | backend agent models / backend dispatch semantics / executor_manager runtime lifecycle / executor workspace mounting / frontend agent detail UX / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 
