@@ -16,7 +16,7 @@
 - [x] Phase 1: 建立 channel / DM 会话模型与成员语义 (2026-05-05)
 - [x] Phase 2: 建立桌面端三模块三列协作布局 (2026-05-05)
 - [x] Phase 3: 建立消息、mentions、thread 与右侧上下文面板 (2026-05-05)
-- [x] Phase 4: 建立 create-as-task 流程与 task tab 投影 (2026-05-05, pending browser QA)
+- [x] Phase 4: 建立 create-as-task 流程与 task tab 投影 (2026-05-05)
 
 ---
 
@@ -295,7 +295,7 @@
 - `Chat` 是默认落点
 - `Tasks` 负责聚合该 conversation 下派生的任务
 
-**实现记录：** 中列顶部已切成 `Chat / Tasks` 双 tab；`Tasks` tab 支持 list / board 投影，并在右侧显示 task context。
+**实现记录：** 中列顶部已切成 `Chat / Tasks` 双 tab；`Tasks` tab 支持 list / board 投影，并在右侧显示 task context。已通过现成 Chrome 页面对照验证 `/servers` 根页不再显示 server 摘要页，且 `reply` 会在最右侧打开独立可关闭模块。
 
 **验收标准：**
 
