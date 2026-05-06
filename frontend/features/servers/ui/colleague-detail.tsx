@@ -187,12 +187,30 @@ export function ColleagueDetail({
             />
             {canInspectPersistentFiles && selectedAgent.persistentState ? (
               <div className="space-y-3 px-1 py-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {t("conversationView.colleagues.persistentFiles")}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    {t("conversationView.colleagues.persistentFiles")}
+                  </p>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {t("conversationView.colleagues.persistentFilesHint")}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground">
+                      {t("conversationView.colleagues.stateContractVersion", {
+                        version: selectedAgent.persistentState.stateVersion,
+                      })}
+                    </span>
+                    {selectedRuntimeStatus ? (
+                      <span className="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground">
+                        {t(selectedRuntimeStatus.labelKey)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
                 <AgentPersistentFilesPanel
                   files={persistentFiles}
                   isLoading={isLoadingPersistentFiles}
+                  emptyMessage={t("conversationView.colleagues.persistentFilesEmpty")}
                 />
               </div>
             ) : null}

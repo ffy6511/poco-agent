@@ -8,14 +8,14 @@
 | **预期改动范围** | backend agent identity bootstrap / executor_manager agent state directory seeding / executor persistent runtime prompt assembly / server colleague detail semantics / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 
 - [x] Phase 0: 收敛持久状态 bootstrap 边界与非目标
 - [x] Phase 1: 建立非空持久状态骨架与幂等 backfill
 - [x] Phase 2: 建立 persistent runtime 下的维护提示词与写入约束
-- [ ] Phase 3: 补齐 owner 侧可见性、语义收口与验证
+- [x] Phase 3: 补齐 owner 侧可见性、语义收口与验证
 
 ---
 
@@ -265,8 +265,8 @@ agents/<agent_id>/
 
 **验收标准：**
 
-- [ ] UI 文案不再和 shared artifacts 混淆
-- [ ] owner 能稳定区分 private state 与 shared artifacts
+- [x] UI 文案不再和 shared artifacts 混淆
+- [x] owner 能稳定区分 private state 与 shared artifacts
 
 #### 3.2 补充可见元信息
 
@@ -281,7 +281,7 @@ agents/<agent_id>/
 
 **验收标准：**
 
-- [ ] 至少有一条稳定元信息帮助判断 bootstrap 是否成功
+- [x] 至少有一条稳定元信息帮助判断 bootstrap 是否成功
 
 #### 3.3 完成验证与回写 spec
 
@@ -296,5 +296,19 @@ agents/<agent_id>/
 
 **验收标准：**
 
-- [ ] 有定向验证覆盖非空 bootstrap 与幂等 backfill
-- [ ] spec 回写实际实现记录和状态
+- [x] 有定向验证覆盖非空 bootstrap 与幂等 backfill
+- [x] spec 回写实际实现记录和状态
+
+### Phase 3 implementation notes
+
+- colleague detail 中的 `Persistent files` 已收口为 `Private state files / 私有状态文件`，并补充了“不是 shared artifacts”的说明文案。
+- owner 侧新增了轻量元信息展示，当前会显示 state contract version 和 runtime status，便于快速判断当前私有状态契约是否已经接入。
+- persistent files 空态文案不再复用 shared artifacts 文案，避免把 private state 和 published artifacts 混成同一语义。
+
+## 验证记录
+
+- backend: `uv run python -m unittest tests.test_agent_state_bootstrap_service tests.test_agent_identity_service`
+- executor_manager: `uv run python -m unittest tests.test_agent_state_bootstrap`
+- executor: `uv run python -m unittest tests.test_engine_persistent_state_hint`
+- frontend: `pnpm lint`
+- frontend: `pnpm build`

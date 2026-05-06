@@ -29,10 +29,12 @@ function findFirstFile(nodes: FileNode[]): FileNode | null {
 export function AgentPersistentFilesPanel({
   files,
   isLoading,
+  emptyMessage,
   fileListLayoutClassName = "lg:grid-cols-[minmax(0,1fr)_minmax(12rem,14rem)]",
 }: {
   files: FileNode[];
   isLoading: boolean;
+  emptyMessage: string;
   fileListLayoutClassName?: string;
 }) {
   const { t } = useT("translation");
@@ -80,7 +82,7 @@ export function AgentPersistentFilesPanel({
                   <div className="space-y-3">
                     <Files className="mx-auto size-8 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">
-                      {t("conversationView.sharedArtifacts.empty")}
+                      {emptyMessage}
                     </p>
                   </div>
                 </div>
