@@ -343,6 +343,18 @@
       "removeMember": "Remove member"
     },
     "threadMentionHint": "Replies in this thread will target",
+    "execution": {
+      "title": "Execution",
+      "openDrawer": "Open full execution details",
+      "emptySummary": "Execution started.",
+      "todoProgress": "{{completed}} / {{total}} todos",
+      "status": {
+        "queued": "Queued",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed"
+      }
+    },
     "toasts": {
       "loadFailed": "Failed to load conversation",
       "sendFailed": "Failed to send message",

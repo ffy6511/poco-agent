@@ -14,7 +14,7 @@
 
 - [x] Phase 0: 收敛 execution 可观测性产品模型与非目标
 - [x] Phase 1: 建立 channel 内 execution placeholder message 契约
-- [ ] Phase 2: 建立右侧 execution drawer 与 session 详情复用
+- [x] Phase 2: 建立右侧 execution drawer 与 session 详情复用
 - [ ] Phase 3: 收敛增量刷新策略与最终验证
 
 ---
@@ -188,8 +188,8 @@
 
 **验收标准：**
 
-- [ ] execution item 可点击并打开右侧 execution drawer
-- [ ] drawer 状态能够稳定保存 `session_id`
+- [x] execution item 可点击并打开右侧 execution drawer
+- [x] drawer 状态能够稳定保存 `session_id`
 
 #### 2.2 复用现有 execution container
 
@@ -203,8 +203,8 @@
 
 **验收标准：**
 
-- [ ] execution drawer 展示的是完整真实 session 视图
-- [ ] 不重复实现一套 session transcript 渲染
+- [x] execution drawer 展示的是完整真实 session 视图
+- [x] 不重复实现一套 session transcript 渲染
 
 #### 2.3 让频道消息渲染 execution item
 
@@ -218,8 +218,14 @@
 
 **验收标准：**
 
-- [ ] execution item 与普通 system message 视觉语义可区分
-- [ ] 点击 affordance 与 execution drawer 打通
+- [x] execution item 与普通 system message 视觉语义可区分
+- [x] 点击 affordance 与 execution drawer 打通
+
+### Phase 2 implementation notes
+
+- server drawer system 新增了 `drawer.type = "execution"`，只保存 `sessionId`，不在 server feature 里复制 session 数据。
+- execution drawer 通过轻量适配层直接复用现有 `ExecutionContainer`，避免在 server conversation 内重写 message / tool / todo / workspace / computer 视图。
+- execution item 在频道消息流中改为 compact 状态卡片，当前展示 `execution_status`、`todo_progress`、`current_step` 与摘要文案，并提供打开右侧 drawer 的入口。
 
 ---
 

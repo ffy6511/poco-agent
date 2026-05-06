@@ -23,6 +23,7 @@ export function SearchPanel({
   savedMessageIds,
   currentUserId,
   onOpenThread,
+  onOpenExecution,
   onToggleSaved,
 }: {
   search: string;
@@ -31,6 +32,7 @@ export function SearchPanel({
   savedMessageIds: Set<string>;
   currentUserId?: string | null;
   onOpenThread: (item: FeedItem) => void;
+  onOpenExecution?: (sessionId: string) => void;
   onToggleSaved: (messageId: string) => void;
 }) {
   const { t } = useT("translation");
@@ -112,6 +114,7 @@ export function SearchPanel({
               channelLabel={item.channel.name}
               isSaved={savedMessageIds.has(item.message.id)}
               onOpenThread={() => onOpenThread(item)}
+              onOpenExecution={onOpenExecution}
               onToggleSaved={() => onToggleSaved(item.message.id)}
             />
           ))
@@ -139,6 +142,7 @@ export function FeedPanel({
   savedMessageIds,
   currentUserId,
   onOpenThread,
+  onOpenExecution,
   onToggleSaved,
 }: {
   inboxItems: FeedItem[];
@@ -146,6 +150,7 @@ export function FeedPanel({
   savedMessageIds: Set<string>;
   currentUserId?: string | null;
   onOpenThread: (item: FeedItem) => void;
+  onOpenExecution?: (sessionId: string) => void;
   onToggleSaved: (messageId: string) => void;
 }) {
   const { t } = useT("translation");
@@ -211,6 +216,7 @@ export function FeedPanel({
               channelLabel={item.channel.name}
               isSaved={savedMessageIds.has(item.message.id)}
               onOpenThread={() => onOpenThread(item)}
+              onOpenExecution={onOpenExecution}
               onToggleSaved={() => onToggleSaved(item.message.id)}
             />
           ))

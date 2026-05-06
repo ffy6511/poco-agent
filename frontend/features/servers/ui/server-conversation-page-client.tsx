@@ -74,6 +74,7 @@ import { ColleagueDetail } from "@/features/servers/ui/colleague-detail";
 import { ColleaguesPanel } from "@/features/servers/ui/colleagues-panel";
 import {
   AgentDrawer,
+  ExecutionDrawer,
   SharedArtifactsDrawer,
   TaskDrawer,
   ThreadDrawer,
@@ -126,16 +127,21 @@ function isDrawerCompatibleWithMode(
     return true;
   }
   if (mode === "search" || mode === "inbox") {
-    return drawer.type === "thread";
+    return drawer.type === "thread" || drawer.type === "execution";
   }
   if (mode === "tasks") {
-    return drawer.type === "task" || drawer.type === "artifacts";
+    return (
+      drawer.type === "task" ||
+      drawer.type === "artifacts" ||
+      drawer.type === "execution"
+    );
   }
   if (mode === "colleagues") {
     return drawer.type === "colleague";
   }
   return (
     drawer.type === "thread" ||
+    drawer.type === "execution" ||
     drawer.type === "agent" ||
     drawer.type === "artifacts"
   );
@@ -272,6 +278,7 @@ function ConversationContent({
   onOpenArtifacts,
   onOpenLeaveConfirm,
   onToggleSaved,
+  onOpenExecution,
   isSending,
   currentUserId,
 }: {
@@ -293,6 +300,7 @@ function ConversationContent({
   onOpenArtifacts: () => void;
   onOpenLeaveConfirm: () => void;
   onToggleSaved: (messageId: string) => void;
+  onOpenExecution: (sessionId: string) => void;
   isSending: boolean;
   currentUserId?: string | null;
 }) {
@@ -400,6 +408,7 @@ function ConversationContent({
                 agents={agents}
                 presets={presets}
                 onOpenThread={() => onOpenThread(message)}
+                onOpenExecution={onOpenExecution}
                 isSaved={savedMessageIds.has(message.id)}
                 onToggleSaved={() => onToggleSaved(message.id)}
               />
@@ -1901,6 +1910,9 @@ export function ServerConversationPageClient({
                       rootMessageId: item.message.id,
                     })
                   }
+                  onOpenExecution={(sessionId) =>
+                    setDrawer({ type: "execution", sessionId })
+                  }
                   onToggleSaved={toggleSaved}
                 />
               ) : (
@@ -1915,6 +1927,9 @@ export function ServerConversationPageClient({
                       channelId: item.channel.id,
                       rootMessageId: item.message.id,
                     })
+                  }
+                  onOpenExecution={(sessionId) =>
+                    setDrawer({ type: "execution", sessionId })
                   }
                   onToggleSaved={toggleSaved}
                 />
@@ -1973,6 +1988,9 @@ export function ServerConversationPageClient({
               onOpenArtifacts={() => setDrawer({ type: "artifacts" })}
               onOpenLeaveConfirm={() => setLeaveChannelOpen(true)}
               onToggleSaved={toggleSaved}
+              onOpenExecution={(sessionId) =>
+                setDrawer({ type: "execution", sessionId })
+              }
               isSending={isSending}
               currentUserId={profile?.id}
             />
@@ -2007,6 +2025,11 @@ export function ServerConversationPageClient({
                   <TaskDrawer
                     task={selectedTask}
                     activity={taskActivity}
+                    onClose={() => setDrawer({ type: "none" })}
+                  />
+                ) : drawer.type === "execution" ? (
+                  <ExecutionDrawer
+                    sessionId={drawer.sessionId}
                     onClose={() => setDrawer({ type: "none" })}
                   />
                 ) : drawer.type === "agent" ? (

@@ -343,6 +343,18 @@
       "removeMember": "移除成员"
     },
     "threadMentionHint": "当前 thread 默认会回复给",
+    "execution": {
+      "title": "执行详情",
+      "openDrawer": "打开完整执行视图",
+      "emptySummary": "执行已开始。",
+      "todoProgress": "{{completed}} / {{total}} 个待办",
+      "status": {
+        "queued": "排队中",
+        "running": "执行中",
+        "completed": "已完成",
+        "failed": "失败"
+      }
+    },
     "toasts": {
       "loadFailed": "加载会话失败",
       "sendFailed": "发送消息失败",

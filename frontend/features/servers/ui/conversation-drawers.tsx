@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
+import { ExecutionContainer } from "@/features/chat";
 import type {
   ChannelTask,
   ChannelTaskActivityMessage,
 } from "@/features/channel-tasks/model/types";
+import { TaskHistoryProvider } from "@/features/projects/contexts/task-history-context";
 import type {
   ServerAgentItem,
   ServerConversationMessage,
@@ -311,6 +313,51 @@ function PathItem({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 break-all text-sm text-foreground">{value}</p>
     </div>
+  );
+}
+
+export function ExecutionDrawer({
+  sessionId,
+  onClose,
+}: {
+  sessionId: string;
+  onClose: () => void;
+}) {
+  const { t } = useT("translation");
+
+  return (
+    <aside className={overlayDrawerClassName}>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label={t("conversationView.backToContext")}
+            className="shrink-0 xl:hidden"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+          <p className="text-xl font-semibold text-foreground">
+            {t("conversationView.execution.title")}
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          {t("conversationView.close")}
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <TaskHistoryProvider
+          value={{
+            refreshTasks: async () => undefined,
+            touchTask: () => undefined,
+          }}
+        >
+          <ExecutionContainer sessionId={sessionId} />
+        </TaskHistoryProvider>
+      </div>
+    </aside>
   );
 }
 

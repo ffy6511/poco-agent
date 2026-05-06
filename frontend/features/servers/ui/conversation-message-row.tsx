@@ -12,8 +12,10 @@ import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
 import type {
   ServerAgentItem,
   ServerConversationMessage,
+  ServerExecutionMessageContent,
 } from "@/features/servers/model/types";
 import { useT } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
 import { ServerMessageContent } from "./server-message-content";
 import { ServerAgentAvatar } from "./server-agent-avatar";
 
@@ -93,6 +95,42 @@ export function getMessageAuthor(message: ServerConversationMessage): string {
   return getUserDisplayName(message.authorUser, message.authorUserId);
 }
 
+export function isExecutionMessage(
+  message: ServerConversationMessage,
+): message is ServerConversationMessage & {
+  content: ServerExecutionMessageContent;
+} {
+  return (
+    message.messageType === "system" && message.content.source === "agent_execution"
+  );
+}
+
+function getExecutionStatusTone(status: string | null | undefined): string {
+  switch ((status || "").trim().toLowerCase()) {
+    case "completed":
+      return "bg-emerald-500";
+    case "failed":
+      return "bg-destructive";
+    case "running":
+      return "bg-amber-500";
+    default:
+      return "bg-muted-foreground";
+  }
+}
+
+function getExecutionStatusLabelKey(status: string | null | undefined): string {
+  switch ((status || "").trim().toLowerCase()) {
+    case "completed":
+      return "conversationView.execution.status.completed";
+    case "failed":
+      return "conversationView.execution.status.failed";
+    case "running":
+      return "conversationView.execution.status.running";
+    default:
+      return "conversationView.execution.status.queued";
+  }
+}
+
 export function MessageRow({
   message,
   agents = [],
@@ -100,6 +138,7 @@ export function MessageRow({
   channelLabel,
   isSaved = false,
   onOpenThread,
+  onOpenExecution,
   onToggleSaved,
 }: {
   message: ServerConversationMessage;
@@ -108,11 +147,13 @@ export function MessageRow({
   channelLabel?: string;
   isSaved?: boolean;
   onOpenThread: () => void;
+  onOpenExecution?: ((sessionId: string) => void) | undefined;
   onToggleSaved: () => void;
 }) {
   const { t } = useT("translation");
   const author = getMessageAuthor(message);
   const text = getMessageText(message);
+  const executionMessage = isExecutionMessage(message) ? message : null;
   const avatarUrl = getUserAvatarUrl(message.authorUser);
   const matchingAgent =
     message.messageType === "system"
@@ -131,6 +172,10 @@ export function MessageRow({
               agent.displayName.trim().toLowerCase() === contentActor)
           );
         }) ?? null
+      : null;
+  const executionSessionId =
+    executionMessage && typeof executionMessage.content.session_id === "string"
+      ? executionMessage.content.session_id
       : null;
 
   return (
@@ -194,11 +239,69 @@ export function MessageRow({
             </button>
           </div>
         </div>
-        <div className="cursor-text select-text text-base leading-7 text-foreground">
-          <ServerMessageContent
-            content={text || t("conversationView.emptyMessage")}
-          />
-        </div>
+        {executionMessage ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (executionSessionId && onOpenExecution) {
+                onOpenExecution(executionSessionId);
+              }
+            }}
+            disabled={!executionSessionId || !onOpenExecution}
+            className={cn(
+              "w-full rounded-md border border-border bg-muted/20 p-4 text-left",
+              executionSessionId && onOpenExecution
+                ? "transition-colors hover:bg-muted/35"
+                : "cursor-default",
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground">
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    getExecutionStatusTone(executionMessage.content.execution_status),
+                  )}
+                />
+                {t(
+                  getExecutionStatusLabelKey(
+                    executionMessage.content.execution_status,
+                  ),
+                )}
+              </span>
+              {executionMessage.content.todo_progress ? (
+                <span className="text-xs text-muted-foreground">
+                  {t("conversationView.execution.todoProgress", {
+                    completed:
+                      executionMessage.content.todo_progress.completed ?? 0,
+                    total: executionMessage.content.todo_progress.total ?? 0,
+                  })}
+                </span>
+              ) : null}
+            </div>
+            {executionMessage.content.current_step ? (
+              <p className="mt-3 text-sm font-medium text-foreground">
+                {executionMessage.content.current_step}
+              </p>
+            ) : null}
+            <div className="mt-2 cursor-text select-text text-sm leading-6 text-muted-foreground">
+              <ServerMessageContent
+                content={text || t("conversationView.execution.emptySummary")}
+              />
+            </div>
+            {executionSessionId ? (
+              <p className="mt-3 text-xs text-primary">
+                {t("conversationView.execution.openDrawer")}
+              </p>
+            ) : null}
+          </button>
+        ) : (
+          <div className="cursor-text select-text text-base leading-7 text-foreground">
+            <ServerMessageContent
+              content={text || t("conversationView.emptyMessage")}
+            />
+          </div>
+        )}
       </div>
     </article>
   );

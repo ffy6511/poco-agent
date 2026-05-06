@@ -119,3 +119,25 @@ export interface ServerConversationMessage {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ServerExecutionTodoProgress {
+  completed: number;
+  total: number;
+}
+
+export interface ServerExecutionMessageContent {
+  source: "agent_execution";
+  session_id: string;
+  run_id?: string | null;
+  queue_item_id?: string | null;
+  agent_identity_id?: string | null;
+  agent_handle?: string | null;
+  agent_label?: string | null;
+  agent_visual_key?: string | null;
+  trigger_message_id?: string | null;
+  thread_root_message_id?: string | null;
+  execution_status?: string | null;
+  summary?: string | null;
+  current_step?: string | null;
+  todo_progress?: ServerExecutionTodoProgress | null;
+}
