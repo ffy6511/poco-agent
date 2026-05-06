@@ -482,6 +482,22 @@ class AgentExecutor:
             ]
         )
 
+    @staticmethod
+    def _build_channel_task_hint(config: TaskConfig) -> str | None:
+        if not (config.server_id and config.channel_id and config.agent_identity_id):
+            return None
+
+        return "\n".join(
+            [
+                "Channel task collaboration contract:",
+                "- Session todos are internal execution planning only; they do not automatically create or update channel tasks.",
+                "- When this work should become a team-visible task, prefer the structured tools create_channel_task, update_channel_task_status, claim_channel_task, and comment_on_channel_task.",
+                "- Use create_channel_task for durable collaborative work, not for temporary scratch todos.",
+                "- Use update_channel_task_status when the team-facing task changes stage, and use comment_on_channel_task when progress should be visible in the task thread.",
+                "- These task tools are scoped to the current server and channel context. Do not claim that you created or updated a task unless the structured tool call succeeded.",
+            ]
+        )
+
     def _compose_user_prompt(self, prompt: str, config: TaskConfig, *, cwd: str) -> str:
         sections = [prompt]
 
@@ -492,6 +508,10 @@ class AgentExecutor:
         persistent_state_hint = self._build_persistent_state_hint(config)
         if persistent_state_hint:
             sections.append(persistent_state_hint)
+
+        channel_task_hint = self._build_channel_task_hint(config)
+        if channel_task_hint:
+            sections.append(channel_task_hint)
 
         prompt_appendix = build_prompt_appendix(
             browser_enabled=config.browser_enabled,

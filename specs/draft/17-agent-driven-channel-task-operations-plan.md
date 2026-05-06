@@ -8,14 +8,14 @@
 | **预期改动范围** | backend channel task service adapters / agent-facing structured task tools or internal APIs / executor prompt and tool contract / task-thread linkage / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 
 - [x] Phase 0: 收敛 agent task 操作边界与非目标
 - [x] Phase 1: 定义结构化 task tool 或专用接口契约
-- [ ] Phase 2: 建立 backend task adapter 与消息回流闭环
-- [ ] Phase 3: 把 task 自主协作接入 executor 提示词与验证
+- [x] Phase 2: 建立 backend task adapter 与消息回流闭环
+- [x] Phase 3: 把 task 自主协作接入 executor 提示词与验证
 
 ---
 
@@ -198,8 +198,8 @@ agent 在 persistent runtime 中可能跨多次会话工作，但 task 写入必
 
 **验收标准：**
 
-- [ ] agent 侧 task 操作不绕开 `ServerChannelTaskService`
-- [ ] adapter 层只做上下文绑定、权限校验和参数归一
+- [x] agent 侧 task 操作不绕开 `ServerChannelTaskService`
+- [x] adapter 层只做上下文绑定、权限校验和参数归一
 
 #### 2.2 保持 task system message 回流
 
@@ -212,8 +212,8 @@ agent 在 persistent runtime 中可能跨多次会话工作，但 task 写入必
 
 **验收标准：**
 
-- [ ] agent 创建 task 后，频道 thread 中能追溯 task root
-- [ ] agent 状态更新后，频道 thread 中能追溯 system message
+- [x] agent 创建 task 后，频道 thread 中能追溯 task root
+- [x] agent 状态更新后，频道 thread 中能追溯 system message
 
 #### 2.3 收敛 assignment 关系
 
@@ -227,8 +227,8 @@ agent 在 persistent runtime 中可能跨多次会话工作，但 task 写入必
 
 **验收标准：**
 
-- [ ] task 与 agent runtime 的关系有明确演进路径
-- [ ] 不新增多套平行绑定关系
+- [x] task 与 agent runtime 的关系有明确演进路径
+- [x] 不新增多套平行绑定关系
 
 ---
 
@@ -251,8 +251,8 @@ agent 在 persistent runtime 中可能跨多次会话工作，但 task 写入必
 
 **验收标准：**
 
-- [ ] task 协作提示词和 persistent-state 提示词不冲突
-- [ ] agent 明确知道“什么时候该创建或更新 channel task”
+- [x] task 协作提示词和 persistent-state 提示词不冲突
+- [x] agent 明确知道“什么时候该创建或更新 channel task”
 
 #### 3.2 补充可观测性与审计
 
@@ -266,7 +266,7 @@ agent 在 persistent runtime 中可能跨多次会话工作，但 task 写入必
 
 **验收标准：**
 
-- [ ] task 变更能回溯到 agent identity 或 session context
+- [x] task 变更能回溯到 agent identity 或 session context
 
 #### 3.3 完成验证与回写 spec
 
@@ -280,5 +280,24 @@ agent 在 persistent runtime 中可能跨多次会话工作，但 task 写入必
 
 **验收标准：**
 
-- [ ] 有定向验证覆盖 agent 创建和更新 channel task
-- [ ] spec 回写实际实现记录和状态
+- [x] 有定向验证覆盖 agent 创建和更新 channel task
+- [x] spec 回写实际实现记录和状态
+
+### Phase 2 implementation notes
+
+- backend 新增了 `ServerChannelTaskAgentService` 作为 agent-facing adapter：它先从当前 session 解析 channel-scoped context，再把 `create / status / claim / comment` 四类结构化操作转给 `ServerChannelTaskService`。
+- backend 新增 `/api/v1/internal/server-channel-tasks/{create,status,claim,comment}` internal API；executor manager 再以 `/api/v1/agent-channel-tasks/*` 形式做代理，复用现有 internal token 与 session 绑定链路。
+- `ServerChannelTaskService` 新增了 `comment_on_task()`，并为 task root message / system message 统一注入 `actor_type / actor_agent_identity_id / actor_agent_handle / actor_session_id` 等审计字段；这保证 agent 改动仍通过原有 task service 回流到频道 thread。
+- 当前没有新增并行 task-runtime 绑定表，只保留 `agent_assignments.server_channel_task_id` 作为后续正式接通的演进位，避免再造第二套关系。
+
+### Phase 3 implementation notes
+
+- executor 新增内置 channel task MCP server，向 agent 暴露 `create_channel_task`、`update_channel_task_status`、`claim_channel_task`、`comment_on_channel_task` 四个结构化工具。
+- `AgentExecutor._compose_user_prompt()` 新增 channel task collaboration hint，只在存在 `server_id / channel_id / agent_identity_id` 的 channel-scoped agent 会话中注入，明确区分 session todos 与 channel tasks，并要求优先使用结构化 task 工具。
+- task hint 与已有 persistent-state hint 是串联注入的，两者不会互相覆盖：一个约束私有长期状态写入，一个约束团队任务协作。
+
+## 验证记录
+
+- backend: `uv run python -m unittest tests.test_internal_server_channel_tasks_api tests.test_server_channel_task_agent_service tests.test_server_channel_task_service`
+- executor: `uv run python -m unittest tests.test_engine_channel_task_hint tests.test_engine_persistent_state_hint`
+- syntax: `uv run python -m py_compile executor_manager/app/api/v1/agent_channel_tasks.py executor_manager/app/services/backend_client.py executor/app/core/channel_tasks.py executor/app/core/engine.py executor/app/api/v1/task.py`
