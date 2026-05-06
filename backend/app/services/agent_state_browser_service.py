@@ -8,13 +8,14 @@ from app.core.errors.error_codes import ErrorCode
 from app.core.errors.exceptions import AppException
 from app.models.agent_identity import AgentIdentity
 from app.schemas.workspace import FileNode
+from app.services.agent_state_bootstrap_service import DEFAULT_AGENT_STATE_BASE_DIR
 from app.services.server_member_service import require_server_owner
 
 
 class AgentStateBrowserService:
     """Browse owner-visible persistent files for a server agent."""
 
-    BASE_DIR = Path(__file__).resolve().parents[3] / "tmp_workspace"
+    BASE_DIR = DEFAULT_AGENT_STATE_BASE_DIR
     PREFIX = "agent-state"
 
     def _require_owner_agent(

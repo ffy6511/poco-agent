@@ -12,6 +12,7 @@ from typing import Literal
 from app.core.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
+BOOTSTRAP_SCHEMA_VERSION = 1
 
 
 @dataclass
@@ -284,15 +285,86 @@ class WorkspaceManager:
         workspace_dir = self.get_workspace_path(user_id, session_id, create=True)
         return str(workspace_dir / "workspace")
 
+    def _write_if_missing_or_empty(self, path: Path, content: str) -> None:
+        if path.exists() and path.is_file() and path.read_text(encoding="utf-8").strip():
+            return
+        path.write_text(content, encoding="utf-8")
+
+    def ensure_agent_state_bootstrap(self, agent_identity_id: str) -> Path:
+        """Ensure the agent persistent state contains a minimal non-empty scaffold."""
+        agent_dir = self.base_dir / "agents" / agent_identity_id
+        notes_dir = agent_dir / "notes"
+        state_dir = agent_dir / "state"
+        artifacts_dir = agent_dir / "artifacts"
+
+        notes_dir.mkdir(parents=True, exist_ok=True)
+        state_dir.mkdir(parents=True, exist_ok=True)
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+        self._write_if_missing_or_empty(
+            agent_dir / "profile.json",
+            json.dumps(
+                {
+                    "schema_version": BOOTSTRAP_SCHEMA_VERSION,
+                    "kind": "poco_agent_private_state",
+                    "agent": {"id": agent_identity_id},
+                    "runtime": {
+                        "mode": "persistent",
+                        "state_version": BOOTSTRAP_SCHEMA_VERSION,
+                    },
+                    "paths": {
+                        "root": "/agent_state",
+                        "memory": "/agent_state/MEMORY.md",
+                        "notes": "/agent_state/notes",
+                        "state": "/agent_state/state",
+                        "artifacts": "/agent_state/artifacts",
+                    },
+                    "system_contract": {
+                        "profile_system_fields_locked": True,
+                        "temporary_runtime_can_write": False,
+                        "published_artifacts_are_private_by_default": True,
+                    },
+                    "agent_profile": {
+                        "summary": "",
+                        "working_preferences": [],
+                        "collaboration_notes": [],
+                    },
+                },
+                indent=2,
+                ensure_ascii=True,
+            )
+            + "\n",
+        )
+        self._write_if_missing_or_empty(
+            agent_dir / "MEMORY.md",
+            "# Agent long-term memory\n\n"
+            "<!-- bootstrap: managed by Poco persistent state -->\n\n"
+            "Use this file for durable facts, preferences, and collaboration constraints.\n",
+        )
+        self._write_if_missing_or_empty(
+            notes_dir / "active-context.md",
+            "# Active context\n\nUse this file for working notes that may change during ongoing tasks.\n",
+        )
+        self._write_if_missing_or_empty(
+            state_dir / "task-state.json",
+            json.dumps(
+                {
+                    "schema_version": BOOTSTRAP_SCHEMA_VERSION,
+                    "active_task": None,
+                    "updated_at": None,
+                },
+                indent=2,
+                ensure_ascii=True,
+            )
+            + "\n",
+        )
+        return agent_dir
+
     def get_agent_state_dir(self, agent_identity_id: str, create: bool = True) -> Path:
         """Get the persistent state directory for an agent identity."""
         agent_dir = self.base_dir / "agents" / agent_identity_id
         if create:
-            (agent_dir / "notes").mkdir(parents=True, exist_ok=True)
-            (agent_dir / "state").mkdir(parents=True, exist_ok=True)
-            (agent_dir / "artifacts").mkdir(parents=True, exist_ok=True)
-            (agent_dir / "profile.json").touch(exist_ok=True)
-            (agent_dir / "MEMORY.md").touch(exist_ok=True)
+            return self.ensure_agent_state_bootstrap(agent_identity_id)
         return agent_dir
 
     def create_agent_state_snapshot(

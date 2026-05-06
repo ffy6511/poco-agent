@@ -73,6 +73,9 @@ class AgentIdentityServiceTests(unittest.TestCase):
                 "app.services.agent_identity_service.AgentPersistentStateRepository.create"
             ) as create_state,
             patch(
+                "app.services.agent_identity_service.ensure_agent_state_bootstrap"
+            ) as ensure_bootstrap,
+            patch(
                 "app.services.agent_identity_service.AgentIdentityRepository.get_by_id"
             ) as get_by_id,
         ):
@@ -99,6 +102,7 @@ class AgentIdentityServiceTests(unittest.TestCase):
 
         create_agent.assert_called_once()
         create_state.assert_called_once()
+        ensure_bootstrap.assert_called_once()
         created = create_agent.call_args.args[1]
         self.assertEqual(created.display_name, "Backend Specialist")
         self.assertEqual(created.preset_id, 7)

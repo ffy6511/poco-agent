@@ -26,6 +26,7 @@ from app.schemas.agent_identity import (
     ChannelAgentMemberCreateRequest,
     ChannelAgentMemberResponse,
 )
+from app.services.agent_state_bootstrap_service import ensure_agent_state_bootstrap
 from app.services.server_member_service import require_server_admin, require_server_member
 
 
@@ -136,14 +137,19 @@ class AgentIdentityService:
         )
         db.flush()
 
+        persistent_state = AgentPersistentState(
+            agent_identity_id=agent_identity.id,
+            runtime_status="idle",
+            state_version=1,
+            **self._build_state_paths(agent_identity.id),
+        )
         AgentPersistentStateRepository.create(
             db,
-            AgentPersistentState(
-                agent_identity_id=agent_identity.id,
-                runtime_status="idle",
-                state_version=1,
-                **self._build_state_paths(agent_identity.id),
-            ),
+            persistent_state,
+        )
+        ensure_agent_state_bootstrap(
+            agent_identity=agent_identity,
+            persistent_state=persistent_state,
         )
         db.commit()
         db.refresh(agent_identity)

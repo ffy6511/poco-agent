@@ -8,12 +8,12 @@
 | **预期改动范围** | backend agent identity bootstrap / executor_manager agent state directory seeding / executor persistent runtime prompt assembly / server colleague detail semantics / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | drafting |
+| **状态** | in-progress |
 
 ## 实施阶段
 
-- [ ] Phase 0: 收敛持久状态 bootstrap 边界与非目标
-- [ ] Phase 1: 建立非空持久状态骨架与幂等 backfill
+- [x] Phase 0: 收敛持久状态 bootstrap 边界与非目标
+- [x] Phase 1: 建立非空持久状态骨架与幂等 backfill
 - [ ] Phase 2: 建立 persistent runtime 下的维护提示词与写入约束
 - [ ] Phase 3: 补齐 owner 侧可见性、语义收口与验证
 
@@ -141,9 +141,9 @@ agents/<agent_id>/
 
 **验收标准：**
 
-- [ ] 新 agent 创建后 `MEMORY.md` 默认非空
-- [ ] 新 agent 创建后 `profile.json` 默认非空且为合法 JSON
-- [ ] 重复执行 bootstrap 不会覆盖非空已有内容
+- [x] 新 agent 创建后 `MEMORY.md` 默认非空
+- [x] 新 agent 创建后 `profile.json` 默认非空且为合法 JSON
+- [x] 重复执行 bootstrap 不会覆盖非空已有内容
 
 #### 1.2 从 agent metadata 生成 profile seed
 
@@ -157,8 +157,8 @@ agents/<agent_id>/
 
 **验收标准：**
 
-- [ ] `profile.json` 包含 `schema_version`
-- [ ] `profile.json` 包含 handle、display_name、preset_id、runtime policy、persistent state contract
+- [x] `profile.json` 包含 `schema_version`
+- [x] `profile.json` 包含 handle、display_name、preset_id、runtime policy、persistent state contract
 
 #### 1.3 建立已有 agent 的 backfill 策略
 
@@ -172,8 +172,14 @@ agents/<agent_id>/
 
 **验收标准：**
 
-- [ ] 旧 agent 可补齐默认骨架
-- [ ] 非空 `MEMORY.md` / `profile.json` 不会被覆盖
+- [x] 旧 agent 可补齐默认骨架
+- [x] 非空 `MEMORY.md` / `profile.json` 不会被覆盖
+
+### Phase 1 implementation notes
+
+- backend 在 agent 创建链路里调用 `ensure_agent_state_bootstrap()`，会基于 `AgentIdentity` 与 `AgentPersistentState` 元数据写入非空 seed。
+- executor manager 把原来的 `touch` 升级为 `ensure_agent_state_bootstrap()`，为旧目录提供 lazy self-heal，同时保持幂等。
+- 当前 bootstrap 会初始化 `profile.json`、`MEMORY.md`、`notes/active-context.md`、`state/task-state.json`，`artifacts/` 保持空目录。
 
 ---
 
