@@ -332,6 +332,13 @@ export const serversApi = {
     );
   },
 
+  listAgentStateFiles: async (
+    serverId: string,
+    agentId: string,
+  ): Promise<FileNode[]> => {
+    return apiClient.get<FileNode[]>(`/servers/${serverId}/agents/${agentId}/state-files`);
+  },
+
   createInvite: async (
     serverId: string,
     input: {

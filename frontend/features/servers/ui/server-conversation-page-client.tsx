@@ -1974,6 +1974,7 @@ export function ServerConversationPageClient({
               agents={serverAgents}
               presets={presets}
               members={serverMembers}
+              serverId={selectedServerId}
               canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
               onClose={() => {
                 setColleagueDetailClosed(true);

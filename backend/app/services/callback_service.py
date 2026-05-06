@@ -607,6 +607,7 @@ class CallbackService:
             persisted_message is not None
             and callback.new_message
             and isinstance(callback.new_message, dict)
+            and callback.status == CallbackStatus.COMPLETED
         ):
             try:
                 self._mirror_assistant_message_to_server_channel(

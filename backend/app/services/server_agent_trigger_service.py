@@ -102,6 +102,7 @@ class ServerAgentTriggerService:
                 message=message,
                 current_user=current_user,
                 agent_display_name=agent.display_name,
+                agent_handle=agent.handle,
             )
             active_session_id = None
             if getattr(agent, "persistent_state", None) is not None:

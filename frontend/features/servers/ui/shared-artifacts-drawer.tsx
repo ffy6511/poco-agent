@@ -129,7 +129,10 @@ export function SharedArtifactsDrawer({
                   {t("conversationView.loading")}
                 </div>
               ) : selectedFile ? (
-                <DocumentViewer file={selectedFile} />
+                <DocumentViewer
+                  file={selectedFile}
+                  config={{ header: { disableHeader: true } }}
+                />
               ) : (
                 <div className="flex h-full items-center justify-center px-6 text-center">
                   <div className="space-y-3">

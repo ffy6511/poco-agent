@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -13,6 +14,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
+import { serversApi } from "@/features/servers";
+import type { FileNode } from "@/features/chat/types";
 import {
   getUserAvatarUrl,
   getUserDisplayName,
@@ -30,12 +33,14 @@ import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { ServerAgentAvatar } from "./server-agent-avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AgentPersistentFilesPanel } from "./agent-persistent-files-panel";
 
 export function ColleagueDetail({
   selection,
   agents,
   presets,
   members,
+  serverId,
   canInspectPersistentFiles,
   onClose,
   onOpenDm,
@@ -45,6 +50,7 @@ export function ColleagueDetail({
   agents: ServerAgentItem[];
   presets: Preset[];
   members: ServerMemberItem[];
+  serverId?: string | null;
   canInspectPersistentFiles?: boolean;
   onClose: () => void;
   onOpenDm: (agentId: string) => void;
@@ -62,6 +68,39 @@ export function ColleagueDetail({
   const selectedRuntimeStatus = selectedAgent
     ? getAgentRuntimeStatus(selectedAgent)
     : null;
+  const [persistentFiles, setPersistentFiles] = React.useState<FileNode[]>([]);
+  const [isLoadingPersistentFiles, setIsLoadingPersistentFiles] =
+    React.useState(false);
+
+  React.useEffect(() => {
+    if (!canInspectPersistentFiles || !serverId || !selectedAgent) {
+      setPersistentFiles([]);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setIsLoadingPersistentFiles(true);
+        const files = await serversApi.listAgentStateFiles(serverId, selectedAgent.id);
+        if (!cancelled) {
+          setPersistentFiles(files);
+        }
+      } catch (error) {
+        console.error("[ColleagueDetail] failed to load persistent files", error);
+        if (!cancelled) {
+          setPersistentFiles([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingPersistentFiles(false);
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [canInspectPersistentFiles, selectedAgent, serverId]);
 
   return (
     <aside className="absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:min-w-0 xl:flex-1">
@@ -151,35 +190,9 @@ export function ColleagueDetail({
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   {t("conversationView.colleagues.persistentFiles")}
                 </p>
-                <InfoTile
-                  icon={<Clipboard className="size-4" />}
-                  label={t("servers.agents.stateRoot")}
-                  value={selectedAgent.persistentState.stateRootPath}
-                />
-                <InfoTile
-                  icon={<Clipboard className="size-4" />}
-                  label={t("conversationView.colleagues.profilePath")}
-                  value={selectedAgent.persistentState.profilePath}
-                />
-                <InfoTile
-                  icon={<Clipboard className="size-4" />}
-                  label={t("servers.agents.memoryFile")}
-                  value={selectedAgent.persistentState.memoryPath}
-                />
-                <InfoTile
-                  icon={<Clipboard className="size-4" />}
-                  label={t("conversationView.colleagues.notesPath")}
-                  value={selectedAgent.persistentState.notesDirPath}
-                />
-                <InfoTile
-                  icon={<Clipboard className="size-4" />}
-                  label={t("conversationView.colleagues.statePath")}
-                  value={selectedAgent.persistentState.stateDirPath}
-                />
-                <InfoTile
-                  icon={<Clipboard className="size-4" />}
-                  label={t("conversationView.colleagues.artifactsPath")}
-                  value={selectedAgent.persistentState.artifactsDirPath}
+                <AgentPersistentFilesPanel
+                  files={persistentFiles}
+                  isLoading={isLoadingPersistentFiles}
                 />
               </div>
             ) : null}

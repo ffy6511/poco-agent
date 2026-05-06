@@ -4,10 +4,16 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.repositories.agent_identity_repository import AgentIdentityRepository
 from app.repositories.channel_artifact_repository import ChannelArtifactRepository
+from app.repositories.server_channel_agent_member_repository import (
+    ServerChannelAgentMemberRepository,
+)
+from app.repositories.server_channel_repository import ServerChannelMemberRepository
 from app.repositories.server_channel_message_repository import (
     ServerChannelMessageRepository,
 )
+from app.repositories.user_repository import UserRepository
 from app.services.storage_service import S3StorageService
 
 
@@ -104,8 +110,8 @@ class ChannelSharedContextService:
         message: Any,
         current_user: Any,
         agent_display_name: str,
+        agent_handle: str | None = None,
     ) -> str:
-        del server_id
         recent_messages = ServerChannelMessageRepository.list_by_channel(
             db,
             channel_id,
@@ -114,6 +120,26 @@ class ChannelSharedContextService:
         recent_messages = list(reversed(recent_messages))
         artifacts = ChannelArtifactRepository.list_by_channel(db, channel_id=channel_id)[
             : self.MAX_ARTIFACTS
+        ]
+        human_memberships = ServerChannelMemberRepository.list_by_channel(db, channel_id)
+        humans_by_id = UserRepository.list_by_ids(
+            db,
+            [membership.user_id for membership in human_memberships],
+        )
+        human_lookup = {user.id: user for user in humans_by_id}
+        agent_memberships = ServerChannelAgentMemberRepository.list_by_channel(
+            db, channel_id
+        )
+        channel_agents = [
+            agent
+            for membership in agent_memberships
+            if (
+                agent := AgentIdentityRepository.get_by_id(
+                    db,
+                    membership.agent_identity_id,
+                )
+            )
+            is not None
         ]
 
         actor_label = getattr(current_user, "display_name", None) or getattr(
@@ -134,8 +160,47 @@ class ChannelSharedContextService:
             "Trigger message:",
             trigger_text or "[no visible trigger text]",
             "",
-            "Recent conversation context:",
+            "Channel people you can collaborate with:",
         ]
+
+        if human_memberships:
+            for membership in human_memberships:
+                user = human_lookup.get(membership.user_id)
+                human_label = (
+                    (getattr(user, "display_name", None) or "").strip()
+                    or (getattr(user, "primary_email", None) or "").strip()
+                    or membership.user_id
+                )
+                lines.append(f"- Human: {human_label} (@{membership.user_id})")
+        else:
+            lines.append("- [no visible human members]")
+
+        lines.extend(
+            [
+                "",
+                "Channel agents you can collaborate with:",
+            ]
+        )
+        if channel_agents:
+            for agent in channel_agents:
+                lines.append(f"- Agent: {agent.display_name} (@{agent.handle})")
+        else:
+            lines.append("- [no visible agents]")
+
+        lines.extend(
+            [
+                "",
+                "Behavior rules:",
+                f"- Your handle is @{agent_handle or agent_display_name}.",
+                "- If the current turn is clearly aimed at another agent or human, you may stay silent.",
+                "- If you judge that your reply would not add value, you may stay silent.",
+                "- You may mention other agents or humans with @handle when you want to collaborate.",
+                "- If you mention someone for handoff, say that you are handing off and avoid duplicating their work.",
+                "- If you mention someone for collaboration, give your own partial answer first, then clearly ask for what you need.",
+                "",
+            "Recent conversation context:",
+            ]
+        )
 
         if recent_messages:
             for recent in recent_messages:
