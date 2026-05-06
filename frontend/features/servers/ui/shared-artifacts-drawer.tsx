@@ -15,7 +15,7 @@ import type { FileNode } from "@/features/chat/types";
 import { useT } from "@/lib/i18n/client";
 
 const overlayDrawerClassName =
-  "absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:w-[28rem] xl:shrink-0";
+  "absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:h-full xl:w-full xl:min-w-0 xl:shrink-0";
 
 function findFirstFile(nodes: FileNode[]): FileNode | null {
   for (const node of nodes) {
@@ -36,10 +36,12 @@ export function SharedArtifactsDrawer({
   files,
   isLoading,
   onClose,
+  fileListLayoutClassName = "xl:grid-cols-[minmax(0,1fr)_minmax(12rem,14rem)]",
 }: {
   files: FileNode[];
   isLoading: boolean;
   onClose: () => void;
+  fileListLayoutClassName?: string;
 }) {
   const { t } = useT("translation");
   const [selectedFile, setSelectedFile] = React.useState<FileNode | undefined>();
@@ -103,7 +105,9 @@ export function SharedArtifactsDrawer({
         </Button>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)]">
+      <div
+        className={`grid min-h-0 flex-1 grid-cols-1 ${fileListLayoutClassName}`}
+      >
         <div className="min-h-0 border-b border-border xl:border-b-0 xl:border-r">
           <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
             <div className="min-h-0 flex-1 overflow-hidden">

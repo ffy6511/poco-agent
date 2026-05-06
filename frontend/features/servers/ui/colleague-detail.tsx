@@ -103,7 +103,7 @@ export function ColleagueDetail({
   }, [canInspectPersistentFiles, selectedAgent, serverId]);
 
   return (
-    <aside className="absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:min-w-0 xl:flex-1">
+    <aside className="absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:h-full xl:w-full xl:min-w-0 xl:shrink-0">
       <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-5">
         <div className="flex min-w-0 items-center gap-3">
           <Button

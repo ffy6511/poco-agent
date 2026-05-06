@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, Info, MessageSquare } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ import { ServerMessageContent } from "./server-message-content";
 import { ServerAgentAvatar } from "./server-agent-avatar";
 
 const overlayDrawerClassName =
-  "absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:w-[24rem] xl:shrink-0";
+  "absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-border bg-card md:left-[17rem] md:w-auto lg:left-[18rem] xl:static xl:h-full xl:w-full xl:min-w-0 xl:shrink-0";
 
 export function ThreadDrawer({
   thread,
@@ -35,7 +35,6 @@ export function ThreadDrawer({
   presets,
   draft,
   suggestedMentionHandle,
-  onInsertMention,
   onDraftChange,
   onSend,
   onClose,
@@ -46,7 +45,6 @@ export function ThreadDrawer({
   presets: Preset[];
   draft: string;
   suggestedMentionHandle?: string | null;
-  onInsertMention?: () => void;
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onClose: () => void;
@@ -89,21 +87,14 @@ export function ThreadDrawer({
       </div>
       <div className="border-t border-border px-6 py-5">
         {suggestedMentionHandle ? (
-          <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-            <span className="text-muted-foreground">
+          <div className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+            <Info className="size-4 shrink-0 text-muted-foreground" />
+            <span>
               {t("conversationView.threadMentionHint")}{" "}
               <span className="font-medium text-foreground">
                 @{suggestedMentionHandle}
               </span>
             </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onInsertMention}
-            >
-              @{suggestedMentionHandle}
-            </Button>
           </div>
         ) : null}
         <Textarea

@@ -29,9 +29,11 @@ function findFirstFile(nodes: FileNode[]): FileNode | null {
 export function AgentPersistentFilesPanel({
   files,
   isLoading,
+  fileListLayoutClassName = "lg:grid-cols-[minmax(0,1fr)_minmax(12rem,14rem)]",
 }: {
   files: FileNode[];
   isLoading: boolean;
+  fileListLayoutClassName?: string;
 }) {
   const { t } = useT("translation");
   const [selectedFile, setSelectedFile] = React.useState<FileNode | undefined>();
@@ -61,7 +63,9 @@ export function AgentPersistentFilesPanel({
 
   return (
     <div className="overflow-hidden rounded-md bg-background">
-      <div className="grid min-h-[24rem] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div
+        className={`grid min-h-[24rem] grid-cols-1 ${fileListLayoutClassName}`}
+      >
         <div className="min-h-0 border-b border-border lg:border-b-0 lg:border-r">
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
             <div className="min-h-0 flex-1 overflow-hidden">

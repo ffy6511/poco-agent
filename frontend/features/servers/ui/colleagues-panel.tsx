@@ -41,7 +41,7 @@ export function ColleaguesPanel({
 }) {
   const { t } = useT("translation");
   return (
-    <section className="flex min-w-0 flex-1 flex-col border-r border-border bg-background xl:max-w-[21rem] xl:shrink-0">
+    <section className="flex min-h-0 min-w-0 w-full flex-1 flex-col border-r border-border bg-background">
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3 px-1">

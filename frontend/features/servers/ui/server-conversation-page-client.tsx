@@ -331,7 +331,7 @@ function ConversationContent({
   };
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="border-b border-border px-6 py-5">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex items-center gap-4">
@@ -384,7 +384,7 @@ function ConversationContent({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden bg-background">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
         {isLoading ? (
           <div className="space-y-4 px-6 py-6">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -392,7 +392,7 @@ function ConversationContent({
             ))}
           </div>
         ) : (
-          <div className="h-full overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {messages.map((message) => (
               <MessageRow
                 key={message.id}
@@ -1029,6 +1029,7 @@ export function ServerConversationPageClient({
     resolveChannelTaskView(searchParams.get("view")),
   );
   const [drawer, setDrawer] = React.useState<DrawerState>({ type: "none" });
+  const [desktopDrawerRatio, setDesktopDrawerRatio] = React.useState(50);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [serverAccessOpen, setServerAccessOpen] = React.useState(false);
@@ -1103,6 +1104,9 @@ export function ServerConversationPageClient({
     () => inferThreadMentionHandle(threadMessages, channelAgents),
     [channelAgents, threadMessages],
   );
+  const contentAreaRef = React.useRef<HTMLDivElement | null>(null);
+  const isResizingDrawerRef = React.useRef(false);
+  const hasDesktopDrawer = drawer.type !== "none";
   const selectedTask = React.useMemo(
     () =>
       drawer.type === "task"
@@ -1763,6 +1767,37 @@ export function ServerConversationPageClient({
     );
   };
 
+  React.useEffect(() => {
+    if (!hasDesktopDrawer) {
+      isResizingDrawerRef.current = false;
+    }
+  }, [hasDesktopDrawer]);
+
+  React.useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      if (!isResizingDrawerRef.current || !contentAreaRef.current) {
+        return;
+      }
+
+      const rect = contentAreaRef.current.getBoundingClientRect();
+      const nextDrawerWidth = rect.right - event.clientX;
+      const nextRatio = (nextDrawerWidth / rect.width) * 100;
+      const clamped = Math.min(70, Math.max(30, nextRatio));
+      setDesktopDrawerRatio(clamped);
+    };
+
+    const onPointerUp = () => {
+      isResizingDrawerRef.current = false;
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, []);
+
   const mobileDetailTitle =
     mode === "conversation"
       ? (selectedChannel?.name ?? t("conversationView.loading"))
@@ -1802,7 +1837,7 @@ export function ServerConversationPageClient({
 
       <div
         className={cn(
-          "min-w-0 flex-1 flex-col overflow-hidden md:flex",
+          "min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
           isMobileDetailVisible ? "flex" : "hidden",
         )}
       >
@@ -1832,7 +1867,24 @@ export function ServerConversationPageClient({
           </header>
         ) : null}
 
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div
+          ref={contentAreaRef}
+          className="flex min-h-0 flex-1 overflow-hidden"
+          style={
+            hasDesktopDrawer
+              ? ({
+                  "--server-drawer-width": `${desktopDrawerRatio}%`,
+                } as React.CSSProperties)
+              : undefined
+          }
+        >
+          <div
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col",
+              hasDesktopDrawer &&
+                "xl:flex-none xl:w-[calc(100%-var(--server-drawer-width)-2px)]",
+            )}
+          >
           {feedModeActive ? (
             <section className="flex min-w-0 flex-1 flex-col">
               {mode === "search" ? (
@@ -1925,64 +1977,73 @@ export function ServerConversationPageClient({
               currentUserId={profile?.id}
             />
           )}
+          </div>
 
-          {drawer.type === "thread" ? (
-            <ThreadDrawer
-              thread={threadMessages}
-              agents={channelAgents}
-              presets={presets}
-              draft={threadDraft}
-              suggestedMentionHandle={threadMentionHandle}
-              onInsertMention={() =>
-                setThreadDraft((current) =>
-                  threadMentionHandle &&
-                  !getExplicitMentionHandles(current).includes(threadMentionHandle)
-                    ? `@${threadMentionHandle} ${current}`.trim()
-                    : current,
-                )
-              }
-              onDraftChange={setThreadDraft}
-              onSend={() => void handleReply()}
-              onClose={() => setDrawer({ type: "none" })}
-              isSending={isSending}
-            />
-          ) : drawer.type === "task" && selectedTask ? (
-            <TaskDrawer
-              task={selectedTask}
-              activity={taskActivity}
-              onClose={() => setDrawer({ type: "none" })}
-            />
-          ) : drawer.type === "agent" ? (
-            <AgentDrawer
-              agents={channelAgents}
-              presets={presets}
-              selectedAgentId={drawer.agentId}
-              canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
-              onSelectAgent={(id) => setDrawer({ type: "agent", agentId: id })}
-              onClose={() => setDrawer({ type: "none" })}
-              onOpenDm={handleOpenDm}
-            />
-          ) : drawer.type === "artifacts" ? (
-            <SharedArtifactsDrawer
-              files={channelArtifacts}
-              isLoading={isLoading}
-              onClose={() => setDrawer({ type: "none" })}
-            />
-          ) : drawer.type === "colleague" ? (
-            <ColleagueDetail
-              selection={colleagueSelection}
-              agents={serverAgents}
-              presets={presets}
-              members={serverMembers}
-              serverId={selectedServerId}
-              canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
-              onClose={() => {
-                setColleagueDetailClosed(true);
-                setDrawer({ type: "none" });
-              }}
-              onOpenDm={handleOpenDm}
-              onRemoveMember={(membershipId) => void removeMember(membershipId)}
-            />
+          {hasDesktopDrawer ? (
+            <>
+              <div
+                className="hidden xl:block xl:w-1 xl:shrink-0 xl:cursor-col-resize xl:bg-border/60 xl:hover:bg-primary/40"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  isResizingDrawerRef.current = true;
+                }}
+              />
+              <div
+                className="min-w-0 xl:flex xl:h-full xl:flex-none xl:w-[var(--server-drawer-width)]"
+              >
+                {drawer.type === "thread" ? (
+                  <ThreadDrawer
+                    thread={threadMessages}
+                    agents={channelAgents}
+                    presets={presets}
+                    draft={threadDraft}
+                    suggestedMentionHandle={threadMentionHandle}
+                    onDraftChange={setThreadDraft}
+                    onSend={() => void handleReply()}
+                    onClose={() => setDrawer({ type: "none" })}
+                    isSending={isSending}
+                  />
+                ) : drawer.type === "task" && selectedTask ? (
+                  <TaskDrawer
+                    task={selectedTask}
+                    activity={taskActivity}
+                    onClose={() => setDrawer({ type: "none" })}
+                  />
+                ) : drawer.type === "agent" ? (
+                  <AgentDrawer
+                    agents={channelAgents}
+                    presets={presets}
+                    selectedAgentId={drawer.agentId}
+                    canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
+                    onSelectAgent={(id) => setDrawer({ type: "agent", agentId: id })}
+                    onClose={() => setDrawer({ type: "none" })}
+                    onOpenDm={handleOpenDm}
+                  />
+                ) : drawer.type === "artifacts" ? (
+                  <SharedArtifactsDrawer
+                    files={channelArtifacts}
+                    isLoading={isLoading}
+                    onClose={() => setDrawer({ type: "none" })}
+                    fileListLayoutClassName="xl:grid-cols-[minmax(0,1fr)_minmax(10rem,12rem)]"
+                  />
+                ) : drawer.type === "colleague" ? (
+                  <ColleagueDetail
+                    selection={colleagueSelection}
+                    agents={serverAgents}
+                    presets={presets}
+                    members={serverMembers}
+                    serverId={selectedServerId}
+                    canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
+                    onClose={() => {
+                      setColleagueDetailClosed(true);
+                      setDrawer({ type: "none" });
+                    }}
+                    onOpenDm={handleOpenDm}
+                    onRemoveMember={(membershipId) => void removeMember(membershipId)}
+                  />
+                ) : null}
+              </div>
+            </>
           ) : null}
         </div>
       </div>
