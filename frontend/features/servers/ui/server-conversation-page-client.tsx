@@ -1409,6 +1409,94 @@ export function ServerConversationPageClient({
     void loadTaskActivity();
   }, [activeChannelId, selectedServerId, selectedTask?.threadRootMessageId]);
 
+  React.useEffect(() => {
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+
+    let cancelled = false;
+    let inFlight = false;
+
+    const refreshActiveChannelSnapshot = async () => {
+      if (cancelled || inFlight) {
+        return;
+      }
+      inFlight = true;
+      try {
+        const requests: Promise<unknown>[] = [
+          serversApi.listMessages(selectedServerId, activeChannelId),
+          serversApi.listChannelArtifacts(selectedServerId, activeChannelId),
+        ];
+        if (mode === "tasks") {
+          requests.push(channelTasksApi.listTasks(selectedServerId, activeChannelId));
+        }
+        if (drawer.type === "thread" && drawer.channelId === activeChannelId) {
+          requests.push(
+            serversApi.getThread(
+              selectedServerId,
+              drawer.channelId,
+              drawer.rootMessageId,
+            ),
+          );
+        }
+        if (selectedTask?.threadRootMessageId) {
+          requests.push(
+            channelTasksApi.getTaskThread(
+              selectedServerId,
+              activeChannelId,
+              selectedTask.threadRootMessageId,
+            ),
+          );
+        }
+
+        const [
+          nextMessages,
+          nextArtifacts,
+          nextTasks,
+          nextThread,
+          nextTaskActivity,
+        ] = await Promise.all(requests);
+
+        if (cancelled) {
+          return;
+        }
+        setMessagesByChannel((current) => ({
+          ...current,
+          [activeChannelId]: nextMessages as ServerConversationMessage[],
+        }));
+        setChannelArtifacts(nextArtifacts as FileNode[]);
+        if (mode === "tasks" && Array.isArray(nextTasks)) {
+          setTasks(nextTasks as ChannelTask[]);
+        }
+        if (drawer.type === "thread" && Array.isArray(nextThread)) {
+          setThreadMessages(nextThread as ServerConversationMessage[]);
+        }
+        if (selectedTask?.threadRootMessageId && Array.isArray(nextTaskActivity)) {
+          setTaskActivity(nextTaskActivity as ChannelTaskActivityMessage[]);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("[ServersWorkspace] active channel refresh failed", error);
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void refreshActiveChannelSnapshot();
+    const intervalId = window.setInterval(refreshActiveChannelSnapshot, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [
+    activeChannelId,
+    drawer,
+    mode,
+    selectedServerId,
+    selectedTask?.threadRootMessageId,
+  ]);
+
   const openMode = (nextMode: WorkspaceMode) => {
     setMode(nextMode);
     setIsMobileDetailVisible(true);

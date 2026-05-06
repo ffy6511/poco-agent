@@ -8,14 +8,14 @@
 | **预期改动范围** | backend server channel message lifecycle / callback-to-channel execution projection / frontend server conversation drawer system / session execution reuse / polling or refresh strategy / tests |
 | **改动类型** | feat |
 | **优先级** | P0 |
-| **状态** | in-progress |
+| **状态** | review |
 
 ## 实施阶段
 
 - [x] Phase 0: 收敛 execution 可观测性产品模型与非目标
 - [x] Phase 1: 建立 channel 内 execution placeholder message 契约
 - [x] Phase 2: 建立右侧 execution drawer 与 session 详情复用
-- [ ] Phase 3: 收敛增量刷新策略与最终验证
+- [x] Phase 3: 收敛增量刷新策略与最终验证
 
 ---
 
@@ -248,8 +248,8 @@
 
 **验收标准：**
 
-- [ ] 运行中的 execution item 能在频道内持续更新
-- [ ] shared artifacts 在运行结束后能被及时看到，而不是只能重进页面
+- [x] 运行中的 execution item 能在频道内持续更新
+- [x] shared artifacts 在运行结束后能被及时看到，而不是只能重进页面
 
 #### 3.2 验证 drawer 与主消息流不会互相打架
 
@@ -262,8 +262,8 @@
 
 **验收标准：**
 
-- [ ] execution drawer 与 thread/task/artifacts 模式切换稳定
-- [ ] mobile 行为至少有明确 fallback
+- [x] execution drawer 与 thread/task/artifacts 模式切换稳定
+- [x] mobile 行为至少有明确 fallback
 
 #### 3.3 完成验证与回写 spec
 
@@ -277,5 +277,17 @@
 
 **验收标准：**
 
-- [ ] 有定向验证覆盖 placeholder creation、running update、drawer open
-- [ ] spec 回写实际实现记录和状态
+- [x] 有定向验证覆盖 placeholder creation、running update、drawer open
+- [x] spec 回写实际实现记录和状态
+
+### Phase 3 implementation notes
+
+- server conversation page 增加了一个轻量 polling 回路，当前按 4 秒刷新一次 active channel 的 messages 与 artifacts；在 `tasks` 模式下会顺带刷新 tasks，在 thread/task drawer 打开时会同步刷新对应 thread/activity。
+- 这轮实现没有引入 websocket 或 SSE，先把 execution item、drawer 和 shared artifacts 的稳定可见性做成默认能力。
+- execution drawer 继续走现有 overlay / desktop drawer 体系；mobile 下沿用当前 drawer fallback，不额外分叉新的 execution-only 布局。
+
+## 验证记录
+
+- backend: `uv run python -m unittest tests.test_server_execution_observability tests.test_server_agent_trigger_service tests.test_server_channel_message_service`
+- frontend: `pnpm lint`
+- frontend: `pnpm build`
