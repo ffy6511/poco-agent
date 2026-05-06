@@ -60,26 +60,17 @@ export function AgentPersistentFilesPanel({
   }, []);
 
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-background">
+    <div className="overflow-hidden rounded-md bg-background">
       <div className="grid min-h-[24rem] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="min-h-0 border-b border-border lg:border-b-0 lg:border-r">
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
-            <div className="border-b border-border px-4 py-3">
-              <p className="text-sm font-semibold text-foreground">
-                {selectedFile?.name ??
-                  t("conversationView.sharedArtifacts.preview")}
-              </p>
-            </div>
             <div className="min-h-0 flex-1 overflow-hidden">
               {isLoading ? (
                 <div className="flex h-full items-center justify-center px-6 text-sm text-muted-foreground">
                   {t("conversationView.loading")}
                 </div>
               ) : selectedFile ? (
-                <DocumentViewer
-                  file={selectedFile}
-                  config={{ header: { disableHeader: true } }}
-                />
+                <DocumentViewer file={selectedFile} />
               ) : (
                 <div className="flex h-full items-center justify-center px-6 text-center">
                   <div className="space-y-3">

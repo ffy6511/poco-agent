@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { presetsService } from "@/features/capabilities/presets/api/presets-api";
 import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
+import { useAdaptivePolling } from "@/features/chat/hooks/use-adaptive-polling";
 import { serversApi } from "@/features/servers";
 import type {
   ServerAgentItem,
@@ -73,6 +74,21 @@ export function useServerMembership({
       toast.error(t("conversationView.toasts.loadFailed"));
     });
   }, [refreshMembership, selectedServerId, t]);
+
+  const pollMembership = React.useCallback(async () => {
+    if (!selectedServerId) {
+      return;
+    }
+    await refreshMembership(selectedServerId);
+  }, [refreshMembership, selectedServerId]);
+
+  useAdaptivePolling({
+    callback: pollMembership,
+    isActive: Boolean(selectedServerId),
+    interval:
+      Number(process.env.NEXT_PUBLIC_SESSION_POLLING_INTERVAL) || 6000,
+    enableBackoff: true,
+  });
 
   React.useEffect(() => {
     const loadPresets = async () => {

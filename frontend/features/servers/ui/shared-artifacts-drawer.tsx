@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, Download, Files } from "lucide-react";
+import { ArrowLeft, Files } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -106,33 +106,13 @@ export function SharedArtifactsDrawer({
       <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,18rem)]">
         <div className="min-h-0 border-b border-border xl:border-b-0 xl:border-r">
           <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3">
-              <p className="text-sm font-semibold text-foreground">
-                {selectedFile?.name ??
-                  t("conversationView.sharedArtifacts.preview")}
-              </p>
-              {selectedFile?.url ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => void handleDownloadNode(selectedFile)}
-                  aria-label={t("fileSidebar.download")}
-                >
-                  <Download className="size-4" />
-                </Button>
-              ) : null}
-            </div>
             <div className="min-h-0 flex-1 overflow-hidden">
               {isLoading ? (
                 <div className="flex h-full items-center justify-center px-6 text-sm text-muted-foreground">
                   {t("conversationView.loading")}
                 </div>
               ) : selectedFile ? (
-                <DocumentViewer
-                  file={selectedFile}
-                  config={{ header: { disableHeader: true } }}
-                />
+                <DocumentViewer file={selectedFile} />
               ) : (
                 <div className="flex h-full items-center justify-center px-6 text-center">
                   <div className="space-y-3">

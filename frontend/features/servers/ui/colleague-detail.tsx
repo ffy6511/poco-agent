@@ -186,7 +186,7 @@ export function ColleagueDetail({
               value={selectedAgent.createdAt}
             />
             {canInspectPersistentFiles && selectedAgent.persistentState ? (
-              <div className="space-y-3 rounded-md border border-border bg-background px-4 py-4">
+              <div className="space-y-3 px-1 py-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   {t("conversationView.colleagues.persistentFiles")}
                 </p>
