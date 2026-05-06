@@ -21,6 +21,7 @@ from app.api.v1 import (
     internal_plugin_config,
     internal_slash_commands,
     internal_mcp_config,
+    internal_server_channel_tasks,
     internal_scheduled_tasks,
     internal_sessions,
     internal_skill_config,
@@ -110,6 +111,7 @@ api_v1_router.include_router(internal_agent_assignments.router)
 api_v1_router.include_router(internal_memories.router)
 api_v1_router.include_router(internal_skills.router)
 api_v1_router.include_router(internal_mcp_config.router)
+api_v1_router.include_router(internal_server_channel_tasks.router)
 api_v1_router.include_router(internal_skill_config.router)
 api_v1_router.include_router(internal_scheduled_tasks.router)
 api_v1_router.include_router(internal_sessions.router)

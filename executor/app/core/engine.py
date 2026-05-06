@@ -22,6 +22,11 @@ from claude_agent_sdk.types import (
 )
 from dotenv import load_dotenv
 
+from app.core.channel_tasks import (
+    CHANNEL_TASKS_MCP_SERVER_KEY,
+    ChannelTaskClient,
+    create_channel_tasks_mcp_server,
+)
 from app.core.memory import (
     MEMORY_MCP_SERVER_KEY,
     MemoryClient,
@@ -77,6 +82,7 @@ class AgentExecutor:
         run_id: str | None = None,
         user_input_client: UserInputClient | None = None,
         memory_client: MemoryClient | None = None,
+        channel_task_client: ChannelTaskClient | None = None,
         request_id: str | None = None,
         trace_id: str | None = None,
     ):
@@ -88,6 +94,12 @@ class AgentExecutor:
         self.memory_client = memory_client
         self.memory_mcp_server = (
             create_memory_mcp_server(memory_client) if memory_client else None
+        )
+        self.channel_task_client = channel_task_client
+        self.channel_tasks_mcp_server = (
+            create_channel_tasks_mcp_server(channel_task_client)
+            if channel_task_client
+            else None
         )
         self._request_id = request_id
         self._trace_id = trace_id
@@ -266,6 +278,7 @@ class AgentExecutor:
 
             mcp_servers = dict(config.mcp_config or {})
             mcp_servers = self._inject_memory_mcp(mcp_servers)
+            mcp_servers = self._inject_channel_tasks_mcp(mcp_servers)
             if config.browser_enabled:
                 mcp_servers = self._inject_playwright_mcp(mcp_servers)
 
@@ -609,4 +622,15 @@ PY
 
         injected = dict(mcp_servers)
         injected[MEMORY_MCP_SERVER_KEY] = self.memory_mcp_server
+        return injected
+
+    def _inject_channel_tasks_mcp(self, mcp_servers: dict) -> dict:
+        """Inject built-in channel task MCP server for channel-scoped agent runs."""
+        if not self.channel_tasks_mcp_server:
+            return mcp_servers
+        if CHANNEL_TASKS_MCP_SERVER_KEY in mcp_servers:
+            return mcp_servers
+
+        injected = dict(mcp_servers)
+        injected[CHANNEL_TASKS_MCP_SERVER_KEY] = self.channel_tasks_mcp_server
         return injected

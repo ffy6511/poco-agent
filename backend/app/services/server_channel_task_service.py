@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +28,16 @@ from app.schemas.server_channel_task import (
     ServerChannelTaskUpdateRequest,
 )
 from app.services.server_member_service import require_server_member
+
+
+@dataclass(slots=True)
+class TaskActorContext:
+    actor_type: str
+    actor_user_id: str
+    actor_label: str
+    actor_agent_identity_id: uuid.UUID | None = None
+    actor_agent_handle: str | None = None
+    actor_session_id: uuid.UUID | None = None
 
 
 class ServerChannelTaskService:
@@ -63,6 +74,19 @@ class ServerChannelTaskService:
     @staticmethod
     def _actor_label(current_user: User) -> str:
         return current_user.display_name or current_user.primary_email or current_user.id
+
+    def _build_actor_context(
+        self,
+        current_user: User,
+        actor_context: TaskActorContext | None = None,
+    ) -> TaskActorContext:
+        if actor_context is not None:
+            return actor_context
+        return TaskActorContext(
+            actor_type="user",
+            actor_user_id=current_user.id,
+            actor_label=self._actor_label(current_user),
+        )
 
     def _require_channel_access(
         self,
@@ -179,7 +203,10 @@ class ServerChannelTaskService:
         *,
         current_user: User,
         task: ServerChannelTask,
+        actor_context: TaskActorContext | None = None,
+        source_thread_root_message_id: uuid.UUID | None = None,
     ) -> ServerChannelMessage:
+        actor = self._build_actor_context(current_user, actor_context)
         return self._create_message(
             db,
             channel_id=task.channel_id,
@@ -195,6 +222,19 @@ class ServerChannelTaskService:
                 "description": task.description,
                 "creator_user_id": current_user.id,
                 "assignee": self._assignee_payload(task),
+                "actor_type": actor.actor_type,
+                "actor_label": actor.actor_label,
+                "actor_user_id": actor.actor_user_id,
+                "actor_agent_identity_id": str(actor.actor_agent_identity_id)
+                if actor.actor_agent_identity_id
+                else None,
+                "actor_agent_handle": actor.actor_agent_handle,
+                "actor_session_id": str(actor.actor_session_id)
+                if actor.actor_session_id
+                else None,
+                "source_thread_root_message_id": str(source_thread_root_message_id)
+                if source_thread_root_message_id
+                else None,
             },
         )
 
@@ -207,17 +247,27 @@ class ServerChannelTaskService:
         event: str,
         text_preview: str,
         extra_content: dict[str, object] | None = None,
+        actor_context: TaskActorContext | None = None,
     ) -> None:
         if task.thread_root_message_id is None:
             return
+        actor = self._build_actor_context(current_user, actor_context)
 
         content: dict[str, object] = {
             "event": event,
             "task_id": str(task.id),
             "title": task.title,
             "status": task.status,
-            "actor_user_id": current_user.id,
-            "actor_label": self._actor_label(current_user),
+            "actor_user_id": actor.actor_user_id,
+            "actor_label": actor.actor_label,
+            "actor_type": actor.actor_type,
+            "actor_agent_identity_id": str(actor.actor_agent_identity_id)
+            if actor.actor_agent_identity_id
+            else None,
+            "actor_agent_handle": actor.actor_agent_handle,
+            "actor_session_id": str(actor.actor_session_id)
+            if actor.actor_session_id
+            else None,
             "assignee": self._assignee_payload(task),
         }
         if extra_content:
@@ -239,6 +289,9 @@ class ServerChannelTaskService:
         server_id: uuid.UUID,
         channel_id: uuid.UUID,
         request: ServerChannelTaskCreateRequest,
+        *,
+        actor_context: TaskActorContext | None = None,
+        source_thread_root_message_id: uuid.UUID | None = None,
     ) -> ServerChannelTaskResponse:
         channel = self._require_channel_access(db, current_user, server_id, channel_id)
         self._validate_status(request.status)
@@ -278,6 +331,8 @@ class ServerChannelTaskService:
             db,
             current_user=current_user,
             task=task,
+            actor_context=actor_context,
+            source_thread_root_message_id=source_thread_root_message_id,
         )
         task.thread_root_message_id = root_message.id
 
@@ -355,6 +410,8 @@ class ServerChannelTaskService:
         channel_id: uuid.UUID,
         task_id: uuid.UUID,
         request: ServerChannelTaskStatusUpdateRequest,
+        *,
+        actor_context: TaskActorContext | None = None,
     ) -> ServerChannelTaskResponse:
         _, task = self._require_task_access(
             db,
@@ -363,6 +420,7 @@ class ServerChannelTaskService:
             channel_id,
             task_id,
         )
+        actor = self._build_actor_context(current_user, actor_context)
         previous_status = task.status
         previous_position = task.position
         self._move_task_within_channel(
@@ -380,7 +438,7 @@ class ServerChannelTaskService:
                 task=task,
                 event="task.status_changed",
                 text_preview=(
-                    f"{self._actor_label(current_user)} moved task to "
+                    f"{actor.actor_label} moved task to "
                     f"{task.status.replace('_', ' ')}"
                 ),
                 extra_content={
@@ -389,6 +447,7 @@ class ServerChannelTaskService:
                     "from_position": previous_position,
                     "to_position": task.position,
                 },
+                actor_context=actor_context,
             )
 
         db.commit()
@@ -403,6 +462,8 @@ class ServerChannelTaskService:
         channel_id: uuid.UUID,
         task_id: uuid.UUID,
         request: ServerChannelTaskClaimRequest,
+        *,
+        actor_context: TaskActorContext | None = None,
     ) -> ServerChannelTaskResponse:
         _, task = self._require_task_access(
             db,
@@ -416,6 +477,7 @@ class ServerChannelTaskService:
         if assignee_preset_id is not None:
             assignee_user_id = None
 
+        actor = self._build_actor_context(current_user, actor_context)
         task.assignee_user_id = assignee_user_id
         task.assignee_preset_id = assignee_preset_id
         task.updated_by = current_user.id
@@ -425,7 +487,8 @@ class ServerChannelTaskService:
             current_user=current_user,
             task=task,
             event="task.claimed",
-            text_preview=f"{self._actor_label(current_user)} claimed task",
+            text_preview=f"{actor.actor_label} claimed task",
+            actor_context=actor_context,
         )
 
         db.commit()
@@ -439,6 +502,8 @@ class ServerChannelTaskService:
         server_id: uuid.UUID,
         channel_id: uuid.UUID,
         task_id: uuid.UUID,
+        *,
+        actor_context: TaskActorContext | None = None,
     ) -> ServerChannelTaskResponse:
         _, task = self._require_task_access(
             db,
@@ -447,6 +512,7 @@ class ServerChannelTaskService:
             channel_id,
             task_id,
         )
+        actor = self._build_actor_context(current_user, actor_context)
         task.assignee_user_id = None
         task.assignee_preset_id = None
         task.updated_by = current_user.id
@@ -456,7 +522,42 @@ class ServerChannelTaskService:
             current_user=current_user,
             task=task,
             event="task.unclaimed",
-            text_preview=f"{self._actor_label(current_user)} unclaimed task",
+            text_preview=f"{actor.actor_label} unclaimed task",
+            actor_context=actor_context,
+        )
+
+        db.commit()
+        db.refresh(task)
+        return self._build_task_response(task)
+
+    def comment_on_task(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        channel_id: uuid.UUID,
+        task_id: uuid.UUID,
+        text: str,
+        *,
+        actor_context: TaskActorContext | None = None,
+    ) -> ServerChannelTaskResponse:
+        _, task = self._require_task_access(
+            db,
+            current_user,
+            server_id,
+            channel_id,
+            task_id,
+        )
+        task.updated_by = current_user.id
+
+        self._create_system_message(
+            db,
+            current_user=current_user,
+            task=task,
+            event="task.commented",
+            text_preview=text.strip()[:200] or "Task commented",
+            extra_content={"comment_text": text.strip()},
+            actor_context=actor_context,
         )
 
         db.commit()

@@ -1,4 +1,5 @@
 import uuid
+from types import SimpleNamespace
 
 from sqlalchemy.orm import Session
 
@@ -6,10 +7,31 @@ from app.core.errors.error_codes import ErrorCode
 from app.core.errors.exceptions import AppException
 from app.repositories.agent_identity_repository import AgentIdentityRepository
 from app.repositories.session_repository import SessionRepository
-from app.schemas.server_channel_task_agent import AgentChannelTaskContext
+from app.schemas.server_channel_task_agent import (
+    AgentChannelTaskClaimSelfRequest,
+    AgentChannelTaskCommentRequest,
+    AgentChannelTaskContext,
+    AgentChannelTaskCreateRequest,
+    AgentChannelTaskOperationResponse,
+    AgentChannelTaskStatusRequest,
+    to_claim_self_request,
+    to_create_request,
+    to_status_request,
+)
+from app.services.server_channel_task_service import (
+    ServerChannelTaskService,
+    TaskActorContext,
+)
 
 
 class ServerChannelTaskAgentService:
+    def __init__(
+        self,
+        *,
+        task_service: ServerChannelTaskService | None = None,
+    ) -> None:
+        self._task_service = task_service or ServerChannelTaskService()
+
     def resolve_context(
         self,
         db: Session,
@@ -64,4 +86,118 @@ class ServerChannelTaskAgentService:
             or "Agent",
             agent_preset_id=agent.preset_id,
             thread_root_message_id=thread_root_message_id,
+        )
+
+    def _load_actor_user(self, context: AgentChannelTaskContext) -> SimpleNamespace:
+        return SimpleNamespace(
+            id=context.user_id,
+            display_name=context.agent_label,
+            primary_email=context.user_id,
+        )
+
+    def _build_actor_context(
+        self,
+        context: AgentChannelTaskContext,
+    ) -> TaskActorContext:
+        return TaskActorContext(
+            actor_type="agent",
+            actor_user_id=context.user_id,
+            actor_label=context.agent_label,
+            actor_agent_identity_id=context.agent_identity_id,
+            actor_agent_handle=context.agent_handle,
+            actor_session_id=context.session_id,
+        )
+
+    def create_task(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        request: AgentChannelTaskCreateRequest,
+    ) -> AgentChannelTaskOperationResponse:
+        context = self.resolve_context(db, session_id=session_id)
+        task = self._task_service.create_task(
+            db,
+            self._load_actor_user(context),
+            context.server_id,
+            context.channel_id,
+            to_create_request(request),
+            actor_context=self._build_actor_context(context),
+            source_thread_root_message_id=(
+                request.thread_root_message_id or context.thread_root_message_id
+            ),
+        )
+        return AgentChannelTaskOperationResponse(
+            action="create_channel_task",
+            task=task,
+            thread_root_message_id=task.thread_root_message_id,
+        )
+
+    def update_task_status(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        request: AgentChannelTaskStatusRequest,
+    ) -> AgentChannelTaskOperationResponse:
+        context = self.resolve_context(db, session_id=session_id)
+        task = self._task_service.update_task_status(
+            db,
+            self._load_actor_user(context),
+            context.server_id,
+            context.channel_id,
+            request.task_id,
+            to_status_request(request),
+            actor_context=self._build_actor_context(context),
+        )
+        return AgentChannelTaskOperationResponse(
+            action="update_channel_task_status",
+            task=task,
+            thread_root_message_id=task.thread_root_message_id,
+        )
+
+    def claim_task(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        request: AgentChannelTaskClaimSelfRequest,
+    ) -> AgentChannelTaskOperationResponse:
+        context = self.resolve_context(db, session_id=session_id)
+        task = self._task_service.claim_task(
+            db,
+            self._load_actor_user(context),
+            context.server_id,
+            context.channel_id,
+            request.task_id,
+            to_claim_self_request(assignee_preset_id=context.agent_preset_id),
+            actor_context=self._build_actor_context(context),
+        )
+        return AgentChannelTaskOperationResponse(
+            action="claim_channel_task",
+            task=task,
+            thread_root_message_id=task.thread_root_message_id,
+        )
+
+    def comment_on_task(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        request: AgentChannelTaskCommentRequest,
+    ) -> AgentChannelTaskOperationResponse:
+        context = self.resolve_context(db, session_id=session_id)
+        task = self._task_service.comment_on_task(
+            db,
+            self._load_actor_user(context),
+            context.server_id,
+            context.channel_id,
+            request.task_id,
+            request.text,
+            actor_context=self._build_actor_context(context),
+        )
+        return AgentChannelTaskOperationResponse(
+            action="comment_on_channel_task",
+            task=task,
+            thread_root_message_id=task.thread_root_message_id,
         )

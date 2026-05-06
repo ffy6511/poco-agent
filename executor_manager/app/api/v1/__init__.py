@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    agent_channel_tasks,
     callback,
     computer,
     executor,
@@ -17,6 +18,7 @@ from app.scheduler.scheduler_config import scheduler
 
 api_v1_router = APIRouter()
 
+api_v1_router.include_router(agent_channel_tasks.router)
 api_v1_router.include_router(tasks.router)
 api_v1_router.include_router(schedules.router)
 api_v1_router.include_router(callback.router)
