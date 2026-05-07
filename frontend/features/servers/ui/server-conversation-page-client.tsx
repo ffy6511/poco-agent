@@ -872,27 +872,75 @@ function ChannelMembersDialog({
   open,
   channel,
   agents,
+  availableAgents,
   humans,
   onOpenChange,
   onOpenDm,
+  onAddAgents,
   onAddMember,
 }: {
   open: boolean;
   channel: ServerChannelItem | null;
   agents: ServerAgentItem[];
+  availableAgents: ServerAgentItem[];
   humans: MentionCandidate[];
   onOpenChange: (open: boolean) => void;
   onOpenDm: (agentId: string) => void;
+  onAddAgents: (agentIds: string[]) => Promise<void>;
   onAddMember: (userId: string) => void;
 }) {
   const { t } = useT("translation");
   const [memberUserId, setMemberUserId] = React.useState("");
+  const [agentSearch, setAgentSearch] = React.useState("");
+  const [selectedAgentIds, setSelectedAgentIds] = React.useState<Set<string>>(
+    () => new Set(),
+  );
+  const [isAddingAgents, setIsAddingAgents] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) {
       setMemberUserId("");
+      setAgentSearch("");
+      setSelectedAgentIds(new Set());
+      setIsAddingAgents(false);
     }
   }, [open]);
+
+  const visibleAvailableAgents = React.useMemo(() => {
+    const keyword = agentSearch.trim().toLowerCase();
+    return availableAgents.filter((agent) => {
+      if (!keyword) {
+        return true;
+      }
+      return `${agent.displayName} ${agent.handle}`.toLowerCase().includes(keyword);
+    });
+  }, [agentSearch, availableAgents]);
+
+  const toggleAgentSelection = (agentId: string) => {
+    setSelectedAgentIds((current) => {
+      const next = new Set(current);
+      if (next.has(agentId)) {
+        next.delete(agentId);
+      } else {
+        next.add(agentId);
+      }
+      return next;
+    });
+  };
+
+  const handleAddAgents = async () => {
+    if (selectedAgentIds.size === 0) {
+      return;
+    }
+    setIsAddingAgents(true);
+    try {
+      await onAddAgents(Array.from(selectedAgentIds));
+      setSelectedAgentIds(new Set());
+      setAgentSearch("");
+    } finally {
+      setIsAddingAgents(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -942,6 +990,66 @@ function ChannelMembersDialog({
                   {t("conversationView.members.noAgents")}
                 </div>
               )}
+            </div>
+            <div className="space-y-3 rounded-md border border-border bg-card px-3 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-foreground">
+                  {t("conversationView.members.inviteAgents")}
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  {visibleAvailableAgents.length}
+                </span>
+              </div>
+              <Input
+                value={agentSearch}
+                onChange={(event) => setAgentSearch(event.target.value)}
+                placeholder={t("conversationView.members.agentSearchPlaceholder")}
+              />
+              <div className="max-h-56 overflow-y-auto space-y-1">
+                {visibleAvailableAgents.length > 0 ? (
+                  visibleAvailableAgents.map((agent) => {
+                    const selected = selectedAgentIds.has(agent.id);
+                    return (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        onClick={() => toggleAgentSelection(agent.id)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                          selected
+                            ? "bg-primary/15 text-foreground"
+                            : "hover:bg-muted/30",
+                        )}
+                      >
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
+                          <Bot className="size-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-foreground">
+                            {agent.displayName}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            @{agent.handle}
+                          </span>
+                        </span>
+                        {selected ? <Check className="size-4 text-primary" /> : null}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+                    {t("conversationView.members.noAvailableAgents")}
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                onClick={() => void handleAddAgents()}
+                disabled={selectedAgentIds.size === 0 || isAddingAgents}
+              >
+                <Plus className="size-4" />
+                {t("conversationView.members.addSelectedAgents")}
+              </Button>
             </div>
           </section>
 
@@ -1173,6 +1281,10 @@ export function ServerConversationPageClient({
     () => buildHumanMentionCandidates(channelMembers, profile?.id),
     [channelMembers, profile?.id],
   );
+  const availableChannelAgents = React.useMemo(() => {
+    const existingIds = new Set(channelAgents.map((agent) => agent.id));
+    return serverAgents.filter((agent) => !existingIds.has(agent.id));
+  }, [channelAgents, serverAgents]);
   const isChannelOwner = Boolean(
     selectedChannel &&
       profile?.id &&
@@ -1921,6 +2033,31 @@ export function ServerConversationPageClient({
     }
   };
 
+  const handleAddChannelAgents = async (agentIds: string[]) => {
+    if (!selectedServerId || !activeChannelId || agentIds.length === 0) {
+      return;
+    }
+    try {
+      await Promise.all(
+        agentIds.map((agentIdentityId) =>
+          serversApi.addAgentToChannel(selectedServerId, activeChannelId, {
+            agentIdentityId,
+          }),
+        ),
+      );
+      const nextAgents = await serversApi.listChannelAgents(
+        selectedServerId,
+        activeChannelId,
+      );
+      setChannelAgents(nextAgents);
+      toast.success(t("conversationView.toasts.agentAdded"));
+    } catch (error) {
+      console.error("[ServersWorkspace] add channel agent failed", error);
+      toast.error(t("conversationView.toasts.agentAddFailed"));
+      throw error;
+    }
+  };
+
   const handleMobileBack = () => {
     setIsMobileDetailVisible(false);
     setDrawer({ type: "none" });
@@ -2308,12 +2445,14 @@ export function ServerConversationPageClient({
         open={membersOpen}
         channel={selectedChannel}
         agents={channelAgents}
+        availableAgents={availableChannelAgents}
         humans={humanCandidates}
         onOpenChange={setMembersOpen}
         onOpenDm={(agentId) => {
           setMembersOpen(false);
           void handleOpenDm(agentId);
         }}
+        onAddAgents={(agentIds) => handleAddChannelAgents(agentIds)}
         onAddMember={(userId) => void handleAddChannelMember(userId)}
       />
       <ServerAccessDialog

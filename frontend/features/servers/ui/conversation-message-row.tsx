@@ -262,46 +262,43 @@ export function MessageRow({
                 : "cursor-default",
             )}
           >
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground">
-                <span
-                  className={cn(
-                    "size-2 rounded-full",
-                    getExecutionStatusTone(executionMessage.content.execution_status),
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground">
+                  <span
+                    className={cn(
+                      "size-2 rounded-full",
+                      getExecutionStatusTone(executionMessage.content.execution_status),
+                    )}
+                  />
+                  {t(
+                    getExecutionStatusLabelKey(
+                      executionMessage.content.execution_status,
+                    ),
                   )}
-                />
-                {t(
-                  getExecutionStatusLabelKey(
-                    executionMessage.content.execution_status,
-                  ),
-                )}
-              </span>
-              {executionMessage.content.todo_progress &&
-              executionMessage.content.todo_progress.total > 0 ? (
-                <span className="text-xs text-muted-foreground">
-                  {t("conversationView.execution.todoProgress", {
-                    completed:
-                      executionMessage.content.todo_progress.completed ?? 0,
-                    total: executionMessage.content.todo_progress.total ?? 0,
-                  })}
                 </span>
+                {executionMessage.content.todo_progress &&
+                executionMessage.content.todo_progress.total > 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    {t("conversationView.execution.todoProgress", {
+                      completed:
+                        executionMessage.content.todo_progress.completed ?? 0,
+                      total: executionMessage.content.todo_progress.total ?? 0,
+                    })}
+                  </span>
+                ) : null}
+              </div>
+              {executionMessage.content.current_step ? (
+                <p className="min-w-0 max-w-[40%] truncate text-right text-sm font-medium text-foreground">
+                  {executionMessage.content.current_step}
+                </p>
               ) : null}
             </div>
-            {executionMessage.content.current_step ? (
-              <p className="mt-3 text-sm font-medium text-foreground">
-                {executionMessage.content.current_step}
-              </p>
-            ) : null}
             <div className="mt-2 cursor-text select-text text-sm leading-6 text-muted-foreground">
               <ServerMessageContent
                 content={text || t("conversationView.execution.emptySummary")}
               />
             </div>
-            {executionSessionId ? (
-              <p className="mt-3 text-xs text-primary">
-                {t("conversationView.execution.openDrawer")}
-              </p>
-            ) : null}
           </button>
         ) : (
           <div
