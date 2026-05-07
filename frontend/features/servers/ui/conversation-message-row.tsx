@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Bookmark, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
+import {
+  Bookmark,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  MessageSquare,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -17,6 +24,10 @@ import type {
 } from "@/features/servers/model/types";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import {
+  getMessageSessionId,
+  isExecutionDrilldownMessage,
+} from "../lib/server-conversation-messages";
 import { ServerMessageContent } from "./server-message-content";
 import { ServerAgentAvatar } from "./server-agent-avatar";
 
@@ -153,6 +164,9 @@ export function MessageRow({
   const executionMessage = isExecutionMessage(message) ? message : null;
   const isAgentSessionMessage =
     message.messageType === "system" && message.content.source === "agent_session";
+  const drilldownSessionId = getMessageSessionId(message);
+  const canOpenExecutionFromAvatar =
+    Boolean(onOpenExecution) && isExecutionDrilldownMessage(message);
   const avatarUrl = getUserAvatarUrl(message.authorUser);
   const matchingAgent =
     message.messageType === "system"
@@ -177,6 +191,19 @@ export function MessageRow({
       ? executionMessage.content.session_id
       : null;
   const canCollapseAgentMessage = isAgentSessionMessage && !compact && Boolean(text);
+
+  const handleCopyMessage = React.useCallback(async () => {
+    if (!text) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t("chat.copyMessage"));
+    } catch (error) {
+      console.error("[ConversationMessageRow] failed to copy message", error);
+      toast.error(t("chat.copyFailed"));
+    }
+  }, [t, text]);
 
   React.useEffect(() => {
     setIsExpanded(false);
@@ -213,12 +240,28 @@ export function MessageRow({
       )}
     >
       {matchingAgent ? (
-        <ServerAgentAvatar
-          agent={matchingAgent}
-          presets={presets}
-          className="size-11 shrink-0"
-          fallbackClassName="text-sm"
-        />
+        <button
+          type="button"
+          onClick={() => {
+            if (canOpenExecutionFromAvatar && drilldownSessionId && onOpenExecution) {
+              onOpenExecution(drilldownSessionId);
+            }
+          }}
+          disabled={!canOpenExecutionFromAvatar}
+          className={cn(
+            "shrink-0",
+            canOpenExecutionFromAvatar ? "cursor-pointer" : "cursor-default",
+          )}
+          aria-label={author}
+          title={author}
+        >
+          <ServerAgentAvatar
+            agent={matchingAgent}
+            presets={presets}
+            className="size-11 shrink-0"
+            fallbackClassName="text-sm"
+          />
+        </button>
       ) : (
         <Avatar className="size-11 shrink-0 rounded-md border border-border">
           {avatarUrl ? <AvatarImage src={avatarUrl} alt={author} /> : null}
@@ -246,9 +289,17 @@ export function MessageRow({
           <div className="absolute right-0 top-0 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               type="button"
+              onClick={() => void handleCopyMessage()}
+              aria-label={t("chat.copyMessage")}
+              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              <Copy className="size-4" />
+            </button>
+            <button
+              type="button"
               onClick={onOpenThread}
               aria-label={t("conversationView.reply")}
-              className="inline-flex size-8 items-center justify-center gap-1 rounded-md border border-border bg-background text-xs font-medium text-foreground transition-colors hover:bg-muted/30"
+              className="inline-flex size-8 items-center justify-center gap-1 rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
               <MessageSquare className="size-3.5" />
               {message.replyCount > 0 ? (
@@ -263,7 +314,7 @@ export function MessageRow({
                   ? t("conversationView.unsave")
                   : t("conversationView.save")
               }
-              className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-muted/30"
+              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
               <Bookmark
                 className={isSaved ? "size-3.5 fill-current" : "size-3.5"}

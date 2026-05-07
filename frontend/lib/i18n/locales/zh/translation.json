@@ -919,6 +919,7 @@
     "expand": "展开",
     "collapse": "收起",
     "copyMessage": "复制消息",
+    "copyFailed": "复制失败",
     "likeResponse": "点赞回复",
     "createBranch": "新建分支",
     "editMessageFailed": "编辑消息失败",

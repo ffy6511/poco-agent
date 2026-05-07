@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, UserRound } from "lucide-react";
+import { Hash, Plus, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
@@ -27,7 +27,9 @@ export function ColleaguesPanel({
   presets,
   members,
   selection,
+  activeChannelIdByAgentId = {},
   onSelect,
+  onOpenActiveChannel,
   onAddAgent,
   onInviteMember,
 }: {
@@ -35,7 +37,9 @@ export function ColleaguesPanel({
   presets: Preset[];
   members: ServerMemberItem[];
   selection: ColleagueSelection | null;
+  activeChannelIdByAgentId?: Record<string, string>;
   onSelect: (selection: ColleagueSelection) => void;
+  onOpenActiveChannel?: (channelId: string) => void;
   onAddAgent: () => void;
   onInviteMember: () => void;
 }) {
@@ -86,6 +90,8 @@ export function ColleaguesPanel({
                       <span>@{agent.handle}</span>
                       {(() => {
                         const runtimeStatus = getAgentRuntimeStatus(agent);
+                        const activeChannelId =
+                          activeChannelIdByAgentId[agent.id] ?? null;
                         return (
                           <>
                             <span
@@ -95,6 +101,30 @@ export function ColleaguesPanel({
                               )}
                             />
                             <span>{t(runtimeStatus.labelKey)}</span>
+                            {runtimeStatus.labelKey ===
+                              "conversationView.colleagues.runtimeStates.active" &&
+                            activeChannelId &&
+                            onOpenActiveChannel ? (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onOpenActiveChannel(activeChannelId);
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onOpenActiveChannel(activeChannelId);
+                                  }
+                                }}
+                                className="inline-flex items-center rounded-md px-1.5 py-0.5 text-foreground transition-colors hover:bg-muted/60"
+                                title={t("conversationView.backToContext")}
+                              >
+                                <Hash className="size-3.5" />
+                              </span>
+                            ) : null}
                           </>
                         );
                       })()}

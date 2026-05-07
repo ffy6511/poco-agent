@@ -51,6 +51,7 @@ export function ThreadDrawer({
   onAsTaskChange,
   onSend,
   onClose,
+  onOpenExecution,
   isSending,
 }: {
   thread: ServerConversationMessage[];
@@ -65,10 +66,12 @@ export function ThreadDrawer({
   onAsTaskChange: (value: boolean) => void;
   onSend: () => void;
   onClose: () => void;
+  onOpenExecution?: (sessionId: string) => void;
   isSending: boolean;
 }) {
   const { t } = useT("translation");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const isComposingRef = React.useRef(false);
 
   const mentionTrigger = React.useMemo(() => getMentionTrigger(draft), [draft]);
   const mentionCandidates = React.useMemo<MentionCandidate[]>(() => {
@@ -104,16 +107,31 @@ export function ThreadDrawer({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!mentionActive) return;
-    if (event.key === "ArrowDown") {
+    if (mentionActive && event.key === "ArrowDown") {
       event.preventDefault();
       setMentionIndex((i) => (i + 1) % mentionCandidates.length);
-    } else if (event.key === "ArrowUp") {
+      return;
+    }
+    if (mentionActive && event.key === "ArrowUp") {
       event.preventDefault();
       setMentionIndex((i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length);
-    } else if (event.key === "Enter") {
+      return;
+    }
+    if (mentionActive && event.key === "Enter") {
       event.preventDefault();
       insertMention(mentionCandidates[mentionIndex]);
+      return;
+    }
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing &&
+      !isComposingRef.current
+    ) {
+      event.preventDefault();
+      if (!isSending && draft.trim()) {
+        onSend();
+      }
     }
   };
 
@@ -147,6 +165,7 @@ export function ThreadDrawer({
             agents={agents}
             presets={presets}
             onOpenThread={() => undefined}
+            onOpenExecution={onOpenExecution}
             onToggleSaved={() => undefined}
           />
         ))}
@@ -205,6 +224,14 @@ export function ThreadDrawer({
             value={draft}
             onChange={(event) => onDraftChange(event.target.value)}
             onKeyDown={handleKeyDown}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              window.requestAnimationFrame(() => {
+                isComposingRef.current = false;
+              });
+            }}
             rows={6}
             placeholder={t("conversationView.threadPlaceholder")}
             className="rounded-md border-border bg-background text-sm shadow-none"

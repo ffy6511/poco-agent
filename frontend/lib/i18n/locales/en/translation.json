@@ -919,6 +919,7 @@
     "expand": "Expand",
     "collapse": "Collapse",
     "copyMessage": "Copy message",
+    "copyFailed": "Copy failed",
     "likeResponse": "Like response",
     "createBranch": "Create branch",
     "editMessageFailed": "Failed to edit message",

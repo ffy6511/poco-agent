@@ -42,8 +42,10 @@ export function ColleagueDetail({
   members,
   serverId,
   canInspectPersistentFiles,
+  activeChannelIdByAgentId = {},
   onClose,
   onOpenDm,
+  onOpenActiveChannel,
   onRemoveMember,
 }: {
   selection: ColleagueSelection | null;
@@ -52,8 +54,10 @@ export function ColleagueDetail({
   members: ServerMemberItem[];
   serverId?: string | null;
   canInspectPersistentFiles?: boolean;
+  activeChannelIdByAgentId?: Record<string, string>;
   onClose: () => void;
   onOpenDm: (agentId: string) => void;
+  onOpenActiveChannel?: (channelId: string) => void;
   onRemoveMember: (membershipId: number) => void;
 }) {
   const { t } = useT("translation");
@@ -68,6 +72,9 @@ export function ColleagueDetail({
   const selectedRuntimeStatus = selectedAgent
     ? getAgentRuntimeStatus(selectedAgent)
     : null;
+  const selectedAgentActiveChannelId = selectedAgent
+    ? (activeChannelIdByAgentId[selectedAgent.id] ?? "")
+    : "";
   const [persistentFiles, setPersistentFiles] = React.useState<FileNode[]>([]);
   const [isLoadingPersistentFiles, setIsLoadingPersistentFiles] =
     React.useState(false);
@@ -215,6 +222,20 @@ export function ColleagueDetail({
               </div>
             ) : null}
             <div className="flex flex-wrap gap-2 border-t border-border pt-5">
+              {selectedRuntimeStatus?.labelKey ===
+                "conversationView.colleagues.runtimeStates.active" &&
+              selectedAgentActiveChannelId &&
+              onOpenActiveChannel ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onOpenActiveChannel(selectedAgentActiveChannelId)}
+                >
+                  <MessageSquare className="size-4" />
+                  {t("conversationView.backToContext")}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 size="sm"

@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Archive,
+  ArrowDown,
   Bot,
   Check,
   ChevronLeft,
@@ -68,6 +69,7 @@ import {
   type MentionCandidate,
   getMentionTrigger,
 } from "@/features/servers/lib/server-conversation-view";
+import { getMessageSessionId } from "@/features/servers/lib/server-conversation-messages";
 import { shouldShowServerMobileDetail } from "@/features/servers/lib/server-mobile-navigation";
 import { AgentPresetDialog } from "@/features/servers/ui/agent-preset-dialog";
 import { ChannelTasksWorkspace } from "@/features/servers/ui/channel-tasks-workspace";
@@ -321,8 +323,14 @@ function ConversationContent({
 }) {
   const { t } = useT("translation");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const isComposingRef = React.useRef(false);
   const Icon = channel?.conversationType === "direct_message" ? Lock : Hash;
+  const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const hasInitializedScrollRef = React.useRef(false);
+  const lastMessageCountRef = React.useRef(messages.length);
   const mentionTrigger = React.useMemo(() => getMentionTrigger(draft), [draft]);
+  const [showScrollButton, setShowScrollButton] = React.useState(false);
+  const [isUserScrolling, setIsUserScrolling] = React.useState(false);
   const mentionCandidates = React.useMemo<MentionCandidate[]>(() => {
     const humans = buildHumanMentionCandidates(members, currentUserId);
     const agentCandidates = agents.map((agent) => ({
@@ -350,6 +358,77 @@ function ConversationContent({
     setMentionIndex(0);
   }, [mentionCandidates]);
 
+  const scrollToBottom = React.useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      const element = scrollContainerRef.current;
+      if (!element) {
+        return;
+      }
+      element.scrollTo({ top: element.scrollHeight, behavior });
+      setIsUserScrolling(false);
+      setShowScrollButton(false);
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    hasInitializedScrollRef.current = false;
+    lastMessageCountRef.current = 0;
+    setIsUserScrolling(false);
+    setShowScrollButton(false);
+  }, [channel?.id]);
+
+  React.useEffect(() => {
+    const element = scrollContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    const handleScroll = () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      timeoutId = window.setTimeout(() => {
+        const distanceFromBottom =
+          element.scrollHeight - element.scrollTop - element.clientHeight;
+        const isNearBottom = distanceFromBottom < 100;
+        setIsUserScrolling(!isNearBottom);
+        setShowScrollButton(!isNearBottom);
+      }, 80);
+    };
+
+    handleScroll();
+    element.addEventListener("scroll", handleScroll);
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      element.removeEventListener("scroll", handleScroll);
+    };
+  }, [channel?.id]);
+
+  React.useEffect(() => {
+    if (messages.length === 0 || hasInitializedScrollRef.current) {
+      return;
+    }
+    scrollToBottom("auto");
+    hasInitializedScrollRef.current = true;
+  }, [messages.length, scrollToBottom]);
+
+  React.useEffect(() => {
+    const hasNewMessages = messages.length > lastMessageCountRef.current;
+    lastMessageCountRef.current = messages.length;
+    if (!hasNewMessages) {
+      return;
+    }
+    if (!isUserScrolling) {
+      scrollToBottom("smooth");
+    } else {
+      setShowScrollButton(true);
+    }
+  }, [isUserScrolling, messages.length, scrollToBottom]);
+
   const insertMention = (candidate: MentionCandidate) => {
     if (!mentionTrigger) {
       return;
@@ -362,16 +441,31 @@ function ConversationContent({
   };
 
   const handleTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!mentionActive) return;
-    if (event.key === "ArrowDown") {
+    if (mentionActive && event.key === "ArrowDown") {
       event.preventDefault();
       setMentionIndex((i) => (i + 1) % mentionCandidates.length);
-    } else if (event.key === "ArrowUp") {
+      return;
+    }
+    if (mentionActive && event.key === "ArrowUp") {
       event.preventDefault();
       setMentionIndex((i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length);
-    } else if (event.key === "Enter") {
+      return;
+    }
+    if (mentionActive && event.key === "Enter") {
       event.preventDefault();
       insertMention(mentionCandidates[mentionIndex]);
+      return;
+    }
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing &&
+      !isComposingRef.current
+    ) {
+      event.preventDefault();
+      if (!isSending && draft.trim()) {
+        onSend();
+      }
     }
   };
 
@@ -437,19 +531,38 @@ function ConversationContent({
             ))}
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {messages.map((message) => (
-              <MessageRow
-                key={message.id}
-                message={message}
-                agents={agents}
-                presets={presets}
-                onOpenThread={() => onOpenThread(message)}
-                onOpenExecution={onOpenExecution}
-                isSaved={savedMessageIds.has(message.id)}
-                onToggleSaved={() => onToggleSaved(message.id)}
-              />
-            ))}
+          <div className="relative min-h-0 flex-1">
+            <div
+              ref={scrollContainerRef}
+              className="h-full min-h-0 overflow-y-auto"
+            >
+              {messages.map((message) => (
+                <MessageRow
+                  key={message.id}
+                  message={message}
+                  agents={agents}
+                  presets={presets}
+                  onOpenThread={() => onOpenThread(message)}
+                  onOpenExecution={onOpenExecution}
+                  isSaved={savedMessageIds.has(message.id)}
+                  onToggleSaved={() => onToggleSaved(message.id)}
+                />
+              ))}
+            </div>
+            {showScrollButton ? (
+              <div className="absolute bottom-6 right-6 z-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => scrollToBottom("smooth")}
+                  className="size-10 rounded-full bg-background shadow-lg transition-shadow hover:shadow-xl"
+                  title={t("chat.scrollToLatestMessage")}
+                >
+                  <ArrowDown className="size-5" />
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -500,6 +613,14 @@ function ConversationContent({
             value={draft}
             onChange={(event) => onDraftChange(event.target.value)}
             onKeyDown={handleTextareaKeyDown}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              window.requestAnimationFrame(() => {
+                isComposingRef.current = false;
+              });
+            }}
             rows={4}
             placeholder={t("conversationView.messagePlaceholder", {
               name: channel?.name ?? "",
@@ -1328,6 +1449,33 @@ export function ServerConversationPageClient({
       });
   }, [channels, messagesByChannel]);
 
+  const channelIdBySessionId = React.useMemo(() => {
+    const mapping = new Map<string, string>();
+    for (const [channelId, messages] of Object.entries(messagesByChannel)) {
+      for (const message of messages) {
+        const sessionId = getMessageSessionId(message);
+        if (!sessionId || mapping.has(sessionId)) {
+          continue;
+        }
+        mapping.set(sessionId, channelId);
+      }
+    }
+    return mapping;
+  }, [messagesByChannel]);
+
+  const activeChannelIdByAgentId = React.useMemo(
+    () =>
+      Object.fromEntries(
+        serverAgents.map((agent) => [
+          agent.id,
+          agent.persistentState?.activeSessionId
+            ? (channelIdBySessionId.get(agent.persistentState.activeSessionId) ?? "")
+            : "",
+        ]),
+      ),
+    [channelIdBySessionId, serverAgents],
+  );
+
   const filteredSearchItems = React.useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();
     if (!keyword) {
@@ -1756,20 +1904,34 @@ export function ServerConversationPageClient({
     );
   };
 
-  const openChannel = (channel: ServerChannelItem) => {
-    if (!selectedServerId) {
-      return;
-    }
-    setIsMobileDetailVisible(true);
-    saveLastSelection({
-      mode: channel.conversationType === "direct_message" ? "dm" : "channel",
-      serverId: selectedServerId,
-      channelId: channel.id,
-    });
-    router.push(
-      `/${lng}/servers/${selectedServerId}/channels/${channel.id}?tab=chat`,
-    );
-  };
+  const openChannel = React.useCallback(
+    (channel: ServerChannelItem) => {
+      if (!selectedServerId) {
+        return;
+      }
+      setIsMobileDetailVisible(true);
+      saveLastSelection({
+        mode: channel.conversationType === "direct_message" ? "dm" : "channel",
+        serverId: selectedServerId,
+        channelId: channel.id,
+      });
+      router.push(
+        `/${lng}/servers/${selectedServerId}/channels/${channel.id}?tab=chat`,
+      );
+    },
+    [lng, router, selectedServerId],
+  );
+
+  const openChannelById = React.useCallback(
+    (targetChannelId: string) => {
+      const targetChannel = channels.find((channel) => channel.id === targetChannelId);
+      if (!targetChannel) {
+        return;
+      }
+      openChannel(targetChannel);
+    },
+    [channels, openChannel],
+  );
 
   const handleSend = async () => {
     if (!selectedServerId || !activeChannelId) {
@@ -1784,11 +1946,21 @@ export function ServerConversationPageClient({
       if (asTask) {
         const title =
           content.split("\n")[0]?.trim().slice(0, 80) || content.slice(0, 80);
-        await channelTasksApi.createTask(selectedServerId, activeChannelId, {
-          title,
-          description: content,
-        });
-        setMode("tasks");
+        const createdTask = await channelTasksApi.createTask(
+          selectedServerId,
+          activeChannelId,
+          {
+            title,
+            description: content,
+          },
+        );
+        const explicitMentions = getExplicitMentionHandles(content);
+        if (createdTask.threadRootMessageId && explicitMentions.length > 0) {
+          await serversApi.sendMessage(selectedServerId, activeChannelId, {
+            text: content,
+            threadRootMessageId: createdTask.threadRootMessageId,
+          });
+        }
         toast.success(t("conversationView.toasts.taskCreated"));
       } else {
         await serversApi.sendMessage(selectedServerId, activeChannelId, {
@@ -1827,16 +1999,43 @@ export function ServerConversationPageClient({
       const trimmedDraft = threadDraft.trim();
       if (threadAsTask) {
         const title =
-          trimmedDraft.split("\n")[0]?.trim().slice(0, 80) || trimmedDraft.slice(0, 80);
-        await channelTasksApi.createTask(selectedServerId, drawer.channelId, {
-          title,
-          description: trimmedDraft,
-        });
+          trimmedDraft.split("\n")[0]?.trim().slice(0, 80) ||
+          trimmedDraft.slice(0, 80);
+        const createdTask = await channelTasksApi.createTask(
+          selectedServerId,
+          drawer.channelId,
+          {
+            title,
+            description: trimmedDraft,
+          },
+        );
+        const explicitMentions = getExplicitMentionHandles(trimmedDraft);
+        const followupText =
+          threadMentionHandle && !explicitMentions.includes(threadMentionHandle)
+            ? `@${threadMentionHandle} ${trimmedDraft}`
+            : trimmedDraft;
+        if (
+          createdTask.threadRootMessageId &&
+          (explicitMentions.length > 0 || Boolean(threadMentionHandle))
+        ) {
+          await serversApi.sendMessage(selectedServerId, drawer.channelId, {
+            text: followupText,
+            threadRootMessageId: createdTask.threadRootMessageId,
+          });
+        }
         setThreadDraft("");
         setThreadAsTask(false);
         setTasks(
           await channelTasksApi.listTasks(selectedServerId, drawer.channelId),
         );
+        const messages = await serversApi.listMessages(
+          selectedServerId,
+          drawer.channelId,
+        );
+        setMessagesByChannel((current) => ({
+          ...current,
+          [drawer.channelId]: messages,
+        }));
         toast.success(t("conversationView.toasts.taskCreated"));
       } else {
         const explicitMentions = getExplicitMentionHandles(trimmedDraft);
@@ -2291,10 +2490,12 @@ export function ServerConversationPageClient({
               presets={presets}
               members={serverMembers}
               selection={colleagueSelection}
+              activeChannelIdByAgentId={activeChannelIdByAgentId}
               onSelect={(selection) => {
                 setColleagueDetailClosed(false);
                 setDrawer({ type: "colleague", selection });
               }}
+              onOpenActiveChannel={openChannelById}
               onAddAgent={() => setAgentPresetOpen(true)}
               onInviteMember={() => setServerAccessOpen(true)}
             />
@@ -2373,6 +2574,9 @@ export function ServerConversationPageClient({
                     onAsTaskChange={setThreadAsTask}
                     onSend={() => void handleReply()}
                     onClose={() => setDrawer({ type: "none" })}
+                    onOpenExecution={(sessionId) =>
+                      setDrawer({ type: "execution", sessionId })
+                    }
                     isSending={isSending}
                   />
                 ) : drawer.type === "task" && selectedTask ? (
@@ -2411,11 +2615,13 @@ export function ServerConversationPageClient({
                     members={serverMembers}
                     serverId={selectedServerId}
                     canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
+                    activeChannelIdByAgentId={activeChannelIdByAgentId}
                     onClose={() => {
                       setColleagueDetailClosed(true);
                       setDrawer({ type: "none" });
                     }}
                     onOpenDm={handleOpenDm}
+                    onOpenActiveChannel={openChannelById}
                     onRemoveMember={(membershipId) => void removeMember(membershipId)}
                   />
                 ) : null}
