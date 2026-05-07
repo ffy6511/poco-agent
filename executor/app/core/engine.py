@@ -1,3 +1,5 @@
+import hashlib
+import json
 import logging
 import os
 import re
@@ -7,7 +9,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions
-from claude_agent_sdk.client import ClaudeSDKClient
 from claude_agent_sdk.types import (
     AgentDefinition as SdkAgentDefinition,
 )
@@ -22,6 +23,7 @@ from claude_agent_sdk.types import (
 )
 from dotenv import load_dotenv
 
+from app.core.client_pool import ToolPermissionController, get_claude_sdk_client_pool
 from app.core.channel_artifacts import (
     CHANNEL_ARTIFACTS_MCP_SERVER_KEY,
     ChannelArtifactClient,
@@ -119,6 +121,123 @@ class AgentExecutor:
             mount_path=os.environ.get("WORKSPACE_PATH", "/workspace")
         )
 
+    def _build_tool_permission_handler(self, permission_mode: str):
+        executor = self
+
+        class ToolPermissionHandler:
+            def __init__(self) -> None:
+                self.plan_approved = permission_mode != "plan"
+
+            async def can_use_tool(self, tool_name, input_data, context):
+                if not executor.user_input_client:
+                    return PermissionResultDeny(
+                        message="User input client not configured"
+                    )
+
+                if permission_mode == "plan" and not self.plan_approved:
+                    allowed_in_plan_phase = {
+                        "Read",
+                        "Grep",
+                        "Glob",
+                        "TodoWrite",
+                        "Task",
+                        "Skill",
+                        "AskUserQuestion",
+                        "ExitPlanMode",
+                    }
+                    if tool_name not in allowed_in_plan_phase:
+                        return PermissionResultDeny(
+                            message=f"Tool '{tool_name}' is not allowed in plan mode before approval",
+                            interrupt=False,
+                        )
+
+                if tool_name == "AskUserQuestion":
+                    try:
+                        request_payload = {
+                            "session_id": executor.session_id,
+                            "tool_name": tool_name,
+                            "tool_input": input_data,
+                        }
+                        created = await executor.user_input_client.create_request(
+                            request_payload
+                        )
+                        request_id = created.get("id")
+                        if not request_id:
+                            return PermissionResultDeny(
+                                message="Failed to create user input request"
+                            )
+                        result = await executor.user_input_client.wait_for_answer(
+                            request_id=request_id,
+                            timeout_seconds=60,
+                        )
+                    except Exception:
+                        return PermissionResultDeny(
+                            message="User input handling failed"
+                        )
+
+                    if not result or result.get("answers") is None:
+                        return PermissionResultDeny(message="User input timeout")
+
+                    return PermissionResultAllow(
+                        updated_input={
+                            "questions": input_data.get("questions", []),
+                            "answers": result.get("answers", {}),
+                        }
+                    )
+
+                if tool_name == "ExitPlanMode":
+                    try:
+                        plan_expires_at = (
+                            datetime.now(timezone.utc) + timedelta(minutes=10)
+                        ).isoformat()
+                        request_payload = {
+                            "session_id": executor.session_id,
+                            "tool_name": tool_name,
+                            "tool_input": input_data,
+                            "expires_at": plan_expires_at,
+                        }
+                        created = await executor.user_input_client.create_request(
+                            request_payload
+                        )
+                        request_id = created.get("id")
+                        if not request_id:
+                            return PermissionResultDeny(
+                                message="Failed to create plan approval request"
+                            )
+                        result = await executor.user_input_client.wait_for_answer(
+                            request_id=request_id,
+                            timeout_seconds=600,
+                        )
+                    except Exception:
+                        return PermissionResultDeny(
+                            message="Plan approval handling failed"
+                        )
+
+                    if not result or result.get("answers") is None:
+                        return PermissionResultDeny(
+                            message="Plan approval timeout",
+                            interrupt=True,
+                        )
+
+                    answers = result.get("answers") or {}
+                    approved_raw = answers.get("approved")
+                    approved = (
+                        isinstance(approved_raw, str)
+                        and approved_raw.strip().lower() == "true"
+                    )
+                    if not approved:
+                        return PermissionResultDeny(
+                            message="Plan not approved",
+                            interrupt=True,
+                        )
+
+                    self.plan_approved = True
+                    return PermissionResultAllow(updated_input=input_data)
+
+                return PermissionResultAllow(updated_input=input_data)
+
+        return ToolPermissionHandler()
+
     async def execute(
         self, prompt: str, config: TaskConfig, *, permission_mode: str = "default"
     ):
@@ -170,123 +289,9 @@ class AgentExecutor:
             }:
                 normalized_permission_mode = "default"
 
-            # Plan mode is a two-phase flow:
-            # - Phase 1 (planning): deny execution tools (Write/Bash/...) until ExitPlanMode is approved.
-            # - Phase 2 (execution): allow tools normally.
-            plan_approved = normalized_permission_mode != "plan"
-
-            async def can_use_tool(tool_name, input_data, context):
-                nonlocal plan_approved
-
-                if not self.user_input_client:
-                    return PermissionResultDeny(
-                        message="User input client not configured"
-                    )
-
-                # Enforce "plan" phase restrictions until the plan is approved.
-                if normalized_permission_mode == "plan" and not plan_approved:
-                    allowed_in_plan_phase = {
-                        "Read",
-                        "Grep",
-                        "Glob",
-                        "TodoWrite",
-                        "Task",
-                        "Skill",
-                        "AskUserQuestion",
-                        "ExitPlanMode",
-                    }
-                    if tool_name not in allowed_in_plan_phase:
-                        return PermissionResultDeny(
-                            message=f"Tool '{tool_name}' is not allowed in plan mode before approval",
-                            interrupt=False,
-                        )
-
-                if tool_name == "AskUserQuestion":
-                    try:
-                        request_payload = {
-                            "session_id": self.session_id,
-                            "tool_name": tool_name,
-                            "tool_input": input_data,
-                        }
-                        created = await self.user_input_client.create_request(
-                            request_payload
-                        )
-                        request_id = created.get("id")
-                        if not request_id:
-                            return PermissionResultDeny(
-                                message="Failed to create user input request"
-                            )
-                        result = await self.user_input_client.wait_for_answer(
-                            request_id=request_id,
-                            timeout_seconds=60,
-                        )
-                    except Exception:
-                        return PermissionResultDeny(
-                            message="User input handling failed"
-                        )
-
-                    if not result or result.get("answers") is None:
-                        return PermissionResultDeny(message="User input timeout")
-
-                    return PermissionResultAllow(
-                        updated_input={
-                            "questions": input_data.get("questions", []),
-                            "answers": result.get("answers", {}),
-                        }
-                    )
-
-                if tool_name == "ExitPlanMode":
-                    # Ask the user to approve the plan (UX shows a dedicated card in the frontend).
-                    try:
-                        plan_expires_at = (
-                            datetime.now(timezone.utc) + timedelta(minutes=10)
-                        ).isoformat()
-                        request_payload = {
-                            "session_id": self.session_id,
-                            "tool_name": tool_name,
-                            "tool_input": input_data,
-                            "expires_at": plan_expires_at,
-                        }
-                        created = await self.user_input_client.create_request(
-                            request_payload
-                        )
-                        request_id = created.get("id")
-                        if not request_id:
-                            return PermissionResultDeny(
-                                message="Failed to create plan approval request"
-                            )
-                        result = await self.user_input_client.wait_for_answer(
-                            request_id=request_id,
-                            timeout_seconds=600,
-                        )
-                    except Exception:
-                        return PermissionResultDeny(
-                            message="Plan approval handling failed"
-                        )
-
-                    if not result or result.get("answers") is None:
-                        return PermissionResultDeny(
-                            message="Plan approval timeout",
-                            interrupt=True,
-                        )
-
-                    # Strict protocol: only treat answers["approved"] == "true" as approved.
-                    answers = result.get("answers") or {}
-                    approved_raw = answers.get("approved")
-                    approved = (
-                        isinstance(approved_raw, str)
-                        and approved_raw.strip().lower() == "true"
-                    )
-                    if not approved:
-                        return PermissionResultDeny(
-                            message="Plan not approved",
-                            interrupt=True,
-                        )
-
-                    plan_approved = True
-                    return PermissionResultAllow(updated_input=input_data)
-
-                return PermissionResultAllow(updated_input=input_data)
+            permission_handler = self._build_tool_permission_handler(
+                normalized_permission_mode
+            )
 
             mcp_servers = dict(config.mcp_config or {})
             mcp_servers = self._inject_memory_mcp(mcp_servers)
@@ -339,38 +344,88 @@ class AgentExecutor:
                         if mount.container_path
                     }
                 )
-                options = ClaudeAgentOptions(
+
+                def build_options(
+                    controller: ToolPermissionController,
+                ) -> ClaudeAgentOptions:
+                    return ClaudeAgentOptions(
+                        cwd=ctx.cwd,
+                        add_dirs=[str(d) for d in extra_allowed_dirs],
+                        resume=self.sdk_session_id,
+                        # Load both user-level (~/.claude) and project-level (.claude) settings.
+                        # Skills are staged into user-level ~/.claude/skills (symlinked to /workspace/.claude_data).
+                        setting_sources=["user", "project"],
+                        allowed_tools=[
+                            "Skill",
+                            "Read",
+                            "Edit",
+                            "Write",
+                            "Bash",
+                            "TodoWrite",
+                            "Grep",
+                            "Glob",
+                            "Task",
+                        ],
+                        mcp_servers=mcp_servers,
+                        permission_mode=normalized_permission_mode,
+                        model=selected_model,
+                        can_use_tool=controller.can_use_tool,
+                        hooks={
+                            "PreToolUse": [
+                                HookMatcher(matcher=None, hooks=[dummy_hook])
+                            ]
+                        },
+                        agents=agents,
+                        plugins=plugins,
+                    )
+
+                cache_key = self._build_client_cache_key(config)
+                fingerprint = self._build_client_cache_fingerprint(
+                    config=config,
                     cwd=ctx.cwd,
-                    add_dirs=[str(d) for d in extra_allowed_dirs],
-                    resume=self.sdk_session_id,
-                    # Load both user-level (~/.claude) and project-level (.claude) settings.
-                    # Skills are staged into user-level ~/.claude/skills (symlinked to /workspace/.claude_data).
-                    setting_sources=["user", "project"],
-                    allowed_tools=[
-                        "Skill",
-                        "Read",
-                        "Edit",
-                        "Write",
-                        "Bash",
-                        "TodoWrite",
-                        "Grep",
-                        "Glob",
-                        "Task",
-                    ],
-                    mcp_servers=mcp_servers,
+                    selected_model=selected_model,
                     permission_mode=normalized_permission_mode,
-                    model=selected_model,
-                    can_use_tool=can_use_tool,
-                    hooks={
-                        "PreToolUse": [HookMatcher(matcher=None, hooks=[dummy_hook])]
-                    },
+                    extra_allowed_dirs=extra_allowed_dirs,
+                    mcp_servers=mcp_servers,
                     agents=agents,
                     plugins=plugins,
                 )
-
-                async with ClaudeSDKClient(options=options) as client:
-                    await client.query(prompt)
-                    async for msg in client.receive_response():
+                pool = get_claude_sdk_client_pool()
+                async with await pool.acquire(
+                    key=cache_key,
+                    fingerprint=fingerprint,
+                    options_factory=build_options,
+                    delegate=permission_handler,
+                ) as lease:
+                    query_session_id = self.sdk_session_id or self.session_id
+                    logger.info(
+                        "sdk_client_lease_acquired",
+                        extra={
+                            "session_id": self.session_id,
+                            "run_id": self.run_id,
+                            "sdk_session_id": self.sdk_session_id,
+                            "cache_key": cache_key,
+                            "cache_hit": lease.cache_hit,
+                            "disconnect_on_release": lease.disconnect_on_release,
+                        },
+                    )
+                    step_started = time.perf_counter()
+                    await lease.client.query(prompt, session_id=query_session_id)
+                    logger.info(
+                        "timing",
+                        extra={
+                            "step": "executor_first_query_issued",
+                            "duration_ms": int(
+                                (time.perf_counter() - step_started) * 1000
+                            ),
+                            "session_id": self.session_id,
+                            "run_id": self.run_id,
+                            "sdk_session_id": self.sdk_session_id,
+                            "cache_key": cache_key,
+                            "cache_hit": lease.cache_hit,
+                        },
+                    )
+                    async for msg in lease.client.receive_response():
                         await self.hooks.run_on_response(ctx, msg)
 
         except Exception as e:
@@ -398,6 +453,47 @@ class AgentExecutor:
             )
             reset_request_id(request_id_token)
             reset_trace_id(trace_id_token)
+
+    def _build_client_cache_key(self, config: TaskConfig) -> str | None:
+        if config.agent_runtime_mode != "persistent" or not config.agent_identity_id:
+            return None
+        return f"agent:{config.agent_identity_id}:session:{self.session_id}"
+
+    @staticmethod
+    def _build_client_cache_fingerprint(
+        *,
+        config: TaskConfig,
+        cwd: str,
+        selected_model: str,
+        permission_mode: str,
+        extra_allowed_dirs: list[str],
+        mcp_servers: dict,
+        agents: dict[str, SdkAgentDefinition] | None,
+        plugins: list[SdkPluginConfig],
+    ) -> str:
+        payload = {
+            "cwd": cwd,
+            "model": selected_model,
+            "permission_mode": permission_mode,
+            "add_dirs": sorted(extra_allowed_dirs),
+            "mcp_servers": sorted(mcp_servers.keys()),
+            "mcp_server_ids": list(config.mcp_server_ids or []),
+            "skill_ids": list(config.skill_ids or []),
+            "plugin_ids": list(config.plugin_ids or []),
+            "agents": sorted((agents or {}).keys()),
+            "plugins": [
+                plugin_path
+                for plugin in plugins
+                if (plugin_path := getattr(plugin, "path", None))
+            ],
+            "browser_enabled": bool(config.browser_enabled),
+            "memory_enabled": bool(config.memory_enabled),
+            "channel_tools_enabled": bool(
+                config.server_id and config.channel_id and config.agent_identity_id
+            ),
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
     def _build_input_hint(self, config: TaskConfig) -> str | None:
         lines: list[str] = []

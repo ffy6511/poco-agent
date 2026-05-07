@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 import uuid
 from zoneinfo import ZoneInfo
 
@@ -26,6 +27,8 @@ from app.services.model_config_service import (
 )
 from app.services.agent_runtime_service import AgentRuntimeService
 from app.services.session_queue_service import SessionQueueService
+
+logger = logging.getLogger(__name__)
 
 
 class TaskService:
@@ -459,6 +462,15 @@ class TaskService:
         db.commit()
         db.refresh(db_session)
         db.refresh(db_run)
+        logger.info(
+            "timing",
+            extra={
+                "step": "backend_run_materialized",
+                "session_id": str(db_session.id),
+                "run_id": str(db_run.id),
+                "schedule_mode": schedule_mode,
+            },
+        )
 
         return TaskEnqueueResponse(
             session_id=db_session.id,

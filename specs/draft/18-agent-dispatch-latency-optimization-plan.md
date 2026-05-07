@@ -8,15 +8,15 @@
 | **预期改动范围** | backend run enqueue and async notification / executor_manager internal notify endpoint and pull orchestration / executor Claude SDK client cache and lease model / observability and latency regression tests |
 | **改动类型** | perf |
 | **优先级** | P1 |
-| **状态** | drafting |
+| **状态** | review |
 
 ## 实施阶段
 
-- [ ] Phase 0: 收敛延迟基线、实施边界与验证口径
-- [ ] Phase 1: 建立 backend 到 executor_manager 的推送通知链路
-- [ ] Phase 2: 收敛 executor_manager 的立即拉取语义与并发保护
-- [ ] Phase 3: 建立 executor 侧 ClaudeSDKClient 缓存与串行租约
-- [ ] Phase 4: 补齐观测、回归测试与灰度开关
+- [x] Phase 0: 收敛延迟基线、实施边界与验证口径
+- [x] Phase 1: 建立 backend 到 executor_manager 的推送通知链路
+- [x] Phase 2: 收敛 executor_manager 的立即拉取语义与并发保护
+- [x] Phase 3: 建立 executor 侧 ClaudeSDKClient 缓存与串行租约
+- [x] Phase 4: 补齐观测、回归测试与灰度开关
 
 ---
 
