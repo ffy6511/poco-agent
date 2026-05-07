@@ -123,6 +123,127 @@ class ChannelArtifactServiceTests(unittest.TestCase):
             "https://example.com/rate-limit-plan.md",
         )
 
+    def test_read_runtime_artifact_returns_truncated_text(self) -> None:
+        artifact_id = uuid.uuid4()
+        artifact = SimpleNamespace(
+            id=artifact_id,
+            channel_id=self.channel_id,
+            agent_identity_id=self.agent_identity_id,
+            publisher_user_id=None,
+            logical_path="/plans/rate-limit-plan.md",
+            display_name="rate-limit-plan.md",
+            mime_type="text/markdown",
+            object_key="objects/plan.md",
+            source_kind="workspace_export",
+            source_session_id=self.session_id,
+            size_bytes=12,
+            is_previewable=True,
+        )
+
+        with (
+            patch(
+                "app.services.channel_artifact_service.SessionRepository.get_by_id",
+                return_value=self.session,
+            ),
+            patch(
+                "app.services.channel_artifact_service."
+                "ServerChannelAgentMemberRepository.get_by_channel_and_agent",
+                return_value=SimpleNamespace(),
+            ),
+            patch(
+                "app.services.channel_artifact_service."
+                "ChannelArtifactRepository.get_by_channel_and_path",
+                return_value=artifact,
+            ),
+            patch.object(
+                self.service._storage,
+                "get_text",
+                return_value="abcdef",
+            ),
+        ):
+            result = self.service.read_runtime_artifact(
+                self.db,
+                session_id=self.session_id,
+                logical_path="/plans/rate-limit-plan.md",
+                max_bytes=3,
+            )
+
+        self.assertEqual(result.artifact.artifact_id, artifact_id)
+        self.assertEqual(result.content, "abc")
+        self.assertTrue(result.truncated)
+        self.assertFalse(result.metadata_only)
+
+    def test_read_runtime_artifact_rejects_workspace_path(self) -> None:
+        with (
+            patch(
+                "app.services.channel_artifact_service.SessionRepository.get_by_id",
+                return_value=self.session,
+            ),
+            patch(
+                "app.services.channel_artifact_service."
+                "ServerChannelAgentMemberRepository.get_by_channel_and_agent",
+                return_value=SimpleNamespace(),
+            ),
+        ):
+            with self.assertRaises(Exception) as ctx:
+                self.service.read_runtime_artifact(
+                    self.db,
+                    session_id=self.session_id,
+                    logical_path="/workspace/plans/rate-limit-plan.md",
+                )
+
+        self.assertIn("/workspace", str(ctx.exception))
+
+    def test_search_runtime_artifacts_can_match_text_content(self) -> None:
+        artifact = SimpleNamespace(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            agent_identity_id=self.agent_identity_id,
+            publisher_user_id=None,
+            logical_path="/plans/rate-limit-plan.md",
+            display_name="rate-limit-plan.md",
+            mime_type="text/markdown",
+            object_key="objects/plan.md",
+            source_kind="workspace_export",
+            source_session_id=self.session_id,
+            size_bytes=64,
+            is_previewable=True,
+        )
+
+        with (
+            patch(
+                "app.services.channel_artifact_service.SessionRepository.get_by_id",
+                return_value=self.session,
+            ),
+            patch(
+                "app.services.channel_artifact_service."
+                "ServerChannelAgentMemberRepository.get_by_channel_and_agent",
+                return_value=SimpleNamespace(),
+            ),
+            patch(
+                "app.services.channel_artifact_service.ChannelArtifactRepository.search_by_channel",
+                return_value=[],
+            ),
+            patch(
+                "app.services.channel_artifact_service.ChannelArtifactRepository.list_by_channel",
+                return_value=[artifact],
+            ),
+            patch.object(
+                self.service._storage,
+                "get_text",
+                return_value="Use token bucket limits.",
+            ),
+        ):
+            result = self.service.search_runtime_artifacts(
+                self.db,
+                session_id=self.session_id,
+                query="token bucket",
+                include_content=True,
+            )
+
+        self.assertEqual(len(result.artifacts), 1)
+        self.assertEqual(result.artifacts[0].logical_path, "/plans/rate-limit-plan.md")
+
 
 if __name__ == "__main__":
     unittest.main()

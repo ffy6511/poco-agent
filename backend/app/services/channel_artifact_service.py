@@ -4,11 +4,23 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.errors.error_codes import ErrorCode
+from app.core.errors.exceptions import AppException
 from app.models.agent_session import AgentSession
 from app.models.channel_artifact import ChannelArtifact
 from app.models.user import User
 from app.repositories.agent_identity_repository import AgentIdentityRepository
 from app.repositories.channel_artifact_repository import ChannelArtifactRepository
+from app.repositories.server_channel_agent_member_repository import (
+    ServerChannelAgentMemberRepository,
+)
+from app.repositories.session_repository import SessionRepository
+from app.schemas.channel_artifact import (
+    AgentChannelArtifactListResponse,
+    AgentChannelArtifactMetadata,
+    AgentChannelArtifactReadResponse,
+    AgentChannelArtifactSearchResponse,
+)
 from app.schemas.workspace import FileNode
 from app.services.server_member_service import require_server_member
 from app.services.storage_service import S3StorageService
@@ -21,6 +33,24 @@ from app.utils.workspace_manifest import (
 
 
 class ChannelArtifactService:
+    DEFAULT_READ_BYTES = 32 * 1024
+    MAX_READ_BYTES = 64 * 1024
+    TEXT_EXTENSIONS = {
+        ".md",
+        ".txt",
+        ".json",
+        ".py",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".sql",
+        ".csv",
+    }
+
     def __init__(self) -> None:
         self._storage = S3StorageService()
 
@@ -73,6 +103,89 @@ class ChannelArtifactService:
             or normalized.startswith("/.poco-local/")
         )
 
+    @classmethod
+    def _is_text_artifact(cls, artifact: ChannelArtifact) -> bool:
+        mime_type = artifact.mime_type or ""
+        if mime_type.startswith("text/"):
+            return True
+        suffix = PurePosixPath(artifact.logical_path).suffix.lower()
+        return suffix in cls.TEXT_EXTENSIONS
+
+    @classmethod
+    def _content_kind(cls, artifact: ChannelArtifact) -> str:
+        return "text" if cls._is_text_artifact(artifact) else "binary"
+
+    @classmethod
+    def _metadata(cls, artifact: ChannelArtifact) -> AgentChannelArtifactMetadata:
+        return AgentChannelArtifactMetadata(
+            artifact_id=artifact.id,
+            logical_path=artifact.logical_path,
+            display_name=artifact.display_name,
+            source_kind=artifact.source_kind,
+            source_session_id=artifact.source_session_id,
+            agent_identity_id=artifact.agent_identity_id,
+            publisher_user_id=artifact.publisher_user_id,
+            mime_type=artifact.mime_type,
+            size_bytes=artifact.size_bytes,
+            is_previewable=artifact.is_previewable,
+            content_kind=cls._content_kind(artifact),
+            created_at=getattr(artifact, "created_at", None),
+            updated_at=getattr(artifact, "updated_at", None),
+        )
+
+    @staticmethod
+    def _resolve_runtime_scope(
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+    ) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
+        db_session = SessionRepository.get_by_id(db, session_id)
+        if db_session is None:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Session not found: {session_id}",
+            )
+
+        snapshot = db_session.config_snapshot or {}
+        if not isinstance(snapshot, dict):
+            snapshot = {}
+        try:
+            server_id = uuid.UUID(str(snapshot.get("server_id")))
+            channel_id = uuid.UUID(str(snapshot.get("channel_id")))
+            agent_identity_id = uuid.UUID(str(snapshot.get("agent_identity_id")))
+        except (TypeError, ValueError):
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message="Session is missing channel artifact runtime context",
+            )
+
+        membership = ServerChannelAgentMemberRepository.get_by_channel_and_agent(
+            db,
+            channel_id=channel_id,
+            agent_identity_id=agent_identity_id,
+        )
+        if membership is None:
+            raise AppException(
+                error_code=ErrorCode.FORBIDDEN,
+                message="Agent is not a member of this channel",
+            )
+        return server_id, channel_id, agent_identity_id
+
+    @staticmethod
+    def _normalize_logical_path_for_read(logical_path: str | None) -> str | None:
+        normalized = normalize_manifest_path(logical_path)
+        if not normalized:
+            return None
+        if normalized.startswith("/workspace/") or normalized == "/workspace":
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message=(
+                    "logical_path identifies a published channel artifact, "
+                    "not a /workspace filesystem path"
+                ),
+            )
+        return normalized
+
     def sync_session_workspace_artifacts(
         self,
         db: Session,
@@ -119,6 +232,133 @@ class ChannelArtifactService:
 
         ChannelArtifactRepository.upsert_many(db, artifacts=artifacts)
         return len(artifacts)
+
+    def list_runtime_artifacts(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+    ) -> AgentChannelArtifactListResponse:
+        _, channel_id, _ = self._resolve_runtime_scope(db, session_id=session_id)
+        artifacts = ChannelArtifactRepository.list_by_channel(db, channel_id=channel_id)
+        return AgentChannelArtifactListResponse(
+            artifacts=[self._metadata(artifact) for artifact in artifacts]
+        )
+
+    def read_runtime_artifact(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        artifact_id: uuid.UUID | None = None,
+        logical_path: str | None = None,
+        max_bytes: int | None = None,
+    ) -> AgentChannelArtifactReadResponse:
+        _, channel_id, _ = self._resolve_runtime_scope(db, session_id=session_id)
+        artifact: ChannelArtifact | None = None
+        if artifact_id is not None:
+            artifact = ChannelArtifactRepository.get_by_channel_and_id(
+                db,
+                channel_id=channel_id,
+                artifact_id=artifact_id,
+            )
+        else:
+            normalized_path = self._normalize_logical_path_for_read(logical_path)
+            if normalized_path is None:
+                raise AppException(
+                    error_code=ErrorCode.BAD_REQUEST,
+                    message="artifact_id or logical_path is required",
+                )
+            artifact = ChannelArtifactRepository.get_by_channel_and_path(
+                db,
+                channel_id=channel_id,
+                logical_path=normalized_path,
+            )
+
+        if artifact is None:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message="Channel artifact not found",
+            )
+
+        metadata = self._metadata(artifact)
+        if not self._is_text_artifact(artifact):
+            return AgentChannelArtifactReadResponse(
+                artifact=metadata,
+                metadata_only=True,
+                reason="binary_or_unsupported_preview",
+            )
+
+        read_limit = min(max_bytes or self.DEFAULT_READ_BYTES, self.MAX_READ_BYTES)
+        if artifact.size_bytes is not None and artifact.size_bytes > self.MAX_READ_BYTES:
+            return AgentChannelArtifactReadResponse(
+                artifact=metadata,
+                metadata_only=True,
+                reason="file_too_large",
+            )
+
+        content = self._storage.get_text(artifact.object_key)
+        truncated = len(content.encode("utf-8")) > read_limit
+        if truncated:
+            content = content.encode("utf-8")[:read_limit].decode(
+                "utf-8",
+                errors="ignore",
+            )
+        return AgentChannelArtifactReadResponse(
+            artifact=metadata,
+            content=content,
+            truncated=truncated,
+        )
+
+    def search_runtime_artifacts(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        query: str,
+        limit: int = 10,
+        include_content: bool = False,
+    ) -> AgentChannelArtifactSearchResponse:
+        _, channel_id, _ = self._resolve_runtime_scope(db, session_id=session_id)
+        normalized_query = query.strip()
+        if not normalized_query:
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message="query must be a non-empty string",
+            )
+
+        artifacts = ChannelArtifactRepository.search_by_channel(
+            db,
+            channel_id=channel_id,
+            query=normalized_query,
+            limit=limit,
+        )
+        if include_content and len(artifacts) < limit:
+            seen_ids = {artifact.id for artifact in artifacts}
+            for artifact in ChannelArtifactRepository.list_by_channel(
+                db,
+                channel_id=channel_id,
+            ):
+                if artifact.id in seen_ids or not self._is_text_artifact(artifact):
+                    continue
+                if (
+                    artifact.size_bytes is not None
+                    and artifact.size_bytes > self.MAX_READ_BYTES
+                ):
+                    continue
+                try:
+                    content = self._storage.get_text(artifact.object_key)
+                except Exception:
+                    continue
+                if normalized_query.lower() in content.lower():
+                    artifacts.append(artifact)
+                    seen_ids.add(artifact.id)
+                    if len(artifacts) >= limit:
+                        break
+
+        return AgentChannelArtifactSearchResponse(
+            artifacts=[self._metadata(artifact) for artifact in artifacts[:limit]]
+        )
 
     def list_channel_artifact_nodes(
         self,

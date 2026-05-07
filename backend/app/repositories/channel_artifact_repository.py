@@ -70,3 +70,57 @@ class ChannelArtifactRepository:
             )
             .all()
         )
+
+    @staticmethod
+    def get_by_channel_and_id(
+        session_db: Session,
+        *,
+        channel_id: uuid.UUID,
+        artifact_id: uuid.UUID,
+    ) -> ChannelArtifact | None:
+        return (
+            session_db.query(ChannelArtifact)
+            .filter(
+                ChannelArtifact.channel_id == channel_id,
+                ChannelArtifact.id == artifact_id,
+            )
+            .first()
+        )
+
+    @staticmethod
+    def get_by_channel_and_path(
+        session_db: Session,
+        *,
+        channel_id: uuid.UUID,
+        logical_path: str,
+    ) -> ChannelArtifact | None:
+        return (
+            session_db.query(ChannelArtifact)
+            .filter(
+                ChannelArtifact.channel_id == channel_id,
+                ChannelArtifact.logical_path == logical_path,
+            )
+            .first()
+        )
+
+    @staticmethod
+    def search_by_channel(
+        session_db: Session,
+        *,
+        channel_id: uuid.UUID,
+        query: str,
+        limit: int,
+    ) -> list[ChannelArtifact]:
+        pattern = f"%{query}%"
+        return (
+            session_db.query(ChannelArtifact)
+            .filter(ChannelArtifact.channel_id == channel_id)
+            .filter(
+                ChannelArtifact.display_name.ilike(pattern)
+                | ChannelArtifact.logical_path.ilike(pattern)
+                | ChannelArtifact.source_kind.ilike(pattern)
+            )
+            .order_by(ChannelArtifact.logical_path.asc())
+            .limit(limit)
+            .all()
+        )
