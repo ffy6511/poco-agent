@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Bookmark, MessageSquare } from "lucide-react";
+import { Bookmark, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   getUserAvatarUrl,
   getUserDisplayName,
 } from "@/features/servers/lib/server-conversation-view";
+import { getServerMessageText } from "@/features/servers/lib/server-message-text";
 import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
 import type {
   ServerAgentItem,
@@ -18,6 +19,8 @@ import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { ServerMessageContent } from "./server-message-content";
 import { ServerAgentAvatar } from "./server-agent-avatar";
+
+const AGENT_MESSAGE_COLLAPSE_LINES = 8;
 
 export function formatTime(value: string): string {
   const date = new Date(value);
@@ -63,18 +66,7 @@ export function getInitials(value: string): string {
 }
 
 export function getMessageText(message: ServerConversationMessage): string {
-  if (message.textPreview?.trim()) {
-    return message.textPreview.trim();
-  }
-  const text = message.content.text;
-  if (typeof text === "string" && text.trim()) {
-    return text.trim();
-  }
-  const title = message.content.title;
-  if (typeof title === "string" && title.trim()) {
-    return title.trim();
-  }
-  return "";
+  return getServerMessageText(message);
 }
 
 export function getMessageAuthor(message: ServerConversationMessage): string {
@@ -153,9 +145,14 @@ export function MessageRow({
   onToggleSaved: () => void;
 }) {
   const { t } = useT("translation");
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [shouldCollapse, setShouldCollapse] = React.useState(false);
+  const agentMessageRef = React.useRef<HTMLDivElement>(null);
   const author = getMessageAuthor(message);
   const text = getMessageText(message);
   const executionMessage = isExecutionMessage(message) ? message : null;
+  const isAgentSessionMessage =
+    message.messageType === "system" && message.content.source === "agent_session";
   const avatarUrl = getUserAvatarUrl(message.authorUser);
   const matchingAgent =
     message.messageType === "system"
@@ -179,6 +176,34 @@ export function MessageRow({
     executionMessage && typeof executionMessage.content.session_id === "string"
       ? executionMessage.content.session_id
       : null;
+  const canCollapseAgentMessage = isAgentSessionMessage && !compact && Boolean(text);
+
+  React.useEffect(() => {
+    setIsExpanded(false);
+  }, [message.id, text]);
+
+  React.useEffect(() => {
+    if (!canCollapseAgentMessage) {
+      setShouldCollapse(false);
+      return;
+    }
+
+    const element = agentMessageRef.current;
+    if (!element) return;
+
+    const checkOverflow = () => {
+      const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
+      const thresholdHeight = lineHeight * AGENT_MESSAGE_COLLAPSE_LINES;
+      setShouldCollapse(element.scrollHeight > thresholdHeight + 1);
+    };
+
+    checkOverflow();
+
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [canCollapseAgentMessage, text]);
 
   return (
     <article
@@ -301,15 +326,48 @@ export function MessageRow({
             </div>
           </button>
         ) : (
-          <div
-            className={cn(
-              "cursor-text select-text text-base leading-7 text-foreground",
-              compact && "max-h-[15rem] overflow-hidden",
-            )}
-          >
-            <ServerMessageContent
-              content={text || t("conversationView.emptyMessage")}
-            />
+          <div className="group/message min-w-0">
+            <div
+              ref={agentMessageRef}
+              className={cn(
+                "relative cursor-text select-text text-base leading-7 text-foreground",
+                compact && "max-h-[15rem] overflow-hidden",
+                canCollapseAgentMessage &&
+                  shouldCollapse &&
+                  !isExpanded &&
+                  "max-h-56 overflow-hidden",
+              )}
+            >
+              <ServerMessageContent
+                content={text || t("conversationView.emptyMessage")}
+              />
+              {canCollapseAgentMessage && shouldCollapse && !isExpanded ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-10 items-end bg-gradient-to-t from-background via-background/90 to-transparent">
+                  <span className="text-sm leading-none text-muted-foreground">
+                    ...
+                  </span>
+                </div>
+              ) : null}
+            </div>
+            {canCollapseAgentMessage && shouldCollapse ? (
+              <button
+                type="button"
+                onClick={() => setIsExpanded((value) => !value)}
+                className="mt-2 flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {isExpanded ? (
+                  <>
+                    <ChevronUp className="size-4" />
+                    {t("chat.collapse")}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="size-4" />
+                    {t("chat.expand")}
+                  </>
+                )}
+              </button>
+            ) : null}
           </div>
         )}
       </div>
