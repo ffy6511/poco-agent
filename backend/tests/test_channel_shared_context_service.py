@@ -87,6 +87,68 @@ class ChannelSharedContextServiceTests(unittest.TestCase):
         self.assertIn("read_channel_artifact", prompt)
         self.assertIn("not /workspace paths", prompt)
 
+    def test_build_message_trigger_prompt_prefers_full_content_over_preview(self) -> None:
+        full_text = ("Complete @jimi summary " + ("details " * 120)).strip()
+        truncated_preview = "Complete @jimi summary details details"
+        message = SimpleNamespace(
+            id=self.message_id,
+            channel_id=self.channel_id,
+            author_user_id="user-1",
+            text_preview=truncated_preview,
+            content={"text": full_text},
+            thread_root_message_id=None,
+        )
+        recent_messages = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                channel_id=self.channel_id,
+                author_user_id=None,
+                author_user=None,
+                text_preview=truncated_preview,
+                content={"text": full_text},
+                message_type="system",
+            )
+        ]
+
+        with (
+            patch(
+                "app.services.channel_shared_context_service."
+                "ServerChannelMessageRepository.list_by_channel",
+                return_value=recent_messages,
+            ),
+            patch(
+                "app.services.channel_shared_context_service."
+                "ChannelArtifactRepository.list_by_channel",
+                return_value=[],
+            ),
+            patch(
+                "app.services.channel_shared_context_service."
+                "ServerChannelMemberRepository.list_by_channel",
+                return_value=[],
+            ),
+            patch(
+                "app.services.channel_shared_context_service."
+                "UserRepository.list_by_ids",
+                return_value=[],
+            ),
+            patch(
+                "app.services.channel_shared_context_service."
+                "ServerChannelAgentMemberRepository.list_by_channel",
+                return_value=[],
+            ),
+        ):
+            prompt = self.service.build_message_trigger_prompt(
+                self.db,
+                server_id=self.server_id,
+                channel_id=self.channel_id,
+                message=message,
+                current_user=self.current_user,
+                agent_display_name="API Specialist",
+            )
+
+        self.assertIn(full_text, prompt)
+        self.assertGreater(prompt.count(full_text), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

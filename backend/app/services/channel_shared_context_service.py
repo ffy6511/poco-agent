@@ -41,9 +41,6 @@ class ChannelSharedContextService:
 
     @staticmethod
     def _message_text(message: Any) -> str:
-        text_preview = getattr(message, "text_preview", None)
-        if isinstance(text_preview, str) and text_preview.strip():
-            return text_preview.strip()
         content = getattr(message, "content", None)
         if isinstance(content, dict):
             text = content.get("text")
@@ -52,6 +49,9 @@ class ChannelSharedContextService:
             title = content.get("title")
             if isinstance(title, str) and title.strip():
                 return title.strip()
+        text_preview = getattr(message, "text_preview", None)
+        if isinstance(text_preview, str) and text_preview.strip():
+            return text_preview.strip()
         return ""
 
     @staticmethod
