@@ -1,7 +1,6 @@
-fix(server-channel): refine channel conversation interactions
+fix(execution-drawer): streamline server channel execution entry
 
-- add a phased active spec for channel UX follow-ups and mark Phase 1-2 complete
-- restore chat-like composer behavior with auto-scroll, jump-to-bottom, and Enter-to-send
-- keep task creation in the current channel and send follow-up replies for mention-driven task handoff
-- add copy and avatar-to-execution actions on agent messages plus session drilldown helpers and tests
-- let active colleagues jump back into the related channel context
+- default server channel execution drawers to a collapsed right panel while keeping manual expand available
+- hide preset identity badges in channel-opened execution views without changing normal chat behavior
+- keep thread execution drilldown wired through the shared drawer container
+- update the active spec to mark Phase 3-4 complete and record verification plus known unrelated test debt

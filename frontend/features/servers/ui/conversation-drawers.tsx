@@ -494,7 +494,11 @@ export function ExecutionDrawer({
             touchTask: () => undefined,
           }}
         >
-          <ExecutionContainer sessionId={sessionId} />
+          <ExecutionContainer
+            sessionId={sessionId}
+            defaultRightPanelCollapsed
+            hidePresetBadge
+          />
         </TaskHistoryProvider>
       </div>
     </aside>

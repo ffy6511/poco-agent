@@ -15,8 +15,8 @@
 - [x] Phase 0: 收敛问题列表、现状约束与提交边界 (2026-05-08)
 - [x] Phase 1: 修复频道消息区基础交互 (2026-05-08)
 - [x] Phase 2: 修复消息卡片动作与 colleague 跳转 (2026-05-08)
-- [ ] Phase 3: 修复 execution drawer 进入态与终止操作
-- [ ] Phase 4: 验证、回写 spec 状态并分阶段提交
+- [x] Phase 3: 修复 execution drawer 进入态与终止操作 (2026-05-08)
+- [x] Phase 4: 验证、回写 spec 状态并分阶段提交 (2026-05-08)
 
 ## 实现记录
 
@@ -24,6 +24,8 @@
 - 2026-05-08: 当前工作分支为 `fix/channel-ux-followups`，后续提交按 phase 聚合，避免把消息流交互、execution drawer 行为和文档更新混成一个提交。
 - 2026-05-08: Phase 1 已完成：频道主消息区补齐首次滚底、跟随新消息时的自动滚底和“回到底部”按钮；主频道与 thread drawer 输入框改为 Enter 发送、Shift + Enter 换行；`As Task` 不再主动切到 tasks 视图，并在具备 agent 协作意图时补 user follow-up 以承接现有 mention 触发链路。
 - 2026-05-08: Phase 2 已完成：频道消息卡片动作区补齐复制按钮并去掉外层描边；agent execution / agent session 消息的头像现在都能回到对应 execution drawer；colleagues 与 colleague detail 在 agent 处于 active 且能解析到 session 对应频道时，支持直接跳回相关 channel。
+- 2026-05-08: Phase 3 已完成：server channel 进入 execution drawer 时默认收起右侧 computer / artifacts 面板，并隐藏更偏普通聊天语义的 preset badge；终止按钮继续复用既有 `cancelSessionAction -> /sessions/{id}/cancel` 链路，无需新增 server 专用 cancel API。
+- 2026-05-08: Phase 4 已完成：已通过 `cd frontend && node --test --experimental-strip-types --experimental-specifier-resolution=node features/servers/lib/server-conversation-messages.test.ts`、`cd frontend && pnpm lint`、`cd frontend && pnpm build` 验证。本仓库当前 `pnpm test` 全量脚本仍存在既有失败（与本次改动无关），包括 alias 解析失败和 `features/workspaces/lib/team-sections.test.ts` 的基线断言失败，因此本轮仅把新增/相关验证作为交付门槛。
 
 ---
 
@@ -247,9 +249,9 @@ constitution 已经明确：主消息流放 compact execution item，完整 sess
 
 **验收标准：**
 
-- [ ] 频道 execution drawer 默认只显示主 chat panel
-- [ ] 用户仍可手动打开右侧 panel
-- [ ] 普通聊天页默认行为不被破坏
+- [x] 频道 execution drawer 默认只显示主 chat panel
+- [x] 用户仍可手动打开右侧 panel
+- [x] 普通聊天页默认行为不被破坏
 
 #### 3.2 移除频道 execution drawer 中的身份 badge
 
@@ -263,8 +265,8 @@ constitution 已经明确：主消息流放 compact execution item，完整 sess
 
 **验收标准：**
 
-- [ ] 从频道进入 execution drawer 时不显示身份 badge
-- [ ] 普通聊天页原有 badge 行为不被破坏
+- [x] 从频道进入 execution drawer 时不显示身份 badge
+- [x] 普通聊天页原有 badge 行为不被破坏
 
 #### 3.3 保留并验证终止链路
 
@@ -278,9 +280,9 @@ constitution 已经明确：主消息流放 compact execution item，完整 sess
 
 **验收标准：**
 
-- [ ] 频道 execution drawer 可见终止按钮
-- [ ] 点击后 session 状态进入 `canceling`
-- [ ] 不需要新增专门的 server-side cancel API
+- [x] 频道 execution drawer 可见终止按钮
+- [x] 点击后 session 状态进入 `canceling`
+- [x] 不需要新增专门的 server-side cancel API
 
 ---
 
@@ -303,8 +305,8 @@ constitution 已经明确：主消息流放 compact execution item，完整 sess
 
 **验收标准：**
 
-- [ ] 相关前端测试通过
-- [ ] `cd frontend && pnpm lint` 通过
+- [x] 相关前端测试通过
+- [x] `cd frontend && pnpm lint` 通过
 
 #### 4.2 同步更新 spec todo
 
@@ -312,7 +314,7 @@ constitution 已经明确：主消息流放 compact execution item，完整 sess
 
 **验收标准：**
 
-- [ ] spec 的 phase 状态与代码实际进度一致
+- [x] spec 的 phase 状态与代码实际进度一致
 
 #### 4.3 生成 COMMIT.md 并提交
 
@@ -320,5 +322,5 @@ constitution 已经明确：主消息流放 compact execution item，完整 sess
 
 **验收标准：**
 
-- [ ] 每个 commit 都有对应的 staged-only `COMMIT.md`
-- [ ] commit 主题与 spec phase 边界一致
+- [x] 每个 commit 都有对应的 staged-only `COMMIT.md`
+- [x] commit 主题与 spec phase 边界一致

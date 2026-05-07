@@ -14,9 +14,15 @@ import { useToolExecutions } from "@/features/chat/components/execution/computer
 
 interface ExecutionContainerProps {
   sessionId: string;
+  defaultRightPanelCollapsed?: boolean;
+  hidePresetBadge?: boolean;
 }
 
-export function ExecutionContainer({ sessionId }: ExecutionContainerProps) {
+export function ExecutionContainer({
+  sessionId,
+  defaultRightPanelCollapsed = false,
+  hidePresetBadge = false,
+}: ExecutionContainerProps) {
   const { t } = useT("translation");
   const { refreshTasks } = useTaskHistoryContext();
   const { session, isLoading, error, updateSession } = useExecutionSession({
@@ -58,7 +64,7 @@ export function ExecutionContainer({ sessionId }: ExecutionContainerProps) {
   }, [showArtifactsTab, showComputerTab]);
   const [rightTab, setRightTab] = React.useState<string>(defaultRightTab);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] =
-    React.useState(false);
+    React.useState(defaultRightPanelCollapsed);
   const effectiveRightPanelCollapsed = isRightPanelCollapsed || !showFilePanel;
   const didManualSwitchRef = React.useRef(false);
   const prevDefaultRef = React.useRef<string>(defaultRightTab);
@@ -72,7 +78,8 @@ export function ExecutionContainer({ sessionId }: ExecutionContainerProps) {
     didManualSwitchRef.current = false;
     prevDefaultRef.current = defaultRightTab;
     setRightTab(defaultRightTab);
-  }, [defaultRightTab, sessionId]);
+    setIsRightPanelCollapsed(defaultRightPanelCollapsed);
+  }, [defaultRightTab, defaultRightPanelCollapsed, sessionId]);
 
   // Smart default: switch to artifacts on completion only if user didn't manually switch.
   React.useEffect(() => {
@@ -165,6 +172,7 @@ export function ExecutionContainer({ sessionId }: ExecutionContainerProps) {
           ? () => setIsRightPanelCollapsed((collapsed) => !collapsed)
           : undefined
       }
+      hidePresetBadge={hidePresetBadge}
     />
   );
 

@@ -90,6 +90,7 @@ interface ChatPanelProps {
   isRightPanelToggleDisabled?: boolean;
   isRightPanelCollapsed?: boolean;
   hideHeader?: boolean;
+  hidePresetBadge?: boolean;
 }
 
 interface QuoteSelectionState {
@@ -176,6 +177,7 @@ export function ChatPanel({
   isRightPanelToggleDisabled = false,
   isRightPanelCollapsed = false,
   hideHeader = false,
+  hidePresetBadge = false,
 }: ChatPanelProps) {
   const router = useRouter();
   const lng = useLanguage();
@@ -1360,7 +1362,7 @@ export function ChatPanel({
           skills={statePatch?.skills_used}
           mcpStatuses={statePatch?.mcp_status}
           browser={statePatch?.browser}
-          preset={currentPreset}
+          preset={hidePresetBadge ? null : currentPreset}
           onPresetChange={setDraftPreset}
           className={isRightPanelCollapsed ? "px-[20%]" : undefined}
         />
