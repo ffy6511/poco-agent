@@ -1,7 +1,7 @@
-feat(channel-runtime): proxy runtime APIs through executor manager
+feat(channel-runtime): add executor runtime facade tools
 
-- Add unified proxy routes for message reads, agent listing, and collaboration requests
-- Forward runtime calls to backend internal APIs with internal token and trace headers
-- Keep session scope separated from tool payloads in the proxy boundary
-- Cover executor-manager runtime proxy behavior with unittest cases
-- Mark Phase 2 of the unified channel runtime tools plan complete
+- Add ChannelRuntimeClient methods for messages, agents, and collaboration
+- Expose read_channel_messages, list_channel_agents, and request_agent_collaboration tools
+- Add channel runtime prompt guidance for message reads and explicit collaboration
+- Cover executor facade methods and prompt contract with unittest cases
+- Mark completed Phase 3 client criteria in the unified runtime plan

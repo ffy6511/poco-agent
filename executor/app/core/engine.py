@@ -657,6 +657,22 @@ class AgentExecutor:
         )
 
     @staticmethod
+    def _build_channel_runtime_hint(config: TaskConfig) -> str | None:
+        if not (config.server_id and config.channel_id and config.agent_identity_id):
+            return None
+
+        return "\n".join(
+            [
+                "Channel runtime tools contract:",
+                "- Use read_channel_messages with message_ids or thread_root_message_id when you need full channel message text or reaction groups.",
+                "- Use list_channel_agents before requesting another agent's help when you need to discover available collaborators.",
+                "- Use request_agent_collaboration for explicit agent-to-agent collaboration; include the smallest useful request_text and references.",
+                "- Agent output that mentions @handle is visible text only and does not trigger another agent.",
+                "- Do not claim that you read messages or requested collaboration unless the structured tool call succeeded.",
+            ]
+        )
+
+    @staticmethod
     def _build_channel_trigger_context_hint(config: TaskConfig) -> str | None:
         context = config.trigger_context
         if not isinstance(context, dict):
@@ -749,6 +765,10 @@ class AgentExecutor:
         channel_artifact_hint = self._build_channel_artifact_hint(config)
         if channel_artifact_hint:
             sections.append(channel_artifact_hint)
+
+        channel_runtime_hint = self._build_channel_runtime_hint(config)
+        if channel_runtime_hint:
+            sections.append(channel_runtime_hint)
 
         channel_reaction_hint = self._build_channel_reaction_hint(config)
         if channel_reaction_hint:

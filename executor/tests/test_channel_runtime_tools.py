@@ -1,7 +1,9 @@
 import unittest
+from unittest.mock import AsyncMock, patch
 
 from app.core.channel_runtime import (
     CHANNEL_RUNTIME_MCP_SERVER_KEY,
+    ChannelRuntimeClient,
     _format_tool_error,
     _format_tool_result,
     _run_tool,
@@ -44,6 +46,78 @@ class ChannelRuntimeToolContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(text.startswith("list_channel_agents_error\n"))
         self.assertIn('"error": "backend unavailable"', text)
         self.assertIn('"code": "runtime_error"', text)
+
+    async def test_client_reads_channel_messages_through_runtime_proxy(self) -> None:
+        client = ChannelRuntimeClient("http://manager", "session-1")
+
+        with patch.object(
+            client,
+            "_request",
+            new=AsyncMock(return_value={"messages": []}),
+        ) as request:
+            result = await client.read_messages(
+                message_ids=["message-1"],
+                thread_root_message_id=None,
+                limit=20,
+            )
+
+        self.assertEqual(result, {"messages": []})
+        request.assert_awaited_once_with(
+            "/api/v1/agent-channel-runtime/messages/read",
+            {
+                "message_ids": ["message-1"],
+                "thread_root_message_id": None,
+                "limit": 20,
+            },
+        )
+
+    async def test_client_lists_channel_agents_through_runtime_proxy(self) -> None:
+        client = ChannelRuntimeClient("http://manager", "session-1")
+
+        with patch.object(
+            client,
+            "_request",
+            new=AsyncMock(return_value={"agents": []}),
+        ) as request:
+            result = await client.list_agents()
+
+        self.assertEqual(result, {"agents": []})
+        request.assert_awaited_once_with(
+            "/api/v1/agent-channel-runtime/agents/list",
+            {},
+        )
+
+    async def test_client_requests_collaboration_through_runtime_proxy(self) -> None:
+        client = ChannelRuntimeClient("http://manager", "session-1")
+
+        with patch.object(
+            client,
+            "_request",
+            new=AsyncMock(return_value={"status": "queued"}),
+        ) as request:
+            result = await client.request_collaboration(
+                agent_handle="api",
+                request_text="Please review this.",
+                reason=None,
+                mode="consult",
+                thread_root_message_id=None,
+                reference_message_ids=["message-1"],
+                reference_artifact_ids=[],
+            )
+
+        self.assertEqual(result, {"status": "queued"})
+        request.assert_awaited_once_with(
+            "/api/v1/agent-channel-runtime/collaboration/request",
+            {
+                "agent_handle": "api",
+                "request_text": "Please review this.",
+                "reason": None,
+                "mode": "consult",
+                "thread_root_message_id": None,
+                "reference_message_ids": ["message-1"],
+                "reference_artifact_ids": [],
+            },
+        )
 
 
 if __name__ == "__main__":
