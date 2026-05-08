@@ -372,3 +372,36 @@ class ServerChannelMessageRepository:
             ):
                 return candidate
         return None
+
+    @staticmethod
+    def list_open_execution_placeholders_by_agent_scope(
+        session_db: Session,
+        *,
+        agent_identity_id: uuid.UUID,
+        channel_id: uuid.UUID | None = None,
+    ) -> list[ServerChannelMessage]:
+        query = session_db.query(ServerChannelMessage).filter(
+            ServerChannelMessage.message_type == "system",
+        )
+        if channel_id is not None:
+            query = query.filter(ServerChannelMessage.channel_id == channel_id)
+        candidates = query.order_by(
+            ServerChannelMessage.created_at.desc(),
+            ServerChannelMessage.id.desc(),
+        ).all()
+        agent_identity_id_text = str(agent_identity_id)
+        results: list[ServerChannelMessage] = []
+        for candidate in candidates:
+            content = candidate.content or {}
+            if content.get("source") != "agent_execution":
+                continue
+            if (
+                str(content.get("agent_identity_id") or "").strip()
+                != agent_identity_id_text
+            ):
+                continue
+            status = str(content.get("execution_status") or "").strip().lower()
+            if status in {"completed", "failed", "canceled", "cancelled"}:
+                continue
+            results.append(candidate)
+        return results

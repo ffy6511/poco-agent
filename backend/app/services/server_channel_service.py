@@ -32,6 +32,7 @@ from app.schemas.user_profile import UserPublicProfileResponse
 from app.services.server_member_service import (
     require_server_admin,
     require_server_member,
+    require_server_owner,
 )
 from app.services.user_public_profile_service import list_user_public_profiles_by_id
 
@@ -367,6 +368,35 @@ class ServerChannelService:
             membership,
             user_profiles=user_profiles,
         )
+
+    def remove_channel_member(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        channel_id: uuid.UUID,
+        membership_id: int,
+    ) -> None:
+        require_server_owner(db, server_id, current_user.id)
+        channel = ServerChannelRepository.get_by_id(db, channel_id)
+        if channel is None or channel.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel not found: {channel_id}",
+            )
+        membership = ServerChannelMemberRepository.get_by_id(db, membership_id)
+        if membership is None or membership.channel_id != channel.id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel membership not found: {membership_id}",
+            )
+        if membership.role == "owner":
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message="Channel owner cannot be removed",
+            )
+        ServerChannelMemberRepository.delete(db, membership)
+        db.commit()
 
     def join_channel(
         self,

@@ -283,7 +283,9 @@
       "noAgents": "Keine Agents in diesem Kanal.",
       "noHumans": "Noch keine Personen beteiligt.",
       "addMemberPlaceholder": "Benutzer-ID",
-      "addMember": "Mitglied hinzufügen"
+      "addMember": "Mitglied hinzufügen",
+      "removeAgent": "Agent aus Kanal entfernen",
+      "removeHuman": "Mitglied aus Kanal entfernen"
     },
     "serverAccess": {
       "title": "Server-Zugang",
@@ -341,7 +343,11 @@
       },
       "emptyValue": "Nicht verfügbar",
       "emptySelection": "Wähle einen Kollegen aus, um Details anzuzeigen.",
-      "removeMember": "Mitglied entfernen"
+      "removeMember": "Mitglied entfernen",
+      "restartAgent": "Neustarten",
+      "stopAgent": "Stoppen",
+      "removeFromChannel": "Aus Kanal entfernen",
+      "removeFromServer": "Vom Server entfernen"
     },
     "threadMentionHint": "Antworten in diesem Thread richten sich an",
     "execution": {
@@ -392,6 +398,16 @@
       "agentCreateFailed": "Agent konnte nicht erstellt werden",
       "memberRemoved": "Mitglied entfernt",
       "memberRemoveFailed": "Mitglied konnte nicht entfernt werden",
+      "agentRestarted": "Agent neu gestartet",
+      "agentRestartFailed": "Agent konnte nicht neu gestartet werden",
+      "agentStopped": "Agent gestoppt",
+      "agentStopFailed": "Agent konnte nicht gestoppt werden",
+      "agentRemoved": "Agent entfernt",
+      "agentRemoveFailed": "Agent konnte nicht entfernt werden",
+      "agentRemovedFromChannel": "Agent aus Kanal entfernt",
+      "agentRemoveFromChannelFailed": "Agent konnte nicht aus Kanal entfernt werden",
+      "memberRemovedFromChannel": "Mitglied aus Kanal entfernt",
+      "memberRemoveFromChannelFailed": "Mitglied konnte nicht aus Kanal entfernt werden",
       "reactionFailed": "Reaktion konnte nicht aktualisiert werden"
     },
     "reactions": {

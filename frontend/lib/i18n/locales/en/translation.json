@@ -283,7 +283,9 @@
       "noAgents": "No agents in this channel.",
       "noHumans": "No human participants yet.",
       "addMemberPlaceholder": "User ID",
-      "addMember": "Add member"
+      "addMember": "Add member",
+      "removeAgent": "Remove agent from channel",
+      "removeHuman": "Remove member from channel"
     },
     "serverAccess": {
       "title": "Server access",
@@ -344,7 +346,11 @@
       },
       "emptyValue": "Not available",
       "emptySelection": "Select a colleague to inspect their profile.",
-      "removeMember": "Remove member"
+      "removeMember": "Remove member",
+      "restartAgent": "Restart",
+      "stopAgent": "Stop",
+      "removeFromChannel": "Remove from channel",
+      "removeFromServer": "Remove from server"
     },
     "threadMentionHint": "Replies in this thread will target",
     "execution": {
@@ -393,8 +399,18 @@
       "inviteCopyFailed": "Failed to copy invite key",
       "agentCreated": "Agent created",
       "agentCreateFailed": "Failed to create agent",
+      "agentRestarted": "Agent restarted",
+      "agentRestartFailed": "Failed to restart agent",
+      "agentStopped": "Agent stopped",
+      "agentStopFailed": "Failed to stop agent",
+      "agentRemoved": "Agent removed",
+      "agentRemoveFailed": "Failed to remove agent",
       "memberRemoved": "Member removed",
       "memberRemoveFailed": "Failed to remove member",
+      "agentRemovedFromChannel": "Agent removed from channel",
+      "agentRemoveFromChannelFailed": "Failed to remove agent from channel",
+      "memberRemovedFromChannel": "Member removed from channel",
+      "memberRemoveFromChannelFailed": "Failed to remove member from channel",
       "reactionFailed": "Failed to update reaction"
     },
     "reactions": {

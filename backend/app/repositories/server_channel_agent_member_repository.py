@@ -40,3 +40,10 @@ class ServerChannelAgentMemberRepository:
             .order_by(ServerChannelAgentMember.joined_at.asc())
             .all()
         )
+
+    @staticmethod
+    def delete(
+        session_db: Session,
+        membership: ServerChannelAgentMember,
+    ) -> None:
+        session_db.delete(membership)

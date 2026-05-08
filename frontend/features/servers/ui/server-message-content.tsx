@@ -16,7 +16,7 @@ type LinkProps = {
   ref?: React.Ref<HTMLAnchorElement>;
 };
 
-const MENTION_PATTERN = /(@[A-Za-z0-9._-]+)/g;
+const MENTION_PATTERN = /(@[^\s@,.!?;:]+)/gu;
 
 const ImgBlock = ({
   src,
@@ -106,7 +106,9 @@ const markdownComponents = {
     <h2 className="text-lg font-bold mb-3 mt-5 text-foreground">{children}</h2>
   )),
   h3: withMentionHighlight(({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-base font-bold mb-2 mt-4 text-foreground">{children}</h3>
+    <h3 className="text-base font-bold mb-2 mt-4 text-foreground">
+      {children}
+    </h3>
   )),
   p: withMentionHighlight(({ children }: { children?: React.ReactNode }) => (
     <p>{children}</p>
@@ -119,9 +121,11 @@ const markdownComponents = {
       <blockquote>{children}</blockquote>
     ),
   ),
-  strong: withMentionHighlight(({ children }: { children?: React.ReactNode }) => (
-    <strong>{children}</strong>
-  )),
+  strong: withMentionHighlight(
+    ({ children }: { children?: React.ReactNode }) => (
+      <strong>{children}</strong>
+    ),
+  ),
   em: withMentionHighlight(({ children }: { children?: React.ReactNode }) => (
     <em>{children}</em>
   )),

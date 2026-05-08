@@ -283,7 +283,9 @@
       "noAgents": "Aucun agent dans ce canal.",
       "noHumans": "Aucun participant humain pour le moment.",
       "addMemberPlaceholder": "ID utilisateur",
-      "addMember": "Ajouter un membre"
+      "addMember": "Ajouter un membre",
+      "removeAgent": "Retirer l'agent du canal",
+      "removeHuman": "Retirer le membre du canal"
     },
     "serverAccess": {
       "title": "Accès au serveur",
@@ -341,7 +343,11 @@
       },
       "emptyValue": "Non disponible",
       "emptySelection": "Sélectionnez un collègue pour voir ses détails.",
-      "removeMember": "Retirer le membre"
+      "removeMember": "Retirer le membre",
+      "restartAgent": "Redémarrer",
+      "stopAgent": "Arrêter",
+      "removeFromChannel": "Retirer du canal",
+      "removeFromServer": "Retirer du serveur"
     },
     "threadMentionHint": "Les réponses dans ce fil cibleront",
     "execution": {
@@ -392,6 +398,16 @@
       "agentCreateFailed": "Impossible de créer l’agent",
       "memberRemoved": "Membre retiré",
       "memberRemoveFailed": "Impossible de retirer le membre",
+      "agentRestarted": "Agent redémarré",
+      "agentRestartFailed": "Impossible de redémarrer l'agent",
+      "agentStopped": "Agent arrêté",
+      "agentStopFailed": "Impossible d'arrêter l'agent",
+      "agentRemoved": "Agent retiré",
+      "agentRemoveFailed": "Impossible de retirer l'agent",
+      "agentRemovedFromChannel": "Agent retiré du canal",
+      "agentRemoveFromChannelFailed": "Impossible de retirer l'agent du canal",
+      "memberRemovedFromChannel": "Membre retiré du canal",
+      "memberRemoveFromChannelFailed": "Impossible de retirer le membre du canal",
       "reactionFailed": "Échec de la mise à jour de la réaction"
     },
     "reactions": {

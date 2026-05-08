@@ -283,7 +283,9 @@
       "noAgents": "このチャンネルには Agent がいません。",
       "noHumans": "人間の参加者はまだいません。",
       "addMemberPlaceholder": "ユーザー ID",
-      "addMember": "メンバーを追加"
+      "addMember": "メンバーを追加",
+      "removeAgent": "チャンネルから Agent を削除",
+      "removeHuman": "チャンネルからメンバーを削除"
     },
     "serverAccess": {
       "title": "サーバーアクセス",
@@ -341,7 +343,11 @@
       },
       "emptyValue": "利用不可",
       "emptySelection": "詳細を見る同僚を選択してください。",
-      "removeMember": "メンバーを削除"
+      "removeMember": "メンバーを削除",
+      "restartAgent": "再起動",
+      "stopAgent": "停止",
+      "removeFromChannel": "チャンネルから削除",
+      "removeFromServer": "サーバーから削除"
     },
     "threadMentionHint": "このスレッドの返信は次宛てになります",
     "execution": {
@@ -392,6 +398,16 @@
       "agentCreateFailed": "Agent の作成に失敗しました",
       "memberRemoved": "メンバーを削除しました",
       "memberRemoveFailed": "メンバーの削除に失敗しました",
+      "agentRestarted": "Agent を再起動しました",
+      "agentRestartFailed": "Agent の再起動に失敗しました",
+      "agentStopped": "Agent を停止しました",
+      "agentStopFailed": "Agent の停止に失敗しました",
+      "agentRemoved": "Agent を削除しました",
+      "agentRemoveFailed": "Agent の削除に失敗しました",
+      "agentRemovedFromChannel": "Agent をチャンネルから削除しました",
+      "agentRemoveFromChannelFailed": "チャンネルからの Agent 削除に失敗しました",
+      "memberRemovedFromChannel": "メンバーをチャンネルから削除しました",
+      "memberRemoveFromChannelFailed": "チャンネルからのメンバー削除に失敗しました",
       "reactionFailed": "リアクションの更新に失敗しました"
     },
     "reactions": {

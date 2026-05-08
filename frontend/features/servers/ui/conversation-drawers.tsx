@@ -30,7 +30,10 @@ import type {
   ServerConversationMessage,
 } from "@/features/servers/model/types";
 import {
+  buildAgentMentionCandidate,
   buildHumanMentionCandidates,
+  getMentionInsertText,
+  getMentionSearchText,
   getMentionTrigger,
   type MentionCandidate,
 } from "@/features/servers/lib/server-conversation-view";
@@ -79,7 +82,10 @@ export function ThreadDrawer({
   onSend: () => void;
   onClose: () => void;
   onOpenExecution?: (sessionId: string) => void;
-  onToggleReaction?: (message: ServerConversationMessage, emoji: string) => void;
+  onToggleReaction?: (
+    message: ServerConversationMessage,
+    emoji: string,
+  ) => void;
   isSending: boolean;
 }) {
   const { t } = useT("translation");
@@ -90,16 +96,10 @@ export function ThreadDrawer({
   const mentionCandidates = React.useMemo<MentionCandidate[]>(() => {
     if (!mentionTrigger) return [];
     const humans = buildHumanMentionCandidates(members, currentUserId);
-    const agentCandidates = agents.map((agent) => ({
-      id: agent.id,
-      label: agent.displayName,
-      handle: agent.handle,
-      kind: "agent" as const,
-      description: agent.description,
-    }));
+    const agentCandidates = agents.map(buildAgentMentionCandidate);
     return [...agentCandidates, ...humans]
-      .filter((c) =>
-        `${c.label} ${c.handle}`.toLowerCase().includes(mentionTrigger.query),
+      .filter((candidate) =>
+        getMentionSearchText(candidate).includes(mentionTrigger.query),
       )
       .slice(0, 8);
   }, [agents, currentUserId, mentionTrigger, members]);
@@ -112,7 +112,7 @@ export function ThreadDrawer({
 
   const insertMention = (candidate: MentionCandidate) => {
     if (!mentionTrigger) return;
-    const mention = `@${candidate.handle} `;
+    const mention = getMentionInsertText(candidate);
     onDraftChange(
       `${draft.slice(0, mentionTrigger.start)}${mention}${draft.slice(mentionTrigger.start + mentionTrigger.query.length + 1)}`,
     );
@@ -127,7 +127,9 @@ export function ThreadDrawer({
     }
     if (mentionActive && event.key === "ArrowUp") {
       event.preventDefault();
-      setMentionIndex((i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length);
+      setMentionIndex(
+        (i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length,
+      );
       return;
     }
     if (mentionActive && event.key === "Enter") {
@@ -204,7 +206,8 @@ export function ThreadDrawer({
               </div>
               <div className="space-y-1">
                 {mentionCandidates.map((candidate, index) => {
-                  const CandidateIcon = candidate.kind === "agent" ? Bot : UserRound;
+                  const CandidateIcon =
+                    candidate.kind === "agent" ? Bot : UserRound;
                   return (
                     <button
                       key={`${candidate.kind}-${candidate.id}`}
@@ -212,7 +215,9 @@ export function ThreadDrawer({
                       onClick={() => insertMention(candidate)}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors",
-                        index === mentionIndex ? "bg-primary/15" : "hover:bg-muted/30",
+                        index === mentionIndex
+                          ? "bg-primary/15"
+                          : "hover:bg-muted/30",
                       )}
                     >
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
@@ -378,7 +383,9 @@ export function AgentDrawer({
                       <span
                         className={cn(
                           "size-2 rounded-full",
-                          getAgentRuntimeDotClassName(selectedRuntimeStatus.tone),
+                          getAgentRuntimeDotClassName(
+                            selectedRuntimeStatus.tone,
+                          ),
                         )}
                       />
                       {t(selectedRuntimeStatus.labelKey)}
@@ -607,7 +614,9 @@ export function TaskDrawer({
                     className="rounded-md border border-border px-3 py-3 text-sm text-foreground"
                   >
                     <ServerMessageContent
-                      content={item.textPreview || t("conversationView.emptyMessage")}
+                      content={
+                        item.textPreview || t("conversationView.emptyMessage")
+                      }
                     />
                   </div>
                 ))

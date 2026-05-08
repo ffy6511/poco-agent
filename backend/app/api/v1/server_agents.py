@@ -49,7 +49,9 @@ async def create_server_agent(
     return Response.success(data=result, message="Server agent created successfully")
 
 
-@router.get("/{agent_identity_id}", response_model=ResponseSchema[AgentIdentityResponse])
+@router.get(
+    "/{agent_identity_id}", response_model=ResponseSchema[AgentIdentityResponse]
+)
 async def get_server_agent(
     server_id: uuid.UUID,
     agent_identity_id: uuid.UUID,
@@ -58,6 +60,48 @@ async def get_server_agent(
 ) -> JSONResponse:
     result = service.get_agent(db, current_user, server_id, agent_identity_id)
     return Response.success(data=result, message="Server agent retrieved successfully")
+
+
+@router.post(
+    "/{agent_identity_id}/restart",
+    response_model=ResponseSchema[AgentIdentityResponse],
+)
+async def restart_server_agent(
+    server_id: uuid.UUID,
+    agent_identity_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    result = service.restart_agent(db, current_user, server_id, agent_identity_id)
+    return Response.success(data=result, message="Server agent restarted successfully")
+
+
+@router.post(
+    "/{agent_identity_id}/stop",
+    response_model=ResponseSchema[AgentIdentityResponse],
+)
+async def stop_server_agent(
+    server_id: uuid.UUID,
+    agent_identity_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    result = service.stop_agent(db, current_user, server_id, agent_identity_id)
+    return Response.success(data=result, message="Server agent stopped successfully")
+
+
+@router.delete("/{agent_identity_id}", response_model=ResponseSchema[dict])
+async def remove_server_agent(
+    server_id: uuid.UUID,
+    agent_identity_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    service.remove_agent_from_server(db, current_user, server_id, agent_identity_id)
+    return Response.success(
+        data={"agent_identity_id": agent_identity_id},
+        message="Server agent removed successfully",
+    )
 
 
 def _attach_agent_state_file_urls(
@@ -140,7 +184,9 @@ async def list_channel_agents(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     result = service.list_channel_agents(db, current_user, server_id, channel_id)
-    return Response.success(data=result, message="Channel agents retrieved successfully")
+    return Response.success(
+        data=result, message="Channel agents retrieved successfully"
+    )
 
 
 @channel_router.post("", response_model=ResponseSchema[ChannelAgentMemberResponse])
@@ -159,3 +205,24 @@ async def add_agent_to_channel(
         request,
     )
     return Response.success(data=result, message="Channel agent added successfully")
+
+
+@channel_router.delete("/{agent_identity_id}", response_model=ResponseSchema[dict])
+async def remove_agent_from_channel(
+    server_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    agent_identity_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    service.remove_agent_from_channel(
+        db,
+        current_user,
+        server_id,
+        channel_id,
+        agent_identity_id,
+    )
+    return Response.success(
+        data={"agent_identity_id": agent_identity_id},
+        message="Channel agent removed successfully",
+    )

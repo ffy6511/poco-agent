@@ -62,7 +62,10 @@ import type {
 } from "@/features/servers/model/types";
 import { useServerMembership } from "@/features/servers/hooks/use-server-membership";
 import {
+  buildAgentMentionCandidate,
   buildHumanMentionCandidates,
+  getMentionInsertText,
+  getMentionSearchText,
   getUserDisplayName,
   hasInboxSignal,
   sortMessagesChronologically,
@@ -339,22 +342,15 @@ function ConversationContent({
   const [isUserScrolling, setIsUserScrolling] = React.useState(false);
   const mentionCandidates = React.useMemo<MentionCandidate[]>(() => {
     const humans = buildHumanMentionCandidates(members, currentUserId);
-    const agentCandidates = agents.map((agent) => ({
-      id: agent.id,
-      label: agent.displayName,
-      handle: agent.handle,
-      kind: "agent" as const,
-      description: agent.description,
-    }));
+    const agentCandidates = agents.map(buildAgentMentionCandidate);
     const candidates = [...agentCandidates, ...humans];
     if (!mentionTrigger) {
       return [];
     }
     return candidates
-      .filter((candidate) => {
-        const haystack = `${candidate.label} ${candidate.handle}`.toLowerCase();
-        return haystack.includes(mentionTrigger.query);
-      })
+      .filter((candidate) =>
+        getMentionSearchText(candidate).includes(mentionTrigger.query),
+      )
       .slice(0, 8);
   }, [agents, currentUserId, mentionTrigger, members]);
 
@@ -439,14 +435,16 @@ function ConversationContent({
     if (!mentionTrigger) {
       return;
     }
-    const mention = `@${candidate.handle} `;
+    const mention = getMentionInsertText(candidate);
     onDraftChange(
       `${draft.slice(0, mentionTrigger.start)}${mention}${draft.slice(mentionTrigger.start + mentionTrigger.query.length + 1)}`,
     );
     textareaRef.current?.focus();
   };
 
-  const handleTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleTextareaKeyDown = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
     if (mentionActive && event.key === "ArrowDown") {
       event.preventDefault();
       setMentionIndex((i) => (i + 1) % mentionCandidates.length);
@@ -454,7 +452,9 @@ function ConversationContent({
     }
     if (mentionActive && event.key === "ArrowUp") {
       event.preventDefault();
-      setMentionIndex((i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length);
+      setMentionIndex(
+        (i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length,
+      );
       return;
     }
     if (mentionActive && event.key === "Enter") {
@@ -709,10 +709,14 @@ function CreateChannelDialog({
     if (!keyword) {
       return true;
     }
-    return `${agent.displayName} ${agent.handle}`.toLowerCase().includes(keyword);
+    return `${agent.displayName} ${agent.handle}`
+      .toLowerCase()
+      .includes(keyword);
   });
   const visibleMembers = members
-    .filter((member) => member.status === "active" && member.userId !== currentUserId)
+    .filter(
+      (member) => member.status === "active" && member.userId !== currentUserId,
+    )
     .filter((member) => {
       if (!keyword) {
         return true;
@@ -774,7 +778,9 @@ function CreateChannelDialog({
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder={t("conversationView.createChannel.namePlaceholder")}
+                placeholder={t(
+                  "conversationView.createChannel.namePlaceholder",
+                )}
                 className="h-11 rounded-none border-2 border-border bg-background text-base shadow-none"
                 autoFocus
               />
@@ -841,7 +847,9 @@ function CreateChannelDialog({
                         <span className="min-w-0 flex-1 truncate">
                           {agent.displayName || agent.handle}
                         </span>
-                        {selected ? <Check className="size-4 text-primary" /> : null}
+                        {selected ? (
+                          <Check className="size-4 text-primary" />
+                        ) : null}
                       </button>
                     );
                   })}
@@ -877,7 +885,9 @@ function CreateChannelDialog({
                         <span className="min-w-0 flex-1 truncate">
                           {getUserDisplayName(member.user, member.userId)}
                         </span>
-                        {selected ? <Check className="size-4 text-primary" /> : null}
+                        {selected ? (
+                          <Check className="size-4 text-primary" />
+                        ) : null}
                       </button>
                     );
                   })}
@@ -1019,20 +1029,26 @@ function ChannelMembersDialog({
   agents,
   availableAgents,
   humans,
+  canManageMembers,
   onOpenChange,
   onOpenDm,
   onAddAgents,
   onAddMember,
+  onRemoveAgent,
+  onRemoveMember,
 }: {
   open: boolean;
   channel: ServerChannelItem | null;
   agents: ServerAgentItem[];
   availableAgents: ServerAgentItem[];
-  humans: MentionCandidate[];
+  humans: ServerChannelMemberItem[];
+  canManageMembers: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenDm: (agentId: string) => void;
   onAddAgents: (agentIds: string[]) => Promise<void>;
   onAddMember: (userId: string) => void;
+  onRemoveAgent: (agentId: string) => void;
+  onRemoveMember: (membershipId: number) => void;
 }) {
   const { t } = useT("translation");
   const [memberUserId, setMemberUserId] = React.useState("");
@@ -1057,7 +1073,9 @@ function ChannelMembersDialog({
       if (!keyword) {
         return true;
       }
-      return `${agent.displayName} ${agent.handle}`.toLowerCase().includes(keyword);
+      return `${agent.displayName} ${agent.handle}`
+        .toLowerCase()
+        .includes(keyword);
     });
   }, [agentSearch, availableAgents]);
 
@@ -1111,24 +1129,40 @@ function ChannelMembersDialog({
             <div className="space-y-2">
               {agents.length > 0 ? (
                 agents.map((agent) => (
-                  <button
+                  <div
                     key={agent.id}
-                    type="button"
-                    onClick={() => onOpenDm(agent.id)}
-                    className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted/20"
+                    className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-3"
                   >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-                      <Bot className="size-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-foreground">
-                        {agent.displayName}
+                    <button
+                      type="button"
+                      onClick={() => onOpenDm(agent.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-foreground">
+                        <Bot className="size-4" />
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        @{agent.handle}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {agent.displayName}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          @{agent.handle}
+                        </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                    {canManageMembers ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onRemoveAgent(agent.id)}
+                        aria-label={t("conversationView.members.removeAgent")}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 ))
               ) : (
                 <div className="rounded-md border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
@@ -1148,7 +1182,9 @@ function ChannelMembersDialog({
               <Input
                 value={agentSearch}
                 onChange={(event) => setAgentSearch(event.target.value)}
-                placeholder={t("conversationView.members.agentSearchPlaceholder")}
+                placeholder={t(
+                  "conversationView.members.agentSearchPlaceholder",
+                )}
               />
               <div className="max-h-56 overflow-y-auto space-y-1">
                 {visibleAvailableAgents.length > 0 ? (
@@ -1177,7 +1213,9 @@ function ChannelMembersDialog({
                             @{agent.handle}
                           </span>
                         </span>
-                        {selected ? <Check className="size-4 text-primary" /> : null}
+                        {selected ? (
+                          <Check className="size-4 text-primary" />
+                        ) : null}
                       </button>
                     );
                   })
@@ -1219,12 +1257,24 @@ function ChannelMembersDialog({
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-foreground">
-                        {human.label}
+                        {getUserDisplayName(human.user, human.userId)}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        @{human.handle}
+                        {human.role}
                       </span>
                     </span>
+                    {canManageMembers && human.role !== "owner" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="ml-auto size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onRemoveMember(human.id)}
+                        aria-label={t("conversationView.members.removeHuman")}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
                   </div>
                 ))
               ) : (
@@ -1289,7 +1339,9 @@ export function ServerConversationPageClient({
   const [threadMessages, setThreadMessages] = React.useState<
     ServerConversationMessage[]
   >([]);
-  const [channelArtifacts, setChannelArtifacts] = React.useState<FileNode[]>([]);
+  const [channelArtifacts, setChannelArtifacts] = React.useState<FileNode[]>(
+    [],
+  );
   const [taskActivity, setTaskActivity] = React.useState<
     ChannelTaskActivityMessage[]
   >([]);
@@ -1361,6 +1413,7 @@ export function ServerConversationPageClient({
     copyInvite,
     createAgent,
     removeMember,
+    refreshMembership,
   } = useServerMembership({
     selectedServerId,
     onServersChanged: setServers,
@@ -1423,21 +1476,22 @@ export function ServerConversationPageClient({
     }
     return null;
   }, [drawer, serverAgents, serverMembers]);
-  const humanCandidates = React.useMemo(
-    () => buildHumanMentionCandidates(channelMembers, profile?.id),
-    [channelMembers, profile?.id],
-  );
   const availableChannelAgents = React.useMemo(() => {
     const existingIds = new Set(channelAgents.map((agent) => agent.id));
     return serverAgents.filter((agent) => !existingIds.has(agent.id));
   }, [channelAgents, serverAgents]);
   const isChannelOwner = Boolean(
     selectedChannel &&
-      profile?.id &&
-      (selectedChannel.createdBy === profile.id ||
-        channelMembers.some(
-          (member) => member.userId === profile.id && member.role === "owner",
-        )),
+    profile?.id &&
+    (selectedChannel.createdBy === profile.id ||
+      channelMembers.some(
+        (member) => member.userId === profile.id && member.role === "owner",
+      )),
+  );
+  const canManageServer = Boolean(
+    selectedServer?.ownerUserId &&
+    profile?.id &&
+    selectedServer.ownerUserId === profile.id,
   );
 
   const allFeedItems = React.useMemo<FeedItem[]>(() => {
@@ -1476,7 +1530,9 @@ export function ServerConversationPageClient({
         serverAgents.map((agent) => [
           agent.id,
           agent.persistentState?.activeSessionId
-            ? (channelIdBySessionId.get(agent.persistentState.activeSessionId) ?? "")
+            ? (channelIdBySessionId.get(
+                agent.persistentState.activeSessionId,
+              ) ?? "")
             : "",
         ]),
       ),
@@ -1497,14 +1553,11 @@ export function ServerConversationPageClient({
 
   const inboxItems = React.useMemo(
     () =>
-      allFeedItems.filter((item) =>
-        hasInboxSignal(item.message, profile?.id),
-      ),
+      allFeedItems.filter((item) => hasInboxSignal(item.message, profile?.id)),
     [allFeedItems, profile?.id],
   );
   const unreadInboxItems = React.useMemo(
-    () =>
-      inboxItems.filter((item) => !readMessageIds.has(item.message.id)),
+    () => inboxItems.filter((item) => !readMessageIds.has(item.message.id)),
     [inboxItems, readMessageIds],
   );
   const savedItems = React.useMemo(
@@ -1625,12 +1678,16 @@ export function ServerConversationPageClient({
         setMessagesByChannel(Object.fromEntries(previews));
 
         if (activeChannelId) {
-          const [nextTasks, nextAgents, nextMembers, nextArtifacts] = await Promise.all([
-            channelTasksApi.listTasks(selectedServerId, activeChannelId),
-            serversApi.listChannelAgents(selectedServerId, activeChannelId),
-            serversApi.listChannelMembers(selectedServerId, activeChannelId),
-            serversApi.listChannelArtifacts(selectedServerId, activeChannelId),
-          ]);
+          const [nextTasks, nextAgents, nextMembers, nextArtifacts] =
+            await Promise.all([
+              channelTasksApi.listTasks(selectedServerId, activeChannelId),
+              serversApi.listChannelAgents(selectedServerId, activeChannelId),
+              serversApi.listChannelMembers(selectedServerId, activeChannelId),
+              serversApi.listChannelArtifacts(
+                selectedServerId,
+                activeChannelId,
+              ),
+            ]);
           setTasks(nextTasks);
           setChannelAgents(nextAgents);
           setChannelMembers(nextMembers);
@@ -1784,7 +1841,9 @@ export function ServerConversationPageClient({
           serversApi.listChannelArtifacts(selectedServerId, activeChannelId),
         ];
         if (mode === "tasks") {
-          requests.push(channelTasksApi.listTasks(selectedServerId, activeChannelId));
+          requests.push(
+            channelTasksApi.listTasks(selectedServerId, activeChannelId),
+          );
         }
         if (drawer.type === "thread" && drawer.channelId === activeChannelId) {
           requests.push(
@@ -1827,12 +1886,18 @@ export function ServerConversationPageClient({
         if (drawer.type === "thread" && Array.isArray(nextThread)) {
           setThreadMessages(nextThread as ServerConversationMessage[]);
         }
-        if (selectedTask?.threadRootMessageId && Array.isArray(nextTaskActivity)) {
+        if (
+          selectedTask?.threadRootMessageId &&
+          Array.isArray(nextTaskActivity)
+        ) {
           setTaskActivity(nextTaskActivity as ChannelTaskActivityMessage[]);
         }
       } catch (error) {
         if (!cancelled) {
-          console.error("[ServersWorkspace] active channel refresh failed", error);
+          console.error(
+            "[ServersWorkspace] active channel refresh failed",
+            error,
+          );
         }
       } finally {
         inFlight = false;
@@ -1931,7 +1996,9 @@ export function ServerConversationPageClient({
 
   const openChannelById = React.useCallback(
     (targetChannelId: string) => {
-      const targetChannel = channels.find((channel) => channel.id === targetChannelId);
+      const targetChannel = channels.find(
+        (channel) => channel.id === targetChannelId,
+      );
       if (!targetChannel) {
         return;
       }
@@ -2185,7 +2252,9 @@ export function ServerConversationPageClient({
           ]),
         ),
       );
-      setThreadMessages((current) => updateMessageById(current, messageId, update));
+      setThreadMessages((current) =>
+        updateMessageById(current, messageId, update),
+      );
     },
     [],
   );
@@ -2358,6 +2427,102 @@ export function ServerConversationPageClient({
     }
   };
 
+  const handleRestartAgent = async (agentId: string) => {
+    if (!selectedServerId) {
+      return;
+    }
+    try {
+      await serversApi.restartAgent(selectedServerId, agentId);
+      await refreshMembership(selectedServerId);
+      if (activeChannelId) {
+        setChannelAgents(
+          await serversApi.listChannelAgents(selectedServerId, activeChannelId),
+        );
+      }
+      toast.success(t("conversationView.toasts.agentRestarted"));
+    } catch (error) {
+      console.error("[ServersWorkspace] restart agent failed", error);
+      toast.error(t("conversationView.toasts.agentRestartFailed"));
+    }
+  };
+
+  const handleStopAgent = async (agentId: string) => {
+    if (!selectedServerId) {
+      return;
+    }
+    try {
+      await serversApi.stopAgent(selectedServerId, agentId);
+      await refreshMembership(selectedServerId);
+      if (activeChannelId) {
+        setChannelAgents(
+          await serversApi.listChannelAgents(selectedServerId, activeChannelId),
+        );
+      }
+      toast.success(t("conversationView.toasts.agentStopped"));
+    } catch (error) {
+      console.error("[ServersWorkspace] stop agent failed", error);
+      toast.error(t("conversationView.toasts.agentStopFailed"));
+    }
+  };
+
+  const handleRemoveServerAgent = async (agentId: string) => {
+    if (!selectedServerId) {
+      return;
+    }
+    try {
+      await serversApi.removeAgent(selectedServerId, agentId);
+      await refreshMembership(selectedServerId);
+      setChannelAgents((current) =>
+        current.filter((agent) => agent.id !== agentId),
+      );
+      setDrawer({ type: "colleague", selection: null });
+      toast.success(t("conversationView.toasts.agentRemoved"));
+    } catch (error) {
+      console.error("[ServersWorkspace] remove server agent failed", error);
+      toast.error(t("conversationView.toasts.agentRemoveFailed"));
+    }
+  };
+
+  const handleRemoveChannelAgent = async (agentId: string) => {
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+    try {
+      await serversApi.removeAgentFromChannel(
+        selectedServerId,
+        activeChannelId,
+        agentId,
+      );
+      setChannelAgents((current) =>
+        current.filter((agent) => agent.id !== agentId),
+      );
+      toast.success(t("conversationView.toasts.agentRemovedFromChannel"));
+    } catch (error) {
+      console.error("[ServersWorkspace] remove channel agent failed", error);
+      toast.error(t("conversationView.toasts.agentRemoveFromChannelFailed"));
+    }
+  };
+
+  const handleRemoveChannelMember = async (membershipId: number) => {
+    if (!selectedServerId || !activeChannelId) {
+      return;
+    }
+    try {
+      await serversApi.removeChannelMember(
+        selectedServerId,
+        activeChannelId,
+        membershipId,
+      );
+      setChannelMembers((current) =>
+        current.filter((member) => member.id !== membershipId),
+      );
+      toast.success(t("conversationView.toasts.memberRemovedFromChannel"));
+    } catch (error) {
+      console.error("[ServersWorkspace] remove channel member failed", error);
+      toast.error(t("conversationView.toasts.memberRemoveFromChannelFailed"));
+    }
+  };
+
   const handleMobileBack = () => {
     setIsMobileDetailVisible(false);
     setDrawer({ type: "none" });
@@ -2490,139 +2655,139 @@ export function ServerConversationPageClient({
                 "xl:flex-none xl:w-[calc(100%-var(--server-drawer-width)-2px)]",
             )}
           >
-          {feedModeActive ? (
-            <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              {mode === "search" ? (
-                <SearchPanel
-                  search={searchValue}
-                  onSearchChange={setSearchValue}
-                  items={filteredSearchItems}
-                  savedMessageIds={savedMessageIds}
-                  currentUserId={profile?.id}
-                  onOpenThread={(item) => {
-                    markMessagesRead([item.message.id]);
-                    return setDrawer({
-                      type: "thread",
-                      channelId: item.channel.id,
-                      rootMessageId:
-                        item.message.threadRootMessageId ?? item.message.id,
-                    });
-                  }}
-                  onOpenExecution={(sessionId) => {
-                    const matchedItem = filteredSearchItems.find(
-                      (item) =>
-                        item.message.content.source === "agent_execution" &&
-                        item.message.content.session_id === sessionId,
-                    );
-                    if (matchedItem) {
-                      markMessagesRead([matchedItem.message.id]);
+            {feedModeActive ? (
+              <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                {mode === "search" ? (
+                  <SearchPanel
+                    search={searchValue}
+                    onSearchChange={setSearchValue}
+                    items={filteredSearchItems}
+                    savedMessageIds={savedMessageIds}
+                    currentUserId={profile?.id}
+                    onOpenThread={(item) => {
+                      markMessagesRead([item.message.id]);
+                      return setDrawer({
+                        type: "thread",
+                        channelId: item.channel.id,
+                        rootMessageId:
+                          item.message.threadRootMessageId ?? item.message.id,
+                      });
+                    }}
+                    onOpenExecution={(sessionId) => {
+                      const matchedItem = filteredSearchItems.find(
+                        (item) =>
+                          item.message.content.source === "agent_execution" &&
+                          item.message.content.session_id === sessionId,
+                      );
+                      if (matchedItem) {
+                        markMessagesRead([matchedItem.message.id]);
+                      }
+                      setDrawer({ type: "execution", sessionId });
+                    }}
+                    onToggleSaved={toggleSaved}
+                    onToggleReaction={(item, emoji) =>
+                      void handleToggleReaction(item.message, emoji)
                     }
-                    setDrawer({ type: "execution", sessionId });
-                  }}
-                  onToggleSaved={toggleSaved}
-                  onToggleReaction={(item, emoji) =>
-                    void handleToggleReaction(item.message, emoji)
-                  }
-                />
-              ) : (
-                <FeedPanel
-                  inboxItems={inboxItems}
-                  savedItems={savedItems}
-                  savedMessageIds={savedMessageIds}
-                  readMessageIds={readMessageIds}
-                  currentUserId={profile?.id}
-                  onOpenThread={(item) => {
-                    markMessagesRead([item.message.id]);
-                    return setDrawer({
-                      type: "thread",
-                      channelId: item.channel.id,
-                      rootMessageId:
-                        item.message.threadRootMessageId ?? item.message.id,
-                    });
-                  }}
-                  onOpenExecution={(sessionId) => {
-                    const matchedItem = inboxItems.find(
-                      (item) =>
-                        item.message.content.source === "agent_execution" &&
-                        item.message.content.session_id === sessionId,
-                    );
-                    if (matchedItem) {
-                      markMessagesRead([matchedItem.message.id]);
+                  />
+                ) : (
+                  <FeedPanel
+                    inboxItems={inboxItems}
+                    savedItems={savedItems}
+                    savedMessageIds={savedMessageIds}
+                    readMessageIds={readMessageIds}
+                    currentUserId={profile?.id}
+                    onOpenThread={(item) => {
+                      markMessagesRead([item.message.id]);
+                      return setDrawer({
+                        type: "thread",
+                        channelId: item.channel.id,
+                        rootMessageId:
+                          item.message.threadRootMessageId ?? item.message.id,
+                      });
+                    }}
+                    onOpenExecution={(sessionId) => {
+                      const matchedItem = inboxItems.find(
+                        (item) =>
+                          item.message.content.source === "agent_execution" &&
+                          item.message.content.session_id === sessionId,
+                      );
+                      if (matchedItem) {
+                        markMessagesRead([matchedItem.message.id]);
+                      }
+                      setDrawer({ type: "execution", sessionId });
+                    }}
+                    onToggleSaved={toggleSaved}
+                    onToggleReaction={(item, emoji) =>
+                      void handleToggleReaction(item.message, emoji)
                     }
-                    setDrawer({ type: "execution", sessionId });
-                  }}
-                  onToggleSaved={toggleSaved}
-                  onToggleReaction={(item, emoji) =>
-                    void handleToggleReaction(item.message, emoji)
-                  }
-                />
-              )}
-            </section>
-          ) : colleaguesModeActive ? (
-            <ColleaguesPanel
-              agents={serverAgents}
-              presets={presets}
-              members={serverMembers}
-              selection={colleagueSelection}
-              activeChannelIdByAgentId={activeChannelIdByAgentId}
-              onSelect={(selection) => {
-                setColleagueDetailClosed(false);
-                setDrawer({ type: "colleague", selection });
-              }}
-              onOpenActiveChannel={openChannelById}
-              onAddAgent={() => setAgentPresetOpen(true)}
-              onInviteMember={() => setServerAccessOpen(true)}
-            />
-          ) : tasksModeActive ? (
-            <ChannelTasksWorkspace
-              tasks={tasks}
-              taskView={taskView}
-              activeChannelId={activeChannelId}
-              topLevelChannels={topLevelChannels}
-              onSelectChannel={(value) => {
-                router.push(
-                  `/${lng}/servers/${selectedServerId}/channels/${value}?tab=chat&mode=tasks&view=${taskView}`,
-                );
-              }}
-              onUpdateView={updateTaskView}
-              onOpenTask={(taskId) => setDrawer({ type: "task", taskId })}
-            />
-          ) : (
-            <ConversationContent
-              channel={selectedChannel}
-              agents={channelAgents}
-              presets={presets}
-              members={channelMembers}
-              messages={currentMessages}
-              savedMessageIds={savedMessageIds}
-              draft={draft}
-              asTask={asTask}
-              isLoading={isLoading}
-              onDraftChange={setDraft}
-              onAsTaskChange={setAsTask}
-              onSend={() => void handleSend()}
-              onOpenThread={(message) =>
-                setDrawer({
-                  type: "thread",
-                  channelId: activeChannelId!,
-                  rootMessageId: message.id,
-                })
-              }
-              onOpenSettings={() => setSettingsOpen(true)}
-              onOpenMembers={() => setMembersOpen(true)}
-              onOpenArtifacts={() => setDrawer({ type: "artifacts" })}
-              onOpenLeaveConfirm={() => setLeaveChannelOpen(true)}
-              onToggleSaved={toggleSaved}
-              onToggleReaction={(message, emoji) =>
-                void handleToggleReaction(message, emoji)
-              }
-              onOpenExecution={(sessionId) =>
-                setDrawer({ type: "execution", sessionId })
-              }
-              isSending={isSending}
-              currentUserId={profile?.id}
-            />
-          )}
+                  />
+                )}
+              </section>
+            ) : colleaguesModeActive ? (
+              <ColleaguesPanel
+                agents={serverAgents}
+                presets={presets}
+                members={serverMembers}
+                selection={colleagueSelection}
+                activeChannelIdByAgentId={activeChannelIdByAgentId}
+                onSelect={(selection) => {
+                  setColleagueDetailClosed(false);
+                  setDrawer({ type: "colleague", selection });
+                }}
+                onOpenActiveChannel={openChannelById}
+                onAddAgent={() => setAgentPresetOpen(true)}
+                onInviteMember={() => setServerAccessOpen(true)}
+              />
+            ) : tasksModeActive ? (
+              <ChannelTasksWorkspace
+                tasks={tasks}
+                taskView={taskView}
+                activeChannelId={activeChannelId}
+                topLevelChannels={topLevelChannels}
+                onSelectChannel={(value) => {
+                  router.push(
+                    `/${lng}/servers/${selectedServerId}/channels/${value}?tab=chat&mode=tasks&view=${taskView}`,
+                  );
+                }}
+                onUpdateView={updateTaskView}
+                onOpenTask={(taskId) => setDrawer({ type: "task", taskId })}
+              />
+            ) : (
+              <ConversationContent
+                channel={selectedChannel}
+                agents={channelAgents}
+                presets={presets}
+                members={channelMembers}
+                messages={currentMessages}
+                savedMessageIds={savedMessageIds}
+                draft={draft}
+                asTask={asTask}
+                isLoading={isLoading}
+                onDraftChange={setDraft}
+                onAsTaskChange={setAsTask}
+                onSend={() => void handleSend()}
+                onOpenThread={(message) =>
+                  setDrawer({
+                    type: "thread",
+                    channelId: activeChannelId!,
+                    rootMessageId: message.id,
+                  })
+                }
+                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenMembers={() => setMembersOpen(true)}
+                onOpenArtifacts={() => setDrawer({ type: "artifacts" })}
+                onOpenLeaveConfirm={() => setLeaveChannelOpen(true)}
+                onToggleSaved={toggleSaved}
+                onToggleReaction={(message, emoji) =>
+                  void handleToggleReaction(message, emoji)
+                }
+                onOpenExecution={(sessionId) =>
+                  setDrawer({ type: "execution", sessionId })
+                }
+                isSending={isSending}
+                currentUserId={profile?.id}
+              />
+            )}
           </div>
 
           {hasDesktopDrawer ? (
@@ -2634,9 +2799,7 @@ export function ServerConversationPageClient({
                   isResizingDrawerRef.current = true;
                 }}
               />
-              <div
-                className="min-w-0 xl:flex xl:h-full xl:flex-none xl:w-[var(--server-drawer-width)]"
-              >
+              <div className="min-w-0 xl:flex xl:h-full xl:flex-none xl:w-[var(--server-drawer-width)]">
                 {drawer.type === "thread" ? (
                   <ThreadDrawer
                     thread={threadMessages}
@@ -2675,8 +2838,12 @@ export function ServerConversationPageClient({
                     agents={channelAgents}
                     presets={presets}
                     selectedAgentId={drawer.agentId}
-                    canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
-                    onSelectAgent={(id) => setDrawer({ type: "agent", agentId: id })}
+                    canInspectPersistentFiles={
+                      selectedServer?.ownerUserId === profile?.id
+                    }
+                    onSelectAgent={(id) =>
+                      setDrawer({ type: "agent", agentId: id })
+                    }
                     onClose={() => setDrawer({ type: "none" })}
                     onOpenDm={handleOpenDm}
                   />
@@ -2694,7 +2861,12 @@ export function ServerConversationPageClient({
                     presets={presets}
                     members={serverMembers}
                     serverId={selectedServerId}
-                    canInspectPersistentFiles={selectedServer?.ownerUserId === profile?.id}
+                    canInspectPersistentFiles={
+                      selectedServer?.ownerUserId === profile?.id
+                    }
+                    canManageServer={canManageServer}
+                    activeChannelId={activeChannelId}
+                    channelMembers={channelMembers}
                     activeChannelIdByAgentId={activeChannelIdByAgentId}
                     onClose={() => {
                       setColleagueDetailClosed(true);
@@ -2702,7 +2874,19 @@ export function ServerConversationPageClient({
                     }}
                     onOpenDm={handleOpenDm}
                     onOpenActiveChannel={openChannelById}
-                    onRemoveMember={(membershipId) => void removeMember(membershipId)}
+                    onRemoveMember={(membershipId) =>
+                      void removeMember(membershipId)
+                    }
+                    onRestartAgent={(agentId) =>
+                      void handleRestartAgent(agentId)
+                    }
+                    onStopAgent={(agentId) => void handleStopAgent(agentId)}
+                    onRemoveAgentFromServer={(agentId) =>
+                      void handleRemoveServerAgent(agentId)
+                    }
+                    onRemoveMemberFromChannel={(membershipId) =>
+                      void handleRemoveChannelMember(membershipId)
+                    }
                   />
                 ) : null}
               </div>
@@ -2769,7 +2953,8 @@ export function ServerConversationPageClient({
         channel={selectedChannel}
         agents={channelAgents}
         availableAgents={availableChannelAgents}
-        humans={humanCandidates}
+        humans={channelMembers}
+        canManageMembers={canManageServer}
         onOpenChange={setMembersOpen}
         onOpenDm={(agentId) => {
           setMembersOpen(false);
@@ -2777,6 +2962,10 @@ export function ServerConversationPageClient({
         }}
         onAddAgents={(agentIds) => handleAddChannelAgents(agentIds)}
         onAddMember={(userId) => void handleAddChannelMember(userId)}
+        onRemoveAgent={(agentId) => void handleRemoveChannelAgent(agentId)}
+        onRemoveMember={(membershipId) =>
+          void handleRemoveChannelMember(membershipId)
+        }
       />
       <ServerAccessDialog
         open={serverAccessOpen}

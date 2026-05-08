@@ -87,7 +87,9 @@ async def create_direct_message(
     return Response.success(data=result, message="Direct message created successfully")
 
 
-@router.post("/{channel_id}/archive", response_model=ResponseSchema[ServerChannelResponse])
+@router.post(
+    "/{channel_id}/archive", response_model=ResponseSchema[ServerChannelResponse]
+)
 async def archive_server_channel(
     server_id: uuid.UUID,
     channel_id: uuid.UUID,
@@ -142,7 +144,32 @@ async def add_server_channel_member(
     )
 
 
-@router.post("/{channel_id}/join", response_model=ResponseSchema[ServerChannelMemberResponse])
+@router.delete(
+    "/{channel_id}/members/{membership_id}", response_model=ResponseSchema[dict]
+)
+async def remove_server_channel_member(
+    server_id: uuid.UUID,
+    channel_id: uuid.UUID,
+    membership_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    service.remove_channel_member(
+        db,
+        current_user,
+        server_id,
+        channel_id,
+        membership_id,
+    )
+    return Response.success(
+        data={"membership_id": membership_id},
+        message="Server channel member removed successfully",
+    )
+
+
+@router.post(
+    "/{channel_id}/join", response_model=ResponseSchema[ServerChannelMemberResponse]
+)
 async def join_server_channel(
     server_id: uuid.UUID,
     channel_id: uuid.UUID,

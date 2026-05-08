@@ -20,7 +20,7 @@ from app.services.task_service import TaskService
 
 
 class ServerAgentTriggerService:
-    MENTION_PATTERN = re.compile(r"(?:^|\s)@([A-Za-z0-9._-]+)(?=$|[\s,.!?;:])")
+    MENTION_PATTERN = re.compile(r"(?:^|\s)@([^\s@,.!?;:]+)(?=$|[\s,.!?;:])")
 
     def __init__(
         self,
@@ -50,7 +50,9 @@ class ServerAgentTriggerService:
 
         trigger_message_id = getattr(message, "id", None)
         thread_root_message_id = getattr(message, "thread_root_message_id", None)
-        logical_thread_root_message_id = thread_root_message_id or getattr(message, "id", None)
+        logical_thread_root_message_id = thread_root_message_id or getattr(
+            message, "id", None
+        )
         summary = (
             f"@{agent.handle} is preparing a response."
             if execution_status == "queued"
@@ -128,7 +130,9 @@ class ServerAgentTriggerService:
             channel.conversation_type == "direct_message"
             and channel.direct_agent_identity_id
         ):
-            agent = AgentIdentityRepository.get_by_id(db, channel.direct_agent_identity_id)
+            agent = AgentIdentityRepository.get_by_id(
+                db, channel.direct_agent_identity_id
+            )
             return [agent] if agent is not None else []
 
         message_text = ""
@@ -150,10 +154,16 @@ class ServerAgentTriggerService:
         memberships = ServerChannelAgentMemberRepository.list_by_channel(db, channel.id)
         matched = []
         for membership in memberships:
+            if membership.status != "active":
+                continue
             agent = AgentIdentityRepository.get_by_id(db, membership.agent_identity_id)
             if agent is None or agent.lifecycle_state != "active":
                 continue
-            if agent.handle.strip().lower() in handles:
+            mention_keys = {
+                agent.handle.strip().lower(),
+                agent.display_name.strip().lower(),
+            }
+            if handles.intersection(mention_keys):
                 matched.append(agent)
         return matched
 
@@ -178,7 +188,9 @@ class ServerAgentTriggerService:
             and channel.direct_agent_identity_id
             else "channel_mention"
         )
-        thread_root_message_id = getattr(message, "thread_root_message_id", None) or getattr(
+        thread_root_message_id = getattr(
+            message, "thread_root_message_id", None
+        ) or getattr(
             message,
             "id",
             None,

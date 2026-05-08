@@ -71,7 +71,9 @@ class ServerChannelApiTests(unittest.TestCase):
         self.app.dependency_overrides.clear()
 
     @patch("app.api.v1.server_channels.service.update_channel")
-    def test_update_server_channel_returns_channel_payload(self, update_channel) -> None:
+    def test_update_server_channel_returns_channel_payload(
+        self, update_channel
+    ) -> None:
         server_id = uuid.uuid4()
         channel = build_channel_response(server_id=server_id)
         update_channel.return_value = channel
@@ -104,7 +106,9 @@ class ServerChannelApiTests(unittest.TestCase):
         delete_channel.assert_called_once()
 
     @patch("app.api.v1.server_channels.service.list_channel_members")
-    def test_list_channel_members_returns_human_members(self, list_channel_members) -> None:
+    def test_list_channel_members_returns_human_members(
+        self, list_channel_members
+    ) -> None:
         server_id = uuid.uuid4()
         channel_id = uuid.uuid4()
         member = build_member_response(channel_id=channel_id)
@@ -137,8 +141,27 @@ class ServerChannelApiTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["code"], 0)
         self.assertEqual(body["data"]["user_id"], "user-2")
-        self.assertEqual(body["data"]["user"]["avatar_url"], "https://example.com/bob.png")
+        self.assertEqual(
+            body["data"]["user"]["avatar_url"], "https://example.com/bob.png"
+        )
         add_channel_member.assert_called_once()
+
+    @patch("app.api.v1.server_channels.service.remove_channel_member")
+    def test_remove_channel_member_returns_removed_id(
+        self, remove_channel_member
+    ) -> None:
+        server_id = uuid.uuid4()
+        channel_id = uuid.uuid4()
+
+        response = self.client.delete(
+            f"/api/v1/servers/{server_id}/channels/{channel_id}/members/12",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["code"], 0)
+        self.assertEqual(body["data"]["membership_id"], 12)
+        remove_channel_member.assert_called_once()
 
 
 if __name__ == "__main__":

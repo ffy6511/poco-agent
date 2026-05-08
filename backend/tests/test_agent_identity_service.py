@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from app.models.agent_identity import AgentIdentity
+from app.models.agent_persistent_state import AgentPersistentState
 from app.models.server import Server
 from app.models.server_channel import ServerChannel
 from app.models.user import User
@@ -170,6 +171,76 @@ class AgentIdentityServiceTests(unittest.TestCase):
 
         create_membership.assert_called_once()
         self.assertEqual(result.channel_id, self.channel.id)
+        self.assertEqual(result.agent_identity_id, agent_identity.id)
+        self.db.commit.assert_called_once()
+
+    def test_restart_agent_cancels_current_execution_without_canceling_queue(
+        self,
+    ) -> None:
+        service = AgentIdentityService()
+        session_id = uuid.uuid4()
+        agent_identity = AgentIdentity(
+            id=uuid.uuid4(),
+            server_id=self.server.id,
+            preset_id=7,
+            handle="backend-specialist",
+            display_name="Backend Specialist",
+            description=None,
+            visual_key="preset-visual-02",
+            visibility="server",
+            lifecycle_state="active",
+            created_by="user-1",
+            updated_by="user-1",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        agent_identity.persistent_state = AgentPersistentState(
+            id=uuid.uuid4(),
+            agent_identity_id=agent_identity.id,
+            state_root_path="agents/state",
+            profile_path="agents/state/profile.json",
+            memory_path="agents/state/MEMORY.md",
+            notes_dir_path="agents/state/notes",
+            state_dir_path="agents/state/state",
+            artifacts_dir_path="agents/state/artifacts",
+            state_version=1,
+            runtime_status="busy",
+            active_session_id=session_id,
+            active_task_id=uuid.uuid4(),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        with (
+            patch(
+                "app.services.agent_identity_service.require_server_owner",
+                return_value=MagicMock(role="owner"),
+            ) as require_owner,
+            patch(
+                "app.services.agent_identity_service.AgentIdentityRepository.get_by_id",
+                return_value=agent_identity,
+            ),
+            patch(
+                "app.services.agent_identity_service.SessionService.cancel_current_execution"
+            ) as cancel_current_execution,
+        ):
+            result = service.restart_agent(
+                self.db,
+                self.user,
+                self.server.id,
+                agent_identity.id,
+            )
+
+        require_owner.assert_called_once_with(self.db, self.server.id, self.user.id)
+        cancel_current_execution.assert_called_once_with(
+            self.db,
+            session_id,
+            user_id=agent_identity.created_by,
+            reason="Agent restarted",
+        )
+        self.assertEqual(agent_identity.persistent_state.runtime_status, "idle")
+        self.assertIsNone(agent_identity.persistent_state.active_session_id)
+        self.assertIsNone(agent_identity.persistent_state.active_task_id)
         self.assertEqual(result.agent_identity_id, agent_identity.id)
         self.db.commit.assert_called_once()
 

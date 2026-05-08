@@ -358,7 +358,10 @@ export const serversApi = {
     return members.map(mapServerMember);
   },
 
-  removeMember: async (serverId: string, membershipId: number): Promise<void> => {
+  removeMember: async (
+    serverId: string,
+    membershipId: number,
+  ): Promise<void> => {
     await apiClient.delete(`/servers/${serverId}/members/${membershipId}`);
   },
 
@@ -382,7 +385,9 @@ export const serversApi = {
     serverId: string,
     agentId: string,
   ): Promise<FileNode[]> => {
-    return apiClient.get<FileNode[]>(`/servers/${serverId}/agents/${agentId}/state-files`);
+    return apiClient.get<FileNode[]>(
+      `/servers/${serverId}/agents/${agentId}/state-files`,
+    );
   },
 
   createInvite: async (
@@ -440,6 +445,30 @@ export const serversApi = {
       `/servers/${serverId}/agents`,
     );
     return agents.map(mapAgent);
+  },
+
+  restartAgent: async (
+    serverId: string,
+    agentId: string,
+  ): Promise<ServerAgentItem> => {
+    const agent = await apiClient.post<ServerAgentResponse>(
+      `/servers/${serverId}/agents/${agentId}/restart`,
+    );
+    return mapAgent(agent);
+  },
+
+  stopAgent: async (
+    serverId: string,
+    agentId: string,
+  ): Promise<ServerAgentItem> => {
+    const agent = await apiClient.post<ServerAgentResponse>(
+      `/servers/${serverId}/agents/${agentId}/stop`,
+    );
+    return mapAgent(agent);
+  },
+
+  removeAgent: async (serverId: string, agentId: string): Promise<void> => {
+    await apiClient.delete(`/servers/${serverId}/agents/${agentId}`);
   },
 
   listChannelAgents: async (
@@ -616,6 +645,16 @@ export const serversApi = {
     return mapChannelMember(member);
   },
 
+  removeChannelMember: async (
+    serverId: string,
+    channelId: string,
+    membershipId: number,
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/servers/${serverId}/channels/${channelId}/members/${membershipId}`,
+    );
+  },
+
   addAgentToChannel: async (
     serverId: string,
     channelId: string,
@@ -628,6 +667,16 @@ export const serversApi = {
       agent_identity_id: input.agentIdentityId,
       role: input.role ?? "member",
     });
+  },
+
+  removeAgentFromChannel: async (
+    serverId: string,
+    channelId: string,
+    agentId: string,
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/servers/${serverId}/channels/${channelId}/agents/${agentId}`,
+    );
   },
 
   leaveChannel: async (serverId: string, channelId: string): Promise<void> => {

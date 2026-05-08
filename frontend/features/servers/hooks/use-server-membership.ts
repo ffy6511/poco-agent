@@ -48,19 +48,16 @@ export function useServerMembership({
     React.useState(false);
   const [isAgentCreating, setIsAgentCreating] = React.useState(false);
 
-  const refreshMembership = React.useCallback(
-    async (serverId: string) => {
-      const [nextAgents, nextMembers, nextInvites] = await Promise.all([
-        serversApi.listAgents(serverId),
-        serversApi.listMembers(serverId),
-        serversApi.listInvites(serverId),
-      ]);
-      setServerAgents(nextAgents);
-      setServerMembers(nextMembers);
-      setServerInvites(nextInvites);
-    },
-    [],
-  );
+  const refreshMembership = React.useCallback(async (serverId: string) => {
+    const [nextAgents, nextMembers, nextInvites] = await Promise.all([
+      serversApi.listAgents(serverId),
+      serversApi.listMembers(serverId),
+      serversApi.listInvites(serverId),
+    ]);
+    setServerAgents(nextAgents);
+    setServerMembers(nextMembers);
+    setServerInvites(nextInvites);
+  }, []);
 
   React.useEffect(() => {
     if (!selectedServerId) {
@@ -85,8 +82,7 @@ export function useServerMembership({
   useAdaptivePolling({
     callback: pollMembership,
     isActive: Boolean(selectedServerId),
-    interval:
-      Number(process.env.NEXT_PUBLIC_SESSION_POLLING_INTERVAL) || 6000,
+    interval: Number(process.env.NEXT_PUBLIC_SESSION_POLLING_INTERVAL) || 6000,
     enableBackoff: true,
   });
 
@@ -235,5 +231,6 @@ export function useServerMembership({
     copyInvite,
     createAgent,
     removeMember,
+    refreshMembership,
   };
 }

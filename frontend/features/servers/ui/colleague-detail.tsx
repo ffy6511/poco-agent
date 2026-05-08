@@ -6,6 +6,8 @@ import {
   CalendarDays,
   Clipboard,
   MessageSquare,
+  Power,
+  RotateCw,
   Shield,
   Trash2,
   UserPlus,
@@ -26,6 +28,7 @@ import {
 } from "@/features/servers/lib/agent-runtime-status";
 import type {
   ServerAgentItem,
+  ServerChannelMemberItem,
   ServerMemberItem,
 } from "@/features/servers/model/types";
 import type { ColleagueSelection } from "@/features/servers/ui/server-workspace-types";
@@ -42,11 +45,18 @@ export function ColleagueDetail({
   members,
   serverId,
   canInspectPersistentFiles,
+  canManageServer,
+  activeChannelId,
+  channelMembers = [],
   activeChannelIdByAgentId = {},
   onClose,
   onOpenDm,
   onOpenActiveChannel,
   onRemoveMember,
+  onRestartAgent,
+  onStopAgent,
+  onRemoveAgentFromServer,
+  onRemoveMemberFromChannel,
 }: {
   selection: ColleagueSelection | null;
   agents: ServerAgentItem[];
@@ -54,11 +64,18 @@ export function ColleagueDetail({
   members: ServerMemberItem[];
   serverId?: string | null;
   canInspectPersistentFiles?: boolean;
+  canManageServer?: boolean;
+  activeChannelId?: string | null;
+  channelMembers?: ServerChannelMemberItem[];
   activeChannelIdByAgentId?: Record<string, string>;
   onClose: () => void;
   onOpenDm: (agentId: string) => void;
   onOpenActiveChannel?: (channelId: string) => void;
   onRemoveMember: (membershipId: number) => void;
+  onRestartAgent: (agentId: string) => void;
+  onStopAgent: (agentId: string) => void;
+  onRemoveAgentFromServer: (agentId: string) => void;
+  onRemoveMemberFromChannel: (membershipId: number) => void;
 }) {
   const { t } = useT("translation");
   const selectedAgent =
@@ -75,6 +92,12 @@ export function ColleagueDetail({
   const selectedAgentActiveChannelId = selectedAgent
     ? (activeChannelIdByAgentId[selectedAgent.id] ?? "")
     : "";
+  const selectedMemberChannelMembership =
+    selectedMember && activeChannelId
+      ? (channelMembers.find(
+          (member) => member.userId === selectedMember.userId,
+        ) ?? null)
+      : null;
   const [persistentFiles, setPersistentFiles] = React.useState<FileNode[]>([]);
   const [isLoadingPersistentFiles, setIsLoadingPersistentFiles] =
     React.useState(false);
@@ -88,12 +111,18 @@ export function ColleagueDetail({
     const load = async () => {
       try {
         setIsLoadingPersistentFiles(true);
-        const files = await serversApi.listAgentStateFiles(serverId, selectedAgent.id);
+        const files = await serversApi.listAgentStateFiles(
+          serverId,
+          selectedAgent.id,
+        );
         if (!cancelled) {
           setPersistentFiles(files);
         }
       } catch (error) {
-        console.error("[ColleagueDetail] failed to load persistent files", error);
+        console.error(
+          "[ColleagueDetail] failed to load persistent files",
+          error,
+        );
         if (!cancelled) {
           setPersistentFiles([]);
         }
@@ -152,7 +181,9 @@ export function ColleagueDetail({
                       <span
                         className={cn(
                           "size-2 rounded-full",
-                          getAgentRuntimeDotClassName(selectedRuntimeStatus.tone),
+                          getAgentRuntimeDotClassName(
+                            selectedRuntimeStatus.tone,
+                          ),
                         )}
                       />
                       {t(selectedRuntimeStatus.labelKey)}
@@ -217,7 +248,9 @@ export function ColleagueDetail({
                 <AgentPersistentFilesPanel
                   files={persistentFiles}
                   isLoading={isLoadingPersistentFiles}
-                  emptyMessage={t("conversationView.colleagues.persistentFilesEmpty")}
+                  emptyMessage={t(
+                    "conversationView.colleagues.persistentFilesEmpty",
+                  )}
                 />
               </div>
             ) : null}
@@ -230,7 +263,9 @@ export function ColleagueDetail({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => onOpenActiveChannel(selectedAgentActiveChannelId)}
+                  onClick={() =>
+                    onOpenActiveChannel(selectedAgentActiveChannelId)
+                  }
                 >
                   <MessageSquare className="size-4" />
                   {t("conversationView.backToContext")}
@@ -244,6 +279,38 @@ export function ColleagueDetail({
                 <MessageSquare className="size-4" />
                 {t("conversationView.messageAgent")}
               </Button>
+              {canManageServer ? (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onRestartAgent(selectedAgent.id)}
+                  >
+                    <RotateCw className="size-4" />
+                    {t("conversationView.colleagues.restartAgent")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onStopAgent(selectedAgent.id)}
+                  >
+                    <Power className="size-4" />
+                    {t("conversationView.colleagues.stopAgent")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onRemoveAgentFromServer(selectedAgent.id)}
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                    {t("conversationView.colleagues.removeFromServer")}
+                  </Button>
+                </>
+              ) : null}
             </div>
           </div>
         ) : selectedMember ? (
@@ -304,12 +371,29 @@ export function ColleagueDetail({
                 t("conversationView.colleagues.emptyValue")
               }
             />
-            <div className="border-t border-border pt-5">
+            <div className="flex flex-wrap gap-2 border-t border-border pt-5">
+              {canManageServer && selectedMemberChannelMembership ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onRemoveMemberFromChannel(
+                      selectedMemberChannelMembership.id,
+                    )
+                  }
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                  {t("conversationView.colleagues.removeFromChannel")}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => onRemoveMember(selectedMember.id)}
+                disabled={!canManageServer}
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 <Trash2 className="size-4" />

@@ -1,6 +1,5 @@
 import uuid
 
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.models.server_channel import ServerChannel
@@ -33,13 +32,10 @@ class ServerChannelRepository:
         *,
         exclude_channel_id: uuid.UUID | None = None,
     ) -> ServerChannel | None:
-        query = (
-            session_db.query(ServerChannel)
-            .filter(
-                ServerChannel.server_id == server_id,
-                ServerChannel.slug == slug,
-                ServerChannel.archived_at.is_(None),
-            )
+        query = session_db.query(ServerChannel).filter(
+            ServerChannel.server_id == server_id,
+            ServerChannel.slug == slug,
+            ServerChannel.archived_at.is_(None),
         )
         if exclude_channel_id is not None:
             query = query.filter(ServerChannel.id != exclude_channel_id)
@@ -142,3 +138,18 @@ class ServerChannelMemberRepository:
             ServerChannelMember.joined_at.asc(),
             ServerChannelMember.id.asc(),
         ).all()
+
+    @staticmethod
+    def get_by_id(
+        session_db: Session,
+        membership_id: int,
+    ) -> ServerChannelMember | None:
+        return (
+            session_db.query(ServerChannelMember)
+            .filter(ServerChannelMember.id == membership_id)
+            .first()
+        )
+
+    @staticmethod
+    def delete(session_db: Session, membership: ServerChannelMember) -> None:
+        session_db.delete(membership)

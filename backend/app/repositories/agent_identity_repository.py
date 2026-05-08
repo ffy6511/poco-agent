@@ -50,3 +50,7 @@ class AgentIdentityRepository:
             .order_by(AgentIdentity.created_at.asc(), AgentIdentity.display_name.asc())
             .all()
         )
+
+    @staticmethod
+    def delete(session_db: Session, agent_identity: AgentIdentity) -> None:
+        session_db.delete(agent_identity)

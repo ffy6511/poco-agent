@@ -17,20 +17,31 @@ from app.repositories.preset_repository import PresetRepository
 from app.repositories.server_channel_agent_member_repository import (
     ServerChannelAgentMemberRepository,
 )
+from app.repositories.server_channel_message_repository import (
+    ServerChannelMessageRepository,
+)
 from app.repositories.server_channel_repository import ServerChannelRepository
+from app.repositories.session_queue_item_repository import SessionQueueItemRepository
 from app.repositories.server_repository import ServerRepository
 from app.schemas.agent_identity import (
     AgentIdentityCreateRequest,
     AgentIdentityResponse,
-    AgentPersistentStateResponse,
     ChannelAgentMemberCreateRequest,
     ChannelAgentMemberResponse,
 )
 from app.services.agent_state_bootstrap_service import ensure_agent_state_bootstrap
-from app.services.server_member_service import require_server_admin, require_server_member
+from app.services.server_member_service import (
+    require_server_admin,
+    require_server_member,
+    require_server_owner,
+)
+from app.services.session_service import SessionService
 
 
 class AgentIdentityService:
+    def __init__(self, *, session_service: SessionService | None = None) -> None:
+        self._session_service = session_service or SessionService()
+
     @staticmethod
     def _to_agent_response(agent_identity: AgentIdentity) -> AgentIdentityResponse:
         return AgentIdentityResponse.model_validate(agent_identity)
@@ -177,7 +188,11 @@ class AgentIdentityService:
         memberships = ServerChannelAgentMemberRepository.list_by_channel(db, channel.id)
         agent_responses: list[AgentIdentityResponse] = []
         for membership in memberships:
-            agent_identity = AgentIdentityRepository.get_by_id(db, membership.agent_identity_id)
+            if membership.status != "active":
+                continue
+            agent_identity = AgentIdentityRepository.get_by_id(
+                db, membership.agent_identity_id
+            )
             if agent_identity is None:
                 continue
             agent_responses.append(self._to_agent_response(agent_identity))
@@ -198,7 +213,9 @@ class AgentIdentityService:
                 error_code=ErrorCode.NOT_FOUND,
                 message=f"Channel not found: {channel_id}",
             )
-        agent_identity = AgentIdentityRepository.get_by_id(db, request.agent_identity_id)
+        agent_identity = AgentIdentityRepository.get_by_id(
+            db, request.agent_identity_id
+        )
         if agent_identity is None or agent_identity.server_id != server_id:
             raise AppException(
                 error_code=ErrorCode.NOT_FOUND,
@@ -224,3 +241,204 @@ class AgentIdentityService:
         db.commit()
         db.refresh(membership)
         return self._to_channel_member_response(membership)
+
+    def remove_agent_from_channel(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        channel_id: uuid.UUID,
+        agent_identity_id: uuid.UUID,
+    ) -> None:
+        require_server_owner(db, server_id, current_user.id)
+        channel = ServerChannelRepository.get_by_id(db, channel_id)
+        if channel is None or channel.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel not found: {channel_id}",
+            )
+        agent_identity = AgentIdentityRepository.get_by_id(db, agent_identity_id)
+        if agent_identity is None or agent_identity.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Agent identity not found: {agent_identity_id}",
+            )
+        membership = ServerChannelAgentMemberRepository.get_by_channel_and_agent(
+            db,
+            channel.id,
+            agent_identity.id,
+        )
+        if membership is None:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Channel agent membership not found: {agent_identity_id}",
+            )
+        self._cancel_queued_scope(
+            db,
+            agent_identity_id=agent_identity.id,
+            channel_id=channel.id,
+        )
+        ServerChannelAgentMemberRepository.delete(db, membership)
+        db.commit()
+
+    def remove_agent_from_server(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        agent_identity_id: uuid.UUID,
+    ) -> None:
+        agent_identity = self._require_owner_agent(
+            db,
+            current_user,
+            server_id,
+            agent_identity_id,
+        )
+        self._discard_all_tasks(db, agent_identity, reason="Agent removed from server")
+        agent_identity.lifecycle_state = "inactive"
+        agent_identity.updated_by = current_user.id
+        if agent_identity.persistent_state is not None:
+            agent_identity.persistent_state.runtime_status = "idle"
+            agent_identity.persistent_state.active_session_id = None
+            agent_identity.persistent_state.active_task_id = None
+        self._cancel_queued_scope(
+            db,
+            agent_identity_id=agent_identity.id,
+            channel_id=None,
+        )
+        AgentIdentityRepository.delete(db, agent_identity)
+        db.commit()
+
+    def restart_agent(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        agent_identity_id: uuid.UUID,
+    ) -> AgentIdentityResponse:
+        agent_identity = self._require_owner_agent(
+            db,
+            current_user,
+            server_id,
+            agent_identity_id,
+        )
+        self._discard_active_execution(db, agent_identity, reason="Agent restarted")
+        agent_identity.lifecycle_state = "active"
+        agent_identity.updated_by = current_user.id
+        if agent_identity.persistent_state is not None:
+            agent_identity.persistent_state.runtime_status = "idle"
+            agent_identity.persistent_state.active_session_id = None
+            agent_identity.persistent_state.active_task_id = None
+        db.commit()
+        db.refresh(agent_identity)
+        return self._to_agent_response(agent_identity)
+
+    def stop_agent(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        agent_identity_id: uuid.UUID,
+    ) -> AgentIdentityResponse:
+        agent_identity = self._require_owner_agent(
+            db,
+            current_user,
+            server_id,
+            agent_identity_id,
+        )
+        self._discard_active_execution(db, agent_identity, reason="Agent stopped")
+        agent_identity.lifecycle_state = "inactive"
+        agent_identity.updated_by = current_user.id
+        if agent_identity.persistent_state is not None:
+            agent_identity.persistent_state.runtime_status = "idle"
+            agent_identity.persistent_state.active_session_id = None
+            agent_identity.persistent_state.active_task_id = None
+        db.commit()
+        db.refresh(agent_identity)
+        return self._to_agent_response(agent_identity)
+
+    def _require_owner_agent(
+        self,
+        db: Session,
+        current_user: User,
+        server_id: uuid.UUID,
+        agent_identity_id: uuid.UUID,
+    ) -> AgentIdentity:
+        require_server_owner(db, server_id, current_user.id)
+        agent_identity = AgentIdentityRepository.get_by_id(db, agent_identity_id)
+        if agent_identity is None or agent_identity.server_id != server_id:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Agent identity not found: {agent_identity_id}",
+            )
+        return agent_identity
+
+    def _discard_active_execution(
+        self,
+        db: Session,
+        agent_identity: AgentIdentity,
+        *,
+        reason: str,
+    ) -> None:
+        persistent_state = agent_identity.persistent_state
+        if persistent_state is None or persistent_state.active_session_id is None:
+            return
+        try:
+            self._session_service.cancel_current_execution(
+                db,
+                persistent_state.active_session_id,
+                user_id=agent_identity.created_by,
+                reason=reason,
+            )
+        except AppException as exc:
+            if exc.error_code != ErrorCode.BAD_REQUEST:
+                raise
+
+    def _discard_all_tasks(
+        self,
+        db: Session,
+        agent_identity: AgentIdentity,
+        *,
+        reason: str,
+    ) -> None:
+        persistent_state = agent_identity.persistent_state
+        if persistent_state is None or persistent_state.active_session_id is None:
+            return
+        self._session_service.cancel_session(
+            db,
+            persistent_state.active_session_id,
+            user_id=agent_identity.created_by,
+            reason=reason,
+        )
+
+    @staticmethod
+    def _cancel_queued_scope(
+        db: Session,
+        *,
+        agent_identity_id: uuid.UUID,
+        channel_id: uuid.UUID | None,
+    ) -> None:
+        queue_items = SessionQueueItemRepository.list_active_by_agent_scope(
+            db,
+            agent_identity_id=agent_identity_id,
+            channel_id=channel_id,
+            for_update=True,
+        )
+        for item in queue_items:
+            item.status = "canceled"
+
+        placeholders = ServerChannelMessageRepository.list_open_execution_placeholders_by_agent_scope(
+            db,
+            agent_identity_id=agent_identity_id,
+            channel_id=channel_id,
+        )
+        canceled_queue_item_ids = {str(item.id) for item in queue_items}
+        for placeholder in placeholders:
+            content = dict(placeholder.content or {})
+            queue_item_id = str(content.get("queue_item_id") or "").strip()
+            if channel_id is not None and queue_item_id not in canceled_queue_item_ids:
+                continue
+            content["execution_status"] = "canceled"
+            content["summary"] = "Execution canceled."
+            placeholder.content = content
+            placeholder.text_preview = "Execution canceled."

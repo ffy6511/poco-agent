@@ -1,4 +1,5 @@
 import type {
+  ServerAgentItem,
   ServerChannelMemberItem,
   ServerConversationMessage,
   ServerUserPublicProfile,
@@ -10,6 +11,14 @@ export interface MentionCandidate {
   handle: string;
   kind: "agent" | "human";
   description?: string | null;
+}
+
+function normalizeMentionSearch(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function hasWhitespace(value: string): boolean {
+  return /\s/u.test(value);
 }
 
 export function getUserDisplayName(
@@ -39,7 +48,8 @@ export function sortMessagesChronologically(
   messages: ServerConversationMessage[],
 ): ServerConversationMessage[] {
   return [...messages].sort((left, right) => {
-    const timestampDiff = getMessageTimestamp(left) - getMessageTimestamp(right);
+    const timestampDiff =
+      getMessageTimestamp(left) - getMessageTimestamp(right);
     if (timestampDiff !== 0) {
       return timestampDiff;
     }
@@ -50,14 +60,40 @@ export function sortMessagesChronologically(
 export function getMentionTrigger(
   value: string,
 ): { start: number; query: string } | null {
-  const match = value.match(/(?:^|\s)@([A-Za-z0-9._-]*)$/);
+  const match = value.match(/(?:^|\s)@([^\s@]*)$/u);
   if (!match || match.index === undefined) {
     return null;
   }
   return {
     start: match.index + match[0].lastIndexOf("@"),
-    query: match[1].toLowerCase(),
+    query: normalizeMentionSearch(match[1]),
   };
+}
+
+export function buildAgentMentionCandidate(
+  agent: ServerAgentItem,
+): MentionCandidate {
+  return {
+    id: agent.id,
+    label: agent.displayName,
+    handle: agent.handle,
+    kind: "agent",
+    description: agent.description,
+  };
+}
+
+export function getMentionSearchText(candidate: MentionCandidate): string {
+  return normalizeMentionSearch(`${candidate.label} ${candidate.handle}`);
+}
+
+export function getMentionInsertText(candidate: MentionCandidate): string {
+  if (candidate.kind === "agent") {
+    const label = candidate.label.trim();
+    if (label && !hasWhitespace(label)) {
+      return `@${label} `;
+    }
+  }
+  return `@${candidate.handle} `;
 }
 
 export function buildHumanMentionCandidates(
@@ -90,7 +126,7 @@ export function messageMentionsUser(
       : (message.textPreview ?? "");
   const mentionPattern = new RegExp(
     `(^|\\s)@${normalizedUserId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|\\s|[,.!?;:])`,
-    "i",
+    "iu",
   );
   return mentionPattern.test(text);
 }

@@ -283,7 +283,9 @@
       "noAgents": "В этом канале нет агентов.",
       "noHumans": "Людей-участников пока нет.",
       "addMemberPlaceholder": "ID пользователя",
-      "addMember": "Добавить участника"
+      "addMember": "Добавить участника",
+      "removeAgent": "Удалить агента из канала",
+      "removeHuman": "Удалить участника из канала"
     },
     "serverAccess": {
       "title": "Доступ к серверу",
@@ -341,7 +343,11 @@
       },
       "emptyValue": "Недоступно",
       "emptySelection": "Выберите коллегу, чтобы посмотреть детали.",
-      "removeMember": "Удалить участника"
+      "removeMember": "Удалить участника",
+      "restartAgent": "Перезапустить",
+      "stopAgent": "Остановить",
+      "removeFromChannel": "Удалить из канала",
+      "removeFromServer": "Удалить с сервера"
     },
     "threadMentionHint": "Ответы в этой ветке будут направлены",
     "execution": {
@@ -392,6 +398,16 @@
       "agentCreateFailed": "Не удалось создать агента",
       "memberRemoved": "Участник удалён",
       "memberRemoveFailed": "Не удалось удалить участника",
+      "agentRestarted": "Агент перезапущен",
+      "agentRestartFailed": "Не удалось перезапустить агента",
+      "agentStopped": "Агент остановлен",
+      "agentStopFailed": "Не удалось остановить агента",
+      "agentRemoved": "Агент удалён",
+      "agentRemoveFailed": "Не удалось удалить агента",
+      "agentRemovedFromChannel": "Агент удалён из канала",
+      "agentRemoveFromChannelFailed": "Не удалось удалить агента из канала",
+      "memberRemovedFromChannel": "Участник удалён из канала",
+      "memberRemoveFromChannelFailed": "Не удалось удалить участника из канала",
       "reactionFailed": "Не удалось обновить реакцию"
     },
     "reactions": {

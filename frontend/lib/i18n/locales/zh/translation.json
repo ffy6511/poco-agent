@@ -283,7 +283,9 @@
       "noAgents": "这个频道还没有 Agent。",
       "noHumans": "还没有成员参与。",
       "addMemberPlaceholder": "用户 ID",
-      "addMember": "添加成员"
+      "addMember": "添加成员",
+      "removeAgent": "从频道移除 Agent",
+      "removeHuman": "从频道移除成员"
     },
     "serverAccess": {
       "title": "服务器入口",
@@ -344,7 +346,11 @@
       },
       "emptyValue": "暂无",
       "emptySelection": "选择一个同事查看资料。",
-      "removeMember": "移除成员"
+      "removeMember": "移除成员",
+      "restartAgent": "重启",
+      "stopAgent": "关闭",
+      "removeFromChannel": "从频道移除",
+      "removeFromServer": "从服务器移除"
     },
     "threadMentionHint": "当前 thread 默认会回复给",
     "execution": {
@@ -393,8 +399,18 @@
       "inviteCopyFailed": "复制邀请 key 失败",
       "agentCreated": "Agent 已创建",
       "agentCreateFailed": "创建 Agent 失败",
+      "agentRestarted": "Agent 已重启",
+      "agentRestartFailed": "重启 Agent 失败",
+      "agentStopped": "Agent 已关闭",
+      "agentStopFailed": "关闭 Agent 失败",
+      "agentRemoved": "Agent 已移除",
+      "agentRemoveFailed": "移除 Agent 失败",
       "memberRemoved": "成员已移除",
       "memberRemoveFailed": "移除成员失败",
+      "agentRemovedFromChannel": "Agent 已从频道移除",
+      "agentRemoveFromChannelFailed": "从频道移除 Agent 失败",
+      "memberRemovedFromChannel": "成员已从频道移除",
+      "memberRemoveFromChannelFailed": "从频道移除成员失败",
       "reactionFailed": "更新表情反应失败"
     },
     "reactions": {
