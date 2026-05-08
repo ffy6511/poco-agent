@@ -8,7 +8,7 @@
 | **预期改动范围** | backend channel agent trigger prompt construction / agent run and message metadata / executor prompt composition / frontend agent session message rendering and i18n / backend, executor, frontend tests |
 | **改动类型** | feat |
 | **优先级** | P1 |
-| **状态** | drafting |
+| **状态** | ready-for-review |
 
 ## 实施阶段
 
@@ -16,7 +16,7 @@
 - [x] Phase 1: 后端生成并持久化 trigger envelope
 - [x] Phase 2: executor 基于 envelope 组合 SDK prompt
 - [x] Phase 3: 前端 agent session 两层消息显示
-- [ ] Phase 4: 测试、回归与旧 prompt 收敛
+- [x] Phase 4: 测试、回归与旧 prompt 收敛
 
 ---
 
@@ -291,8 +291,8 @@ executor 接收结构化 trigger context 后，负责把 envelope 摘要、trigg
 
 **验收标准：**
 
-- [ ] `backend/tests/test_channel_shared_context_service.py` 覆盖 envelope/body 分离
-- [ ] `backend/tests/test_session_queue_service.py` 覆盖 trigger_context metadata
+- [x] `backend/tests/test_channel_shared_context_service.py` 覆盖 envelope/body 分离
+- [x] `backend/tests/test_session_queue_service.py` 覆盖 trigger_context metadata
 
 #### 4.2 executor 测试
 
@@ -300,8 +300,8 @@ executor 接收结构化 trigger context 后，负责把 envelope 摘要、trigg
 
 **验收标准：**
 
-- [ ] channel run prompt 包含索引和 tool 指引
-- [ ] 普通 run prompt 不出现 channel trigger context
+- [x] channel run prompt 包含索引和 tool 指引
+- [x] 普通 run prompt 不出现 channel trigger context
 
 #### 4.3 前端测试与静态检查
 
@@ -309,8 +309,16 @@ executor 接收结构化 trigger context 后，负责把 envelope 摘要、trigg
 
 **验收标准：**
 
-- [ ] `cd frontend && pnpm lint` 通过
-- [ ] 新增 trigger context 文案中英文 locale 都有值
+- [x] `cd frontend && pnpm lint` 通过
+- [x] 新增 trigger context 文案中英文 locale 都有值
+
+### Phase 4 验证记录
+
+- `cd backend && PYTHONPATH=. uv run --with pytest pytest tests/test_agent_trigger_envelope_schema.py tests/test_session_queue_service.py tests/test_channel_shared_context_service.py tests/test_server_agent_trigger_service.py -q`：10 passed。
+- `cd executor && PYTHONPATH=. uv run --with pytest pytest tests/test_engine_trigger_context_prompt.py tests/test_engine_channel_artifact_tools.py tests/test_engine_channel_task_hint.py tests/test_engine_channel_reaction_tools.py -q`：12 passed。
+- `cd frontend && node --test --experimental-strip-types --experimental-specifier-resolution=node features/chat/services/message-parser.test.ts`：2 passed。
+- `cd frontend && pnpm lint`：通过。
+- `cd frontend && pnpm build`：通过；保留 Next.js 关于 workspace root 多 lockfile 推断的 warning。
 
 ## 风险与缓解
 

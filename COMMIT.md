@@ -1,6 +1,5 @@
-feat(conversation-ui): render trigger context metadata
+docs(spec): record trigger envelope verification
 
-- Map agent message metadata.trigger_context into chat message triggerContext
-- Render a collapsed channel trigger context panel above visible user prompts
-- Add localized trigger context labels across supported locales
-- Cover parser mapping and mark Phase 3 plan tasks complete
+- Mark the persistent trigger envelope plan ready for review
+- Complete Phase 4 backend, executor, and frontend verification checklist
+- Record passing test, lint, and build commands for final acceptance
