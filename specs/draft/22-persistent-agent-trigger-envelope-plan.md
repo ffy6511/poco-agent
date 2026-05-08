@@ -15,7 +15,7 @@
 - [x] Phase 0: 固化 trigger envelope schema 与兼容策略
 - [x] Phase 1: 后端生成并持久化 trigger envelope
 - [x] Phase 2: executor 基于 envelope 组合 SDK prompt
-- [ ] Phase 3: 前端 agent session 两层消息显示
+- [x] Phase 3: 前端 agent session 两层消息显示
 - [ ] Phase 4: 测试、回归与旧 prompt 收敛
 
 ---
@@ -259,8 +259,8 @@ executor 接收结构化 trigger context 后，负责把 envelope 摘要、trigg
 
 **验收标准：**
 
-- [ ] 新消息模型包含 `triggerContext`
-- [ ] 无 triggerContext 的普通 user message 正常显示
+- [x] 新消息模型包含 `triggerContext`
+- [x] 无 triggerContext 的普通 user message 正常显示
 
 #### 3.2 渲染可折叠 Trigger Context
 
@@ -273,9 +273,9 @@ executor 接收结构化 trigger context 后，负责把 envelope 摘要、trigg
 
 **验收标准：**
 
-- [ ] trigger context 默认收缩
-- [ ] 展开后可看到 channel/message/thread/run/agent 索引
-- [ ] trigger body 仍按普通 user message 样式显示
+- [x] trigger context 默认收缩
+- [x] 展开后可看到 channel/message/thread/run/agent 索引
+- [x] trigger body 仍按普通 user message 样式显示
 
 ## Phase 4: 测试、回归与旧 prompt 收敛
 

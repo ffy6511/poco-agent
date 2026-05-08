@@ -1,6 +1,6 @@
-feat(executor): compose prompts from trigger context
+feat(conversation-ui): render trigger context metadata
 
-- Accept trigger_context in executor and executor-manager task config schemas
-- Add compact channel trigger context and runtime tool guidance to SDK prompts
-- Cover trigger-context prompt composition and plain-run compatibility
-- Mark Phase 2 trigger envelope plan tasks complete
+- Map agent message metadata.trigger_context into chat message triggerContext
+- Render a collapsed channel trigger context panel above visible user prompts
+- Add localized trigger context labels across supported locales
+- Cover parser mapping and mark Phase 3 plan tasks complete
