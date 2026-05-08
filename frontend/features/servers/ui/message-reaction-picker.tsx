@@ -50,7 +50,7 @@ export function MessageReactionPicker({
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-full z-20 mt-2 grid grid-cols-6 gap-1 rounded-md border border-border bg-popover p-2 shadow-[var(--shadow-lg)]"
+      className="absolute right-0 top-full z-40 mt-2 grid w-max grid-cols-[repeat(6,2rem)] gap-1 rounded-md border border-border bg-popover p-2 shadow-[var(--shadow-lg)]"
       role="menu"
       aria-label={t("conversationView.reactions.pickerLabel")}
     >

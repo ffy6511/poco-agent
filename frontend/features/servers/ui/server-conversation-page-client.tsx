@@ -2198,7 +2198,16 @@ export function ServerConversationPageClient({
       const wasReacted = (message.reactions ?? []).some(
         (reaction) => reaction.emoji === emoji && reaction.reactedByCurrentUser,
       );
-      applyMessageUpdate(message.id, (item) => toggleMessageReaction(item, emoji));
+      const currentUser = profile
+        ? {
+            userId: profile.id,
+            displayName: profile.displayName,
+            avatarUrl: profile.avatar,
+          }
+        : null;
+      applyMessageUpdate(message.id, (item) =>
+        toggleMessageReaction(item, emoji, currentUser),
+      );
       try {
         if (wasReacted) {
           await serversApi.removeMessageReaction(
@@ -2221,7 +2230,7 @@ export function ServerConversationPageClient({
         toast.error(t("conversationView.toasts.reactionFailed"));
       }
     },
-    [applyMessageUpdate, selectedServerId, t],
+    [applyMessageUpdate, profile, selectedServerId, t],
   );
 
   const handleArchiveChannel = async () => {

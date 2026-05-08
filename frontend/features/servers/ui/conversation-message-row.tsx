@@ -21,6 +21,7 @@ import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
 import type {
   ServerAgentItem,
   ServerConversationMessage,
+  ServerConversationMessageReactionActor,
   ServerExecutionMessageContent,
 } from "@/features/servers/model/types";
 import { useT } from "@/lib/i18n/client";
@@ -34,6 +35,7 @@ import { ServerAgentAvatar } from "./server-agent-avatar";
 import { MessageReactionPicker } from "./message-reaction-picker";
 
 const MESSAGE_COLLAPSE_LINES = 8;
+const MAX_REACTION_ACTOR_NAME_LENGTH = 18;
 
 export function formatTime(value: string): string {
   const date = new Date(value);
@@ -98,6 +100,28 @@ export function getMessageAuthor(message: ServerConversationMessage): string {
     return "Task";
   }
   return getUserDisplayName(message.authorUser, message.authorUserId);
+}
+
+function getReactionActorName(
+  actor: ServerConversationMessageReactionActor,
+): string {
+  if (actor.actorType === "user") {
+    return getUserDisplayName(actor.user, actor.userId);
+  }
+  return (
+    actor.agentLabel?.trim() ||
+    actor.agentHandle?.trim() ||
+    actor.agentIdentityId?.trim() ||
+    "Agent"
+  );
+}
+
+function truncateReactionActorName(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= MAX_REACTION_ACTOR_NAME_LENGTH) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, MAX_REACTION_ACTOR_NAME_LENGTH - 3)}...`;
 }
 
 export function isExecutionMessage(
@@ -458,6 +482,10 @@ export function MessageRow({
           <div className="flex flex-wrap gap-1.5 pt-1">
             {(message.reactions ?? []).map((reaction) => {
               const selected = reaction.reactedByCurrentUser;
+              const actorNames = reaction.actors
+                .map(getReactionActorName)
+                .filter(Boolean);
+              const visibleActorNames = actorNames.map(truncateReactionActorName);
               const label = selected
                 ? t("conversationView.reactions.removeEmoji", {
                     emoji: reaction.emoji,
@@ -465,24 +493,56 @@ export function MessageRow({
                 : t("conversationView.reactions.addEmoji", {
                     emoji: reaction.emoji,
                   });
+              const title = actorNames.length
+                ? `${label} | ${actorNames.join(", ")}`
+                : label;
               return (
                 <button
                   key={reaction.emoji}
                   type="button"
                   disabled={!onToggleReaction}
                   onClick={() => onToggleReaction?.(reaction.emoji)}
-                  aria-label={label}
-                  title={label}
+                  aria-label={title}
+                  title={title}
                   className={cn(
-                    "inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded-md border px-2 text-sm transition-colors",
+                    "inline-flex h-7 max-w-full items-center justify-center gap-1 overflow-hidden rounded-md border px-2 text-sm transition-colors",
                     selected
                       ? "border-primary/50 bg-primary/15 text-foreground"
                       : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/45 hover:text-foreground",
                     !onToggleReaction && "cursor-default",
                   )}
                 >
-                  <span>{reaction.emoji}</span>
-                  <span className="text-xs tabular-nums">{reaction.count}</span>
+                  <span className="shrink-0">{reaction.emoji}</span>
+                  <span className="shrink-0 text-xs tabular-nums">
+                    {reaction.count}
+                  </span>
+                  {visibleActorNames.length > 0 ? (
+                    <>
+                      <span
+                        className="shrink-0 text-xs text-muted-foreground"
+                        aria-hidden="true"
+                      >
+                        |
+                      </span>
+                      <span className="flex min-w-0 max-w-[28rem] shrink items-center overflow-hidden text-xs">
+                        {visibleActorNames.map((actorName, index) => (
+                          <React.Fragment key={`${reaction.emoji}-${index}`}>
+                            {index > 0 ? (
+                              <span
+                                className="shrink-0 pr-1 text-muted-foreground"
+                                aria-hidden="true"
+                              >
+                                ,
+                              </span>
+                            ) : null}
+                            <span className="max-w-28 shrink truncate text-left">
+                              {actorName}
+                            </span>
+                          </React.Fragment>
+                        ))}
+                      </span>
+                    </>
+                  ) : null}
                 </button>
               );
             })}
