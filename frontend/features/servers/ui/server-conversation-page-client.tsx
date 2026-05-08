@@ -2477,6 +2477,10 @@ export function ServerConversationPageClient({
     if (!selectedServerId) {
       return;
     }
+    const wasStopped =
+      (serverAgents.find((agent) => agent.id === agentId)?.lifecycleState || "")
+        .trim()
+        .toLowerCase() === "inactive";
     try {
       await serversApi.restartAgent(selectedServerId, agentId);
       await refreshMembership(selectedServerId);
@@ -2491,7 +2495,13 @@ export function ServerConversationPageClient({
           [activeChannelId]: nextAgents,
         }));
       }
-      toast.success(t("conversationView.toasts.agentRestarted"));
+      toast.success(
+        t(
+          wasStopped
+            ? "conversationView.toasts.agentStarted"
+            : "conversationView.toasts.agentRestarted",
+        ),
+      );
     } catch (error) {
       console.error("[ServersWorkspace] restart agent failed", error);
       toast.error(t("conversationView.toasts.agentRestartFailed"));

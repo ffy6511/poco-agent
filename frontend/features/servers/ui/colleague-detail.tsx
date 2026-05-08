@@ -116,9 +116,15 @@ export function ColleagueDetail({
     React.useState(false);
   const [removeAgentConfirmOpen, setRemoveAgentConfirmOpen] =
     React.useState(false);
+  const [restartAgentConfirmOpen, setRestartAgentConfirmOpen] =
+    React.useState(false);
+  const [stopAgentConfirmOpen, setStopAgentConfirmOpen] =
+    React.useState(false);
   const selectedAgentChannelNames = selectedAgent
     ? (channelNamesByAgentId[selectedAgent.id] ?? [])
     : [];
+  const selectedAgentStopped =
+    (selectedAgent?.lifecycleState || "").trim().toLowerCase() === "inactive";
 
   React.useEffect(() => {
     if (!canInspectPersistentFiles || !serverId || !selectedAgent) {
@@ -304,22 +310,104 @@ export function ColleagueDetail({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => onRestartAgent(selectedAgent.id)}
+                    onClick={() => setRestartAgentConfirmOpen(true)}
                     disabled={selectedAgentRemoved}
                   >
                     <RotateCw className="size-4" />
-                    {t("conversationView.colleagues.restartAgent")}
+                    {selectedAgentStopped
+                      ? t("conversationView.colleagues.startAgent")
+                      : t("conversationView.colleagues.restartAgent")}
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onStopAgent(selectedAgent.id)}
-                    disabled={selectedAgentRemoved}
+                  {!selectedAgentStopped ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setStopAgentConfirmOpen(true)}
+                      disabled={selectedAgentRemoved}
+                    >
+                      <Power className="size-4" />
+                      {t("conversationView.colleagues.stopAgent")}
+                    </Button>
+                  ) : null}
+                  <AlertDialog
+                    open={restartAgentConfirmOpen}
+                    onOpenChange={setRestartAgentConfirmOpen}
                   >
-                    <Power className="size-4" />
-                    {t("conversationView.colleagues.stopAgent")}
-                  </Button>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {selectedAgentStopped
+                            ? t(
+                                "conversationView.colleagues.startAgentTitle",
+                                {
+                                  name: selectedAgent.displayName,
+                                },
+                              )
+                            : t(
+                                "conversationView.colleagues.restartAgentTitle",
+                                {
+                                  name: selectedAgent.displayName,
+                                },
+                              )}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {selectedAgentStopped
+                            ? t(
+                                "conversationView.colleagues.startAgentDescription",
+                              )
+                            : t(
+                                "conversationView.colleagues.restartAgentDescription",
+                              )}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>
+                          {t("common.cancel")}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => {
+                            onRestartAgent(selectedAgent.id);
+                            setRestartAgentConfirmOpen(false);
+                          }}
+                        >
+                          {selectedAgentStopped
+                            ? t("conversationView.colleagues.startAgent")
+                            : t("conversationView.colleagues.restartAgent")}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  <AlertDialog
+                    open={stopAgentConfirmOpen}
+                    onOpenChange={setStopAgentConfirmOpen}
+                  >
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {t("conversationView.colleagues.stopAgentTitle", {
+                            name: selectedAgent.displayName,
+                          })}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t("conversationView.colleagues.stopAgentDescription")}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>
+                          {t("common.cancel")}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => {
+                            onStopAgent(selectedAgent.id);
+                            setStopAgentConfirmOpen(false);
+                          }}
+                        >
+                          {t("conversationView.colleagues.stopAgent")}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   {!selectedAgentRemoved ? (
                     <AlertDialog
                       open={removeAgentConfirmOpen}
