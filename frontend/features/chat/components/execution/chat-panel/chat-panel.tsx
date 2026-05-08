@@ -91,6 +91,7 @@ interface ChatPanelProps {
   isRightPanelCollapsed?: boolean;
   hideHeader?: boolean;
   hidePresetBadge?: boolean;
+  onCancelExecution?: (() => Promise<void>) | undefined;
 }
 
 interface QuoteSelectionState {
@@ -178,6 +179,7 @@ export function ChatPanel({
   isRightPanelCollapsed = false,
   hideHeader = false,
   hidePresetBadge = false,
+  onCancelExecution,
 }: ChatPanelProps) {
   const router = useRouter();
   const lng = useLanguage();
@@ -540,7 +542,11 @@ export function ChatPanel({
     updateSession({ status: "canceling" });
 
     try {
-      await cancelSessionAction({ sessionId: session.session_id });
+      if (onCancelExecution) {
+        await onCancelExecution();
+      } else {
+        await cancelSessionAction({ sessionId: session.session_id });
+      }
     } catch (error) {
       console.error("[ChatPanel] Failed to cancel session:", error);
       // Best-effort revert so the UI doesn't get stuck in a wrong terminal state.
@@ -554,6 +560,7 @@ export function ChatPanel({
     session?.session_id,
     session?.status,
     updateSession,
+    onCancelExecution,
   ]);
 
   const handleSubmitUserInput = React.useCallback(

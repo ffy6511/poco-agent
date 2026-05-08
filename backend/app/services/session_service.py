@@ -49,6 +49,9 @@ class SessionService:
 
     ACTIVE_CANCELLATION_RUN_STATUSES = {"claimed", "running", "canceling"}
     QUEUED_RUN_STATUSES = {"queued"}
+    CANCELLATION_SCOPE_KEY = "__cancellation_scope"
+    CANCELLATION_SCOPE_SESSION = "session"
+    CANCELLATION_SCOPE_CURRENT_RUN = "current_run"
 
     @staticmethod
     def _deepcopy_json(value: JsonValueT) -> JsonValueT:
@@ -142,12 +145,54 @@ class SessionService:
     ) -> str:
         return "pending" if has_active_runs else "not_required"
 
+    @classmethod
+    def _set_cancellation_scope(
+        cls,
+        db_session: AgentSession,
+        scope: str,
+    ) -> None:
+        config_snapshot = dict(db_session.config_snapshot or {})
+        config_snapshot[cls.CANCELLATION_SCOPE_KEY] = scope
+        db_session.config_snapshot = config_snapshot
+
+    @classmethod
+    def _get_cancellation_scope(cls, db_session: AgentSession) -> str:
+        config_snapshot = db_session.config_snapshot or {}
+        if not isinstance(config_snapshot, dict):
+            return cls.CANCELLATION_SCOPE_SESSION
+        scope = str(config_snapshot.get(cls.CANCELLATION_SCOPE_KEY) or "").strip()
+        if scope == cls.CANCELLATION_SCOPE_CURRENT_RUN:
+            return scope
+        return cls.CANCELLATION_SCOPE_SESSION
+
+    @classmethod
+    def _clear_cancellation_scope(cls, db_session: AgentSession) -> None:
+        config_snapshot = dict(db_session.config_snapshot or {})
+        if cls.CANCELLATION_SCOPE_KEY in config_snapshot:
+            config_snapshot.pop(cls.CANCELLATION_SCOPE_KEY, None)
+            db_session.config_snapshot = config_snapshot or None
+
+    @staticmethod
+    def _parse_snapshot_uuid(snapshot: dict | None, key: str) -> uuid.UUID | None:
+        if not isinstance(snapshot, dict):
+            return None
+        value = snapshot.get(key)
+        if value is None:
+            return None
+        try:
+            return uuid.UUID(str(value))
+        except (TypeError, ValueError):
+            return None
+
     @staticmethod
     def _sync_channel_execution_cancellation(
         db: Session,
         *,
         db_session: AgentSession,
         execution_status: str,
+        projection_message_id: uuid.UUID | None = None,
+        run_id: uuid.UUID | None = None,
+        queue_item_id: uuid.UUID | None = None,
     ) -> None:
         config_snapshot = db_session.config_snapshot or {}
         if not isinstance(config_snapshot, dict):
@@ -160,24 +205,45 @@ class SessionService:
         except (TypeError, ValueError):
             return
 
-        placeholder = ServerChannelMessageRepository.get_latest_execution_placeholder(
+        projections = []
+        exact_projection = ServerChannelMessageRepository.find_session_projection_by_run(
             db,
             channel_id=channel_id,
             session_id=db_session.id,
+            projection_message_id=projection_message_id,
+            run_id=run_id,
+            queue_item_id=queue_item_id,
         )
-        if placeholder is None:
+        if exact_projection is not None:
+            projections = [exact_projection]
+        else:
+            if (
+                projection_message_id is not None
+                or run_id is not None
+                or queue_item_id is not None
+            ):
+                return
+            projections = ServerChannelMessageRepository.list_session_projections(
+                db,
+                channel_id=channel_id,
+                session_id=db_session.id,
+                open_only=True,
+            )
+        if not projections:
             return
 
         normalized_status = (execution_status or "").strip().lower() or "canceled"
-        content = dict(placeholder.content or {})
-        content["execution_status"] = normalized_status
         if normalized_status == "canceling":
             summary = "Cancellation requested."
         else:
             summary = "Execution canceled."
-        content["summary"] = summary
-        placeholder.content = content
-        placeholder.text_preview = summary
+        for projection in projections:
+            content = dict(projection.content or {})
+            content["source"] = "agent_execution"
+            content["execution_status"] = normalized_status
+            content["summary"] = summary
+            projection.content = content
+            projection.text_preview = summary
 
     @staticmethod
     def _release_agent_runtime_on_cancellation(
@@ -494,6 +560,7 @@ class SessionService:
             has_active_runs=has_active_runs,
             has_any_runs=bool(runs),
         )
+        self._set_cancellation_scope(db_session, self.CANCELLATION_SCOPE_SESSION)
         executor_cancel_status = self._build_executor_cancel_status(
             has_active_runs=requires_manager_side_cancellation
         )
@@ -538,6 +605,7 @@ class SessionService:
                 db_session=db_session,
                 callback_status="canceled",
             )
+            self._clear_cancellation_scope(db_session)
 
         db.commit()
         db.refresh(db_session)
@@ -548,6 +616,99 @@ class SessionService:
             canceled_queue_items=canceled_queue_items,
             expired_requests=expired_requests,
             executor_cancel_status=executor_cancel_status,
+        )
+
+    def cancel_current_execution(
+        self,
+        db: Session,
+        session_id: uuid.UUID,
+        *,
+        user_id: str,
+        reason: str | None = None,
+    ) -> SessionCancelResponse:
+        db_session = SessionRepository.get_by_id_for_update(db, session_id)
+        if not db_session:
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Session not found: {session_id}",
+            )
+        if db_session.user_id != user_id:
+            raise AppException(
+                error_code=ErrorCode.FORBIDDEN,
+                message="Session does not belong to the user",
+            )
+
+        now = datetime.now(timezone.utc)
+        target_run = RunRepository.get_blocking_by_session(db, session_id)
+        if target_run is None:
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message="Session has no active execution to cancel",
+            )
+
+        pending_requests = UserInputRequestRepository.list_pending_by_session(
+            db, session_id
+        )
+        expired_requests = 0
+        for entry in pending_requests:
+            entry.status = "expired"
+            entry.expires_at = now
+            expired_requests += 1
+
+        self._mark_tool_executions_canceled(
+            executions=ToolExecutionRepository.list_unfinished_by_session(
+                db,
+                session_id,
+            ),
+            now=now,
+            reason=reason,
+        )
+
+        self._set_cancellation_scope(db_session, self.CANCELLATION_SCOPE_CURRENT_RUN)
+        db_session.cancellation_requested_at = now
+        db_session.cancellation_target_run_id = target_run.id
+        db_session.cancellation_target_worker_id = (
+            target_run.claimed_by if target_run.claimed_by else None
+        )
+        db_session.cancellation_claimed_by = None
+        db_session.cancellation_lease_expires_at = None
+        db_session.cancellation_completed_at = None
+        db_session.cancellation_error = None
+        db_session.cancellation_reason = reason.strip() or None if reason else None
+
+        if target_run.status != "canceling":
+            target_run.status = "canceling"
+        db_session.status = "canceling"
+        target_run_snapshot = (
+            dict(target_run.config_snapshot)
+            if isinstance(target_run.config_snapshot, dict)
+            else None
+        )
+        self._sync_channel_execution_cancellation(
+            db,
+            db_session=db_session,
+            execution_status="canceling",
+            projection_message_id=self._parse_snapshot_uuid(
+                target_run_snapshot,
+                "channel_projection_message_id",
+            ),
+            run_id=target_run.id,
+            queue_item_id=self._parse_snapshot_uuid(
+                target_run_snapshot,
+                "queue_item_id",
+            ),
+        )
+
+        db.commit()
+        db.refresh(db_session)
+        return self._build_session_cancel_response(
+            db_session=db_session,
+            canceled_runs=0,
+            canceled_queue_items=0,
+            expired_requests=expired_requests,
+            executor_cancel_status=self._build_executor_cancel_status(
+                has_active_runs=True
+            ),
         )
 
     def claim_next_cancellation(
@@ -663,18 +824,43 @@ class SessionService:
                 canceled_runs=0,
             )
 
-        runs = (
+        cancellation_scope = self._get_cancellation_scope(db_session)
+        runs_query = (
             db.query(AgentRun)
             .filter(AgentRun.session_id == session_id)
             .filter(AgentRun.status.in_(["canceling", "claimed", "running"]))
-            .all()
         )
+        if (
+            cancellation_scope == self.CANCELLATION_SCOPE_CURRENT_RUN
+            and db_session.cancellation_target_run_id is not None
+        ):
+            runs_query = runs_query.filter(
+                AgentRun.id == db_session.cancellation_target_run_id
+            )
+        runs = runs_query.all()
+        target_run_snapshot = None
+        for run in runs:
+            if run.id == db_session.cancellation_target_run_id:
+                target_run_snapshot = (
+                    dict(run.config_snapshot)
+                    if isinstance(run.config_snapshot, dict)
+                    else None
+                )
+                break
         canceled_runs = 0
         for run in runs:
             if self._mark_run_canceled(db, run, now=now, clear_claim=True):
                 canceled_runs += 1
 
-        db_session.status = "canceled"
+        promoted_run = None
+        if cancellation_scope == self.CANCELLATION_SCOPE_CURRENT_RUN:
+            promoted_run = SessionQueueService().promote_next_if_available(db, db_session)
+            if promoted_run is not None:
+                db_session.status = "pending"
+            else:
+                db_session.status = "canceled"
+        else:
+            db_session.status = "canceled"
         db_session.cancellation_completed_at = now
         db_session.cancellation_claimed_by = None
         db_session.cancellation_lease_expires_at = None
@@ -683,12 +869,23 @@ class SessionService:
             db,
             db_session=db_session,
             execution_status="canceled",
+            projection_message_id=self._parse_snapshot_uuid(
+                target_run_snapshot,
+                "channel_projection_message_id",
+            ),
+            run_id=db_session.cancellation_target_run_id,
+            queue_item_id=self._parse_snapshot_uuid(
+                target_run_snapshot,
+                "queue_item_id",
+            ),
         )
-        self._release_agent_runtime_on_cancellation(
-            db,
-            db_session=db_session,
-            callback_status="canceled",
-        )
+        if promoted_run is None:
+            self._release_agent_runtime_on_cancellation(
+                db,
+                db_session=db_session,
+                callback_status="canceled",
+            )
+        self._clear_cancellation_scope(db_session)
 
         db.commit()
         db.refresh(db_session)

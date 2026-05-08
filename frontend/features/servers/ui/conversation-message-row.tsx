@@ -31,7 +31,7 @@ import {
 import { ServerMessageContent } from "./server-message-content";
 import { ServerAgentAvatar } from "./server-agent-avatar";
 
-const AGENT_MESSAGE_COLLAPSE_LINES = 8;
+const MESSAGE_COLLAPSE_LINES = 8;
 
 export function formatTime(value: string): string {
   const date = new Date(value);
@@ -172,8 +172,6 @@ export function MessageRow({
   const author = getMessageAuthor(message);
   const text = getMessageText(message);
   const executionMessage = isExecutionMessage(message) ? message : null;
-  const isAgentSessionMessage =
-    message.messageType === "system" && message.content.source === "agent_session";
   const drilldownSessionId = getMessageSessionId(message);
   const canOpenExecutionFromAvatar =
     Boolean(onOpenExecution) && isExecutionDrilldownMessage(message);
@@ -200,7 +198,8 @@ export function MessageRow({
     executionMessage && typeof executionMessage.content.session_id === "string"
       ? executionMessage.content.session_id
       : null;
-  const canCollapseAgentMessage = isAgentSessionMessage && !compact && Boolean(text);
+  const canCollapseMessage =
+    !compact && !executionMessage && Boolean(text) && message.messageType !== "task";
 
   const handleCopyMessage = React.useCallback(async () => {
     if (!text) {
@@ -220,7 +219,7 @@ export function MessageRow({
   }, [message.id, text]);
 
   React.useEffect(() => {
-    if (!canCollapseAgentMessage) {
+    if (!canCollapseMessage) {
       setShouldCollapse(false);
       return;
     }
@@ -230,7 +229,7 @@ export function MessageRow({
 
     const checkOverflow = () => {
       const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
-      const thresholdHeight = lineHeight * AGENT_MESSAGE_COLLAPSE_LINES;
+      const thresholdHeight = lineHeight * MESSAGE_COLLAPSE_LINES;
       setShouldCollapse(element.scrollHeight > thresholdHeight + 1);
     };
 
@@ -240,7 +239,7 @@ export function MessageRow({
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [canCollapseAgentMessage, text]);
+  }, [canCollapseMessage, text]);
 
   return (
     <article
@@ -393,7 +392,7 @@ export function MessageRow({
               className={cn(
                 "relative cursor-text select-text text-base leading-7 text-foreground",
                 compact && "max-h-[15rem] overflow-hidden",
-                canCollapseAgentMessage &&
+                canCollapseMessage &&
                   shouldCollapse &&
                   !isExpanded &&
                   "max-h-56 overflow-hidden",
@@ -402,7 +401,7 @@ export function MessageRow({
               <ServerMessageContent
                 content={text || t("conversationView.emptyMessage")}
               />
-              {canCollapseAgentMessage && shouldCollapse && !isExpanded ? (
+              {canCollapseMessage && shouldCollapse && !isExpanded ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-10 items-end bg-gradient-to-t from-background via-background/90 to-transparent">
                   <span className="text-sm leading-none text-muted-foreground">
                     ...
@@ -410,7 +409,7 @@ export function MessageRow({
                 </div>
               ) : null}
             </div>
-            {canCollapseAgentMessage && shouldCollapse ? (
+            {canCollapseMessage && shouldCollapse ? (
               <button
                 type="button"
                 onClick={() => setIsExpanded((value) => !value)}

@@ -193,6 +193,14 @@ class SessionQueueService:
             client_request_id=normalized_request_id,
         )
         db.flush()
+        snapshot = (
+            dict(item.run_config_snapshot)
+            if isinstance(item.run_config_snapshot, dict)
+            else {}
+        )
+        snapshot["queue_item_id"] = str(item.id)
+        item.run_config_snapshot = snapshot or None
+        db.flush()
         return item
 
     def materialize_run(

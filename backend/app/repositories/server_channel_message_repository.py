@@ -44,7 +44,9 @@ class ServerChannelMessageRepository:
                 before_message_id,
             )
             if before is not None:
-                query = query.filter(ServerChannelMessage.created_at < before.created_at)
+                query = query.filter(
+                    ServerChannelMessage.created_at < before.created_at
+                )
         return (
             query.order_by(
                 ServerChannelMessage.created_at.desc(),
@@ -154,12 +156,79 @@ class ServerChannelMessageRepository:
         return None
 
     @staticmethod
+    def get_latest_session_projection(
+        session_db: Session,
+        *,
+        channel_id: uuid.UUID,
+        session_id: uuid.UUID,
+    ) -> ServerChannelMessage | None:
+        candidates = (
+            session_db.query(ServerChannelMessage)
+            .filter(
+                ServerChannelMessage.channel_id == channel_id,
+                ServerChannelMessage.message_type == "system",
+            )
+            .order_by(
+                ServerChannelMessage.created_at.desc(),
+                ServerChannelMessage.id.desc(),
+            )
+            .all()
+        )
+        session_id_text = str(session_id)
+        for candidate in candidates:
+            content = candidate.content or {}
+            if content.get("source") not in {"agent_execution", "agent_session"}:
+                continue
+            if str(content.get("session_id") or "").strip() != session_id_text:
+                continue
+            return candidate
+        return None
+
+    @staticmethod
+    def list_session_projections(
+        session_db: Session,
+        *,
+        channel_id: uuid.UUID,
+        session_id: uuid.UUID,
+        open_only: bool = False,
+    ) -> list[ServerChannelMessage]:
+        candidates = (
+            session_db.query(ServerChannelMessage)
+            .filter(
+                ServerChannelMessage.channel_id == channel_id,
+                ServerChannelMessage.message_type == "system",
+            )
+            .order_by(
+                ServerChannelMessage.created_at.desc(),
+                ServerChannelMessage.id.desc(),
+            )
+            .all()
+        )
+        session_id_text = str(session_id)
+        results: list[ServerChannelMessage] = []
+        for candidate in candidates:
+            content = candidate.content or {}
+            source = content.get("source")
+            if source not in {"agent_execution", "agent_session"}:
+                continue
+            if str(content.get("session_id") or "").strip() != session_id_text:
+                continue
+            if open_only:
+                status = str(content.get("execution_status") or "").strip().lower()
+                if status in {"completed", "failed", "canceled", "cancelled"}:
+                    continue
+            results.append(candidate)
+        return results
+
+    @staticmethod
     def find_execution_placeholder(
         session_db: Session,
         *,
         channel_id: uuid.UUID,
         session_id: uuid.UUID,
+        projection_message_id: uuid.UUID | None = None,
         run_id: uuid.UUID | None = None,
+        queue_item_id: uuid.UUID | None = None,
         trigger_message_id: uuid.UUID | None = None,
         thread_root_message_id: uuid.UUID | None = None,
         open_only: bool = False,
@@ -177,7 +246,11 @@ class ServerChannelMessageRepository:
             .all()
         )
         session_id_text = str(session_id)
+        projection_message_id_text = (
+            str(projection_message_id) if projection_message_id else None
+        )
         run_id_text = str(run_id) if run_id else None
+        queue_item_id_text = str(queue_item_id) if queue_item_id else None
         trigger_message_id_text = (
             str(trigger_message_id) if trigger_message_id else None
         )
@@ -201,21 +274,101 @@ class ServerChannelMessageRepository:
                 continue
             filtered.append(candidate)
 
+        if projection_message_id_text:
+            for candidate in filtered:
+                if str(candidate.id) == projection_message_id_text:
+                    return candidate
+
         if run_id_text:
             for candidate in filtered:
                 content = candidate.content or {}
                 if str(content.get("run_id") or "").strip() == run_id_text:
                     return candidate
 
+        if queue_item_id_text:
+            for candidate in filtered:
+                content = candidate.content or {}
+                if (
+                    str(content.get("queue_item_id") or "").strip()
+                    == queue_item_id_text
+                ):
+                    return candidate
+
         if trigger_message_id_text or thread_root_message_id_text:
             for candidate in filtered:
                 content = candidate.content or {}
                 candidate_trigger = str(content.get("trigger_message_id") or "").strip()
-                candidate_thread = str(content.get("thread_root_message_id") or "").strip()
-                if trigger_message_id_text and candidate_trigger != trigger_message_id_text:
+                candidate_thread = str(
+                    content.get("thread_root_message_id") or ""
+                ).strip()
+                if (
+                    trigger_message_id_text
+                    and candidate_trigger != trigger_message_id_text
+                ):
                     continue
-                if thread_root_message_id_text and candidate_thread != thread_root_message_id_text:
+                if (
+                    thread_root_message_id_text
+                    and candidate_thread != thread_root_message_id_text
+                ):
                     continue
                 return candidate
 
+        if (
+            projection_message_id_text
+            or run_id_text
+            or queue_item_id_text
+            or trigger_message_id_text
+            or thread_root_message_id_text
+        ):
+            return None
+
         return filtered[0] if filtered else None
+
+    @staticmethod
+    def find_session_projection_by_run(
+        session_db: Session,
+        *,
+        channel_id: uuid.UUID,
+        session_id: uuid.UUID,
+        projection_message_id: uuid.UUID | None = None,
+        run_id: uuid.UUID | None = None,
+        queue_item_id: uuid.UUID | None = None,
+    ) -> ServerChannelMessage | None:
+        candidates = (
+            session_db.query(ServerChannelMessage)
+            .filter(
+                ServerChannelMessage.channel_id == channel_id,
+                ServerChannelMessage.message_type == "system",
+            )
+            .order_by(
+                ServerChannelMessage.created_at.desc(),
+                ServerChannelMessage.id.desc(),
+            )
+            .all()
+        )
+        session_id_text = str(session_id)
+        projection_message_id_text = (
+            str(projection_message_id) if projection_message_id else None
+        )
+        run_id_text = str(run_id) if run_id else None
+        queue_item_id_text = str(queue_item_id) if queue_item_id else None
+        for candidate in candidates:
+            content = candidate.content or {}
+            if content.get("source") not in {"agent_execution", "agent_session"}:
+                continue
+            if str(content.get("session_id") or "").strip() != session_id_text:
+                continue
+            if (
+                projection_message_id_text
+                and str(candidate.id) == projection_message_id_text
+            ):
+                return candidate
+            if run_id_text and str(content.get("run_id") or "").strip() == run_id_text:
+                return candidate
+            if (
+                queue_item_id_text
+                and str(content.get("queue_item_id") or "").strip()
+                == queue_item_id_text
+            ):
+                return candidate
+        return None

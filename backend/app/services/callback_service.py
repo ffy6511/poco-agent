@@ -386,9 +386,11 @@ class CallbackService:
 
         return {
             "channel_id": parse_uuid(snapshot.get("channel_id")),
+            "projection_message_id": parse_uuid(snapshot.get("channel_projection_message_id")),
             "trigger_message_id": parse_uuid(snapshot.get("trigger_message_id")),
             "thread_root_message_id": parse_uuid(snapshot.get("thread_root_message_id")),
             "agent_identity_id": parse_uuid(snapshot.get("agent_identity_id")),
+            "queue_item_id": parse_uuid(snapshot.get("queue_item_id")),
         }
 
     def _sync_execution_placeholder_to_server_channel(
@@ -416,7 +418,9 @@ class CallbackService:
             db,
             channel_id=channel_id,
             session_id=db_session.id,
+            projection_message_id=projection_context["projection_message_id"],
             run_id=db_run.id if db_run is not None else None,
+            queue_item_id=projection_context["queue_item_id"],
             trigger_message_id=projection_context["trigger_message_id"],
             thread_root_message_id=projection_context["thread_root_message_id"],
             open_only=should_require_open_placeholder,
@@ -438,6 +442,16 @@ class CallbackService:
         content.update(
             {
                 "run_id": str(db_run.id) if db_run is not None else content.get("run_id"),
+                "queue_item_id": content.get("queue_item_id")
+                or (
+                    str(projection_context["queue_item_id"])
+                    if projection_context["queue_item_id"]
+                    else None
+                ),
+                "channel_projection_message_id": content.get(
+                    "channel_projection_message_id"
+                )
+                or str(placeholder.id),
                 "execution_status": callback.status.value,
                 "summary": summary,
                 "current_step": current_step or content.get("current_step"),
@@ -461,6 +475,12 @@ class CallbackService:
                 "actor_label": agent_label,
                 "source": "agent_session",
                 "session_id": str(db_session.id),
+                "run_id": content.get("run_id"),
+                "queue_item_id": content.get("queue_item_id"),
+                "channel_projection_message_id": content.get(
+                    "channel_projection_message_id"
+                ),
+                "execution_status": callback.status.value,
                 "agent_handle": content.get("agent_handle"),
                 "agent_visual_key": content.get("agent_visual_key"),
                 "trigger_message_id": content.get("trigger_message_id"),
@@ -517,17 +537,25 @@ class CallbackService:
             db,
             channel_id=channel_id,
             session_id=db_session.id,
+            projection_message_id=projection_context["projection_message_id"],
             run_id=db_run.id if db_run is not None else None,
+            queue_item_id=projection_context["queue_item_id"],
             trigger_message_id=trigger_message_id,
             thread_root_message_id=thread_root_message_id,
         )
         if existing_placeholder is not None:
             existing_placeholder.text_preview = text
+            existing_content = dict(existing_placeholder.content or {})
             existing_placeholder.content = {
                 "text": text,
                 "actor_label": actor_label,
                 "source": "agent_session",
                 "session_id": str(db_session.id),
+                "run_id": str(db_run.id) if db_run is not None else None,
+                "queue_item_id": existing_content.get("queue_item_id"),
+                "channel_projection_message_id": existing_content.get(
+                    "channel_projection_message_id"
+                ),
                 "agent_message_id": db_message.id,
                 "agent_handle": agent_handle,
                 "agent_visual_key": agent_visual_key,
@@ -551,6 +579,15 @@ class CallbackService:
                     "actor_label": actor_label,
                     "source": "agent_session",
                     "session_id": str(db_session.id),
+                    "run_id": str(db_run.id) if db_run is not None else None,
+                    "queue_item_id": str(projection_context["queue_item_id"])
+                    if projection_context["queue_item_id"]
+                    else None,
+                    "channel_projection_message_id": str(
+                        projection_context["projection_message_id"]
+                    )
+                    if projection_context["projection_message_id"]
+                    else None,
                     "agent_message_id": db_message.id,
                     "agent_handle": agent_handle,
                     "agent_visual_key": agent_visual_key,

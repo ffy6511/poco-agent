@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
 import { ExecutionContainer } from "@/features/chat";
-import { cancelSessionAction } from "@/features/chat/actions/session-actions";
+import { cancelCurrentRunAction } from "@/features/chat/actions/session-actions";
 import { useExecutionSession } from "@/features/chat/hooks/use-execution-session";
 import type {
   ChannelTask,
@@ -486,7 +486,7 @@ export function ExecutionDrawer({
     }
     setIsCancelling(true);
     try {
-      await cancelSessionAction({ sessionId });
+      await cancelCurrentRunAction({ sessionId });
     } catch (error) {
       console.error("[ExecutionDrawer] failed to cancel session", error);
       toast.error(t("chatInput.cancelFailed"));
@@ -544,6 +544,7 @@ export function ExecutionDrawer({
             sessionId={sessionId}
             defaultRightPanelCollapsed
             hidePresetBadge
+            onCancelExecution={handleCancel}
           />
         </TaskHistoryProvider>
       </div>

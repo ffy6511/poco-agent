@@ -4,12 +4,14 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.repositories.agent_identity_repository import AgentIdentityRepository
+from app.repositories.run_repository import RunRepository
 from app.repositories.server_channel_message_repository import (
     ServerChannelMessageRepository,
 )
 from app.repositories.server_channel_agent_member_repository import (
     ServerChannelAgentMemberRepository,
 )
+from app.repositories.session_queue_item_repository import SessionQueueItemRepository
 from app.models.server_channel_message import ServerChannelMessage
 from app.schemas.session import TaskConfig
 from app.schemas.task import TaskEnqueueRequest, TaskEnqueueResponse
@@ -54,7 +56,7 @@ class ServerAgentTriggerService:
             if execution_status == "queued"
             else f"@{agent.handle} is working."
         )
-        ServerChannelMessageRepository.create(
+        placeholder = ServerChannelMessageRepository.create(
             db,
             ServerChannelMessage(
                 channel_id=channel_id,
@@ -87,6 +89,32 @@ class ServerAgentTriggerService:
                 thread_root_message_id=thread_root_message_id,
             ),
         )
+        db.flush()
+        content = dict(placeholder.content or {})
+        content["channel_projection_message_id"] = str(placeholder.id)
+        placeholder.content = content
+
+        if result.run_id is not None:
+            run = RunRepository.get_by_id(db, result.run_id)
+            if run is not None:
+                snapshot = (
+                    dict(run.config_snapshot)
+                    if isinstance(run.config_snapshot, dict)
+                    else {}
+                )
+                snapshot["channel_projection_message_id"] = str(placeholder.id)
+                run.config_snapshot = snapshot or None
+        if result.queue_item_id is not None:
+            item = SessionQueueItemRepository.get_by_id(db, result.queue_item_id)
+            if item is not None:
+                snapshot = (
+                    dict(item.run_config_snapshot)
+                    if isinstance(item.run_config_snapshot, dict)
+                    else {}
+                )
+                snapshot["queue_item_id"] = str(item.id)
+                snapshot["channel_projection_message_id"] = str(placeholder.id)
+                item.run_config_snapshot = snapshot or None
         db.commit()
 
     def _collect_target_agents(

@@ -16,12 +16,14 @@ interface ExecutionContainerProps {
   sessionId: string;
   defaultRightPanelCollapsed?: boolean;
   hidePresetBadge?: boolean;
+  onCancelExecution?: (() => Promise<void>) | undefined;
 }
 
 export function ExecutionContainer({
   sessionId,
   defaultRightPanelCollapsed = false,
   hidePresetBadge = false,
+  onCancelExecution,
 }: ExecutionContainerProps) {
   const { t } = useT("translation");
   const { refreshTasks } = useTaskHistoryContext();
@@ -173,6 +175,7 @@ export function ExecutionContainer({
           : undefined
       }
       hidePresetBadge={hidePresetBadge}
+      onCancelExecution={onCancelExecution}
     />
   );
 

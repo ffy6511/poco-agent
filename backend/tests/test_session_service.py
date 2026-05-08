@@ -38,8 +38,8 @@ class SessionServiceCancellationProjectionTests(unittest.TestCase):
         )
 
         with patch(
-            "app.services.session_service.ServerChannelMessageRepository.get_latest_execution_placeholder",
-            return_value=placeholder,
+            "app.services.session_service.ServerChannelMessageRepository.list_session_projections",
+            return_value=[placeholder],
         ):
             self.service._sync_channel_execution_cancellation(
                 self.db,
@@ -50,6 +50,97 @@ class SessionServiceCancellationProjectionTests(unittest.TestCase):
         self.assertEqual(placeholder.content["execution_status"], "canceled")
         self.assertEqual(placeholder.content["summary"], "Execution canceled.")
         self.assertEqual(placeholder.text_preview, "Execution canceled.")
+
+    def test_sync_channel_execution_cancellation_rewrites_agent_session_projection(self) -> None:
+        projection = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_session",
+                "session_id": str(self.session_id),
+                "text": "@coworker is preparing a response.",
+                "actor_label": "coworker",
+                "agent_handle": "coworker",
+            },
+            text_preview="@coworker is preparing a response.",
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db_session = SimpleNamespace(
+            id=self.session_id,
+            config_snapshot={"channel_id": str(self.channel_id)},
+        )
+
+        with patch(
+            "app.services.session_service.ServerChannelMessageRepository.list_session_projections",
+            return_value=[projection],
+        ):
+            self.service._sync_channel_execution_cancellation(
+                self.db,
+                db_session=db_session,
+                execution_status="canceled",
+            )
+
+        self.assertEqual(projection.content["source"], "agent_execution")
+        self.assertEqual(projection.content["execution_status"], "canceled")
+        self.assertEqual(projection.content["agent_handle"], "coworker")
+        self.assertEqual(projection.content["summary"], "Execution canceled.")
+
+    def test_sync_channel_execution_cancellation_updates_all_open_projections_for_session(self) -> None:
+        first_projection = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_execution",
+                "session_id": str(self.session_id),
+                "execution_status": "running",
+                "summary": "Running",
+            },
+            text_preview="Running",
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        second_projection = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_session",
+                "session_id": str(self.session_id),
+                "text": "Preparing",
+            },
+            text_preview="Preparing",
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db_session = SimpleNamespace(
+            id=self.session_id,
+            config_snapshot={"channel_id": str(self.channel_id)},
+        )
+
+        with patch(
+            "app.services.session_service.ServerChannelMessageRepository.list_session_projections",
+            return_value=[first_projection, second_projection],
+        ):
+            self.service._sync_channel_execution_cancellation(
+                self.db,
+                db_session=db_session,
+                execution_status="canceled",
+            )
+
+        for projection in [first_projection, second_projection]:
+            self.assertEqual(projection.content["source"], "agent_execution")
+            self.assertEqual(projection.content["execution_status"], "canceled")
+            self.assertEqual(projection.content["summary"], "Execution canceled.")
+            self.assertEqual(projection.text_preview, "Execution canceled.")
 
     def test_release_agent_runtime_on_cancellation_releases_persistent_session(self) -> None:
         db_session = SimpleNamespace(

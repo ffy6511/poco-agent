@@ -97,9 +97,7 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
         self.assertEqual(placeholder.content["source"], "agent_execution")
         self.assertEqual(placeholder.content["session_id"], str(self.session_id))
         self.assertEqual(placeholder.content["agent_handle"], "api-specialist")
-        self.assertEqual(
-            placeholder.content["trigger_message_id"], str(message.id)
-        )
+        self.assertEqual(placeholder.content["trigger_message_id"], str(message.id))
         self.assertEqual(placeholder.thread_root_message_id, None)
 
     def test_callback_updates_execution_placeholder_summary(self) -> None:
@@ -167,15 +165,15 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
         self.assertEqual(
             placeholder.content["current_step"], "Inspecting retry behavior"
         )
-        self.assertEqual(
-            placeholder.content["summary"], "Working on the retry path."
-        )
+        self.assertEqual(placeholder.content["summary"], "Working on the retry path.")
         self.assertEqual(
             placeholder.content["todo_progress"],
             {"completed": 1, "total": 2},
         )
 
-    def test_completed_callback_replaces_placeholder_with_final_agent_message(self) -> None:
+    def test_completed_callback_replaces_placeholder_with_final_agent_message(
+        self,
+    ) -> None:
         service = CallbackService.__new__(CallbackService)
         thread_root_message_id = uuid.uuid4()
         placeholder = ServerChannelMessage(
@@ -282,7 +280,9 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
             progress=100,
             new_message={
                 "_type": "AssistantMessage",
-                "content": [{"_type": "TextBlock", "text": "Final answer after replay"}],
+                "content": [
+                    {"_type": "TextBlock", "text": "Final answer after replay"}
+                ],
             },
         )
 
@@ -433,6 +433,144 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
         )
 
         self.assertIs(found, correct)
+
+    def test_find_execution_placeholder_does_not_fallback_when_identity_misses(
+        self,
+    ) -> None:
+        queued_placeholder = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_execution",
+                "session_id": str(self.session_id),
+                "execution_status": "queued",
+                "summary": "@coworker is preparing a response.",
+            },
+            text_preview="@coworker is preparing a response.",
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        query = MagicMock()
+        query.filter.return_value = query
+        query.order_by.return_value = query
+        query.all.return_value = [queued_placeholder]
+        self.db.query.return_value = query
+
+        from app.repositories.server_channel_message_repository import (
+            ServerChannelMessageRepository,
+        )
+
+        found = ServerChannelMessageRepository.find_execution_placeholder(
+            self.db,
+            channel_id=self.channel_id,
+            session_id=self.session_id,
+            run_id=uuid.uuid4(),
+            trigger_message_id=uuid.uuid4(),
+        )
+
+        self.assertIsNone(found)
+        self.assertEqual(queued_placeholder.content["source"], "agent_execution")
+
+    def test_callback_replaces_promoted_queue_placeholder_by_queue_item_id(
+        self,
+    ) -> None:
+        service = CallbackService.__new__(CallbackService)
+        queue_item_id = uuid.uuid4()
+        run_id = uuid.uuid4()
+        wrong_placeholder = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_execution",
+                "session_id": str(self.session_id),
+                "execution_status": "queued",
+                "summary": "Wrong queued placeholder",
+            },
+            text_preview="Wrong queued placeholder",
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        correct_placeholder = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_execution",
+                "session_id": str(self.session_id),
+                "queue_item_id": str(queue_item_id),
+                "execution_status": "queued",
+                "summary": "Queued placeholder",
+            },
+            text_preview="Queued placeholder",
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        query = MagicMock()
+        query.filter.return_value = query
+        query.order_by.return_value = query
+        query.all.return_value = [wrong_placeholder, correct_placeholder]
+        self.db.query.return_value = query
+
+        db_session = SimpleNamespace(
+            id=self.session_id,
+            config_snapshot={
+                "channel_id": str(self.channel_id),
+                "agent_identity_id": str(self.agent_id),
+            },
+        )
+        db_run = SimpleNamespace(
+            id=run_id,
+            config_snapshot={
+                "channel_id": str(self.channel_id),
+                "agent_identity_id": str(self.agent_id),
+                "queue_item_id": str(queue_item_id),
+            },
+        )
+        callback = AgentCallbackRequest(
+            session_id=str(self.session_id),
+            run_id=str(run_id),
+            time=datetime.now(UTC),
+            status=CallbackStatus.COMPLETED,
+            progress=100,
+            new_message={
+                "_type": "AssistantMessage",
+                "content": [{"_type": "TextBlock", "text": "Second final answer"}],
+            },
+        )
+
+        with patch(
+            "app.services.callback_service.AgentIdentityRepository.get_by_id",
+            return_value=SimpleNamespace(
+                display_name="Jimi",
+                handle="jimi",
+                visual_key="preset-visual-02",
+            ),
+        ):
+            replaced = service._sync_execution_placeholder_to_server_channel(
+                self.db,
+                db_session=db_session,
+                db_run=db_run,
+                callback=callback,
+            )
+
+        self.assertTrue(replaced)
+        self.assertEqual(wrong_placeholder.content["source"], "agent_execution")
+        self.assertEqual(wrong_placeholder.text_preview, "Wrong queued placeholder")
+        self.assertEqual(correct_placeholder.content["source"], "agent_session")
+        self.assertEqual(correct_placeholder.content["text"], "Second final answer")
+        self.assertEqual(correct_placeholder.content["run_id"], str(run_id))
+        self.assertEqual(
+            correct_placeholder.content["queue_item_id"], str(queue_item_id)
+        )
 
 
 if __name__ == "__main__":
