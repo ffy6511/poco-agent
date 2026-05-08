@@ -13,7 +13,7 @@
 ## 实施阶段
 
 - [x] Phase 0: 固化统一 channel runtime tool contract
-- [ ] Phase 1: 建立 backend internal message / agent directory / collaboration API
+- [x] Phase 1: 建立 backend internal message / agent directory / collaboration API
 - [ ] Phase 2: 建立 executor-manager 统一代理前缀
 - [ ] Phase 3: 建立 executor `ChannelRuntimeClient` 与 `__poco_channel_runtime`
 - [ ] Phase 4: 迁移 artifacts / tasks / reactions 到统一注入入口
@@ -122,9 +122,9 @@
 
 **验收标准：**
 
-- [ ] scope 来自 session config snapshot，不来自 request body
-- [ ] agent 不在 channel 时拒绝 runtime tool
-- [ ] 跨 channel message / task / artifact 操作被拒绝
+- [x] scope 来自 session config snapshot，不来自 request body
+- [x] agent 不在 channel 时拒绝 runtime tool
+- [x] 跨 channel message / task / artifact 操作被拒绝
 
 #### 1.2 新增 read channel messages internal API
 
@@ -142,9 +142,9 @@
 
 **验收标准：**
 
-- [ ] 只能读取当前 channel 的消息
-- [ ] 支持 trigger message id 和 thread root id
-- [ ] 返回 full `content.text`，不使用截断 preview 代替正文
+- [x] 只能读取当前 channel 的消息
+- [x] 支持 trigger message id 和 thread root id
+- [x] 返回 full `content.text`，不使用截断 preview 代替正文
 
 #### 1.3 新增 list channel agents internal API
 
@@ -162,8 +162,8 @@
 
 **验收标准：**
 
-- [ ] 只返回当前 channel active agents
-- [ ] 不泄露不在当前 channel 的 private agent
+- [x] 只返回当前 channel active agents
+- [x] 不泄露不在当前 channel 的 private agent
 
 #### 1.4 新增 request collaboration internal API
 
@@ -196,11 +196,11 @@
 
 **验收标准：**
 
-- [ ] 目标 agent 必须在当前 channel 且 active
-- [ ] 目标 agent 不能等于当前 agent
-- [ ] 使用 dedupe key 防止同一来源重复触发
-- [ ] hop depth 第一版最大为 2
-- [ ] 生成 `trigger_type=agent_collaboration`
+- [x] 目标 agent 必须在当前 channel 且 active
+- [x] 目标 agent 不能等于当前 agent
+- [x] 使用 dedupe key 防止同一来源重复触发
+- [x] hop depth 第一版最大为 2
+- [x] 生成 `trigger_type=agent_collaboration`
 
 ## Phase 2: 建立 executor-manager 统一代理前缀
 
