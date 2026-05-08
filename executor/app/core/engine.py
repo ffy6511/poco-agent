@@ -29,6 +29,11 @@ from app.core.channel_artifacts import (
     ChannelArtifactClient,
     create_channel_artifacts_mcp_server,
 )
+from app.core.channel_runtime import (
+    CHANNEL_RUNTIME_MCP_SERVER_KEY,
+    ChannelRuntimeClient,
+    create_channel_runtime_mcp_server,
+)
 from app.core.channel_tasks import (
     CHANNEL_TASKS_MCP_SERVER_KEY,
     ChannelTaskClient,
@@ -89,6 +94,7 @@ class AgentExecutor:
         run_id: str | None = None,
         user_input_client: UserInputClient | None = None,
         memory_client: MemoryClient | None = None,
+        channel_runtime_client: ChannelRuntimeClient | None = None,
         channel_task_client: ChannelTaskClient | None = None,
         channel_artifact_client: ChannelArtifactClient | None = None,
         request_id: str | None = None,
@@ -102,6 +108,12 @@ class AgentExecutor:
         self.memory_client = memory_client
         self.memory_mcp_server = (
             create_memory_mcp_server(memory_client) if memory_client else None
+        )
+        self.channel_runtime_client = channel_runtime_client
+        self.channel_runtime_mcp_server = (
+            create_channel_runtime_mcp_server(channel_runtime_client)
+            if channel_runtime_client
+            else None
         )
         self.channel_task_client = channel_task_client
         self.channel_tasks_mcp_server = (
@@ -295,6 +307,7 @@ class AgentExecutor:
 
             mcp_servers = dict(config.mcp_config or {})
             mcp_servers = self._inject_memory_mcp(mcp_servers)
+            mcp_servers = self._inject_channel_runtime_mcp(mcp_servers)
             mcp_servers = self._inject_channel_tasks_mcp(mcp_servers)
             mcp_servers = self._inject_channel_artifacts_mcp(mcp_servers)
             if config.browser_enabled:
@@ -628,6 +641,21 @@ class AgentExecutor:
             ]
         )
 
+    @staticmethod
+    def _build_channel_reaction_hint(config: TaskConfig) -> str | None:
+        if not (config.server_id and config.channel_id and config.agent_identity_id):
+            return None
+
+        return "\n".join(
+            [
+                "Channel message reaction contract:",
+                "- Reactions are lightweight message feedback, not reply messages.",
+                "- Use add_channel_message_reaction or remove_channel_message_reaction only for messages visible in the current channel.",
+                "- These tools are scoped to the current server, channel, and agent identity; do not pass or invent actor identity.",
+                "- Do not claim you reacted to a message unless the structured tool call succeeded.",
+            ]
+        )
+
     def _compose_user_prompt(self, prompt: str, config: TaskConfig, *, cwd: str) -> str:
         sections = [prompt]
 
@@ -646,6 +674,10 @@ class AgentExecutor:
         channel_artifact_hint = self._build_channel_artifact_hint(config)
         if channel_artifact_hint:
             sections.append(channel_artifact_hint)
+
+        channel_reaction_hint = self._build_channel_reaction_hint(config)
+        if channel_reaction_hint:
+            sections.append(channel_reaction_hint)
 
         prompt_appendix = build_prompt_appendix(
             browser_enabled=config.browser_enabled,
@@ -776,6 +808,17 @@ PY
 
         injected = dict(mcp_servers)
         injected[MEMORY_MCP_SERVER_KEY] = self.memory_mcp_server
+        return injected
+
+    def _inject_channel_runtime_mcp(self, mcp_servers: dict) -> dict:
+        """Inject built-in channel runtime MCP server for channel-scoped agent runs."""
+        if not self.channel_runtime_mcp_server:
+            return mcp_servers
+        if CHANNEL_RUNTIME_MCP_SERVER_KEY in mcp_servers:
+            return mcp_servers
+
+        injected = dict(mcp_servers)
+        injected[CHANNEL_RUNTIME_MCP_SERVER_KEY] = self.channel_runtime_mcp_server
         return injected
 
     def _inject_channel_tasks_mcp(self, mcp_servers: dict) -> dict:

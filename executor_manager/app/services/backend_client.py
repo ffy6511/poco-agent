@@ -676,3 +676,37 @@ class BackendClient:
             )
             response.raise_for_status()
             return response.json().get("data")
+
+    async def add_agent_channel_message_reaction(
+        self,
+        session_id: str,
+        payload: dict[str, Any],
+    ) -> Any:
+        response = await self._request(
+            "POST",
+            "/api/v1/internal/channel-runtime/reactions/add",
+            params={"session_id": session_id},
+            json=payload,
+            headers={
+                "X-Internal-Token": self.settings.internal_api_token,
+                **self._trace_headers(),
+            },
+        )
+        return response.json().get("data")
+
+    async def remove_agent_channel_message_reaction(
+        self,
+        session_id: str,
+        payload: dict[str, Any],
+    ) -> Any:
+        response = await self._request(
+            "POST",
+            "/api/v1/internal/channel-runtime/reactions/remove",
+            params={"session_id": session_id},
+            json=payload,
+            headers={
+                "X-Internal-Token": self.settings.internal_api_token,
+                **self._trace_headers(),
+            },
+        )
+        return response.json().get("data")
