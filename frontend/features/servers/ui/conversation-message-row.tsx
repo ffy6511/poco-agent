@@ -179,6 +179,7 @@ export function MessageRow({
   compact = false,
   onOpenThread,
   onOpenExecution,
+  onOpenAgentProfile,
   onToggleSaved,
   onToggleReaction,
 }: {
@@ -190,6 +191,7 @@ export function MessageRow({
   compact?: boolean;
   onOpenThread: () => void;
   onOpenExecution?: ((sessionId: string) => void) | undefined;
+  onOpenAgentProfile?: ((agentId: string) => void) | undefined;
   onToggleSaved: () => void;
   onToggleReaction?: (emoji: string) => void;
 }) {
@@ -207,7 +209,8 @@ export function MessageRow({
   const avatarUrl = getUserAvatarUrl(message.authorUser);
   const matchingAgent =
     message.messageType === "system"
-      ? agents.find((agent) => {
+      ? (message.authorAgent ??
+        agents.find((agent) => {
           const contentHandle =
             typeof message.content.agent_handle === "string"
               ? message.content.agent_handle.trim().toLowerCase()
@@ -221,7 +224,8 @@ export function MessageRow({
             (contentActor &&
               agent.displayName.trim().toLowerCase() === contentActor)
           );
-        }) ?? null
+        }) ??
+        null)
       : null;
   const executionSessionId =
     executionMessage && typeof executionMessage.content.session_id === "string"
@@ -284,12 +288,18 @@ export function MessageRow({
           onClick={() => {
             if (canOpenExecutionFromAvatar && drilldownSessionId && onOpenExecution) {
               onOpenExecution(drilldownSessionId);
+              return;
+            }
+            if (matchingAgent && onOpenAgentProfile) {
+              onOpenAgentProfile(matchingAgent.id);
             }
           }}
-          disabled={!canOpenExecutionFromAvatar}
+          disabled={!canOpenExecutionFromAvatar && !onOpenAgentProfile}
           className={cn(
             "shrink-0 self-start",
-            canOpenExecutionFromAvatar ? "cursor-pointer" : "cursor-default",
+            canOpenExecutionFromAvatar || onOpenAgentProfile
+              ? "cursor-pointer"
+              : "cursor-default",
           )}
           aria-label={author}
           title={author}

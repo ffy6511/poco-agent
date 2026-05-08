@@ -42,6 +42,18 @@ class ServerChannelAgentMemberRepository:
         )
 
     @staticmethod
+    def list_by_agent(
+        session_db: Session,
+        agent_identity_id: uuid.UUID,
+    ) -> list[ServerChannelAgentMember]:
+        return (
+            session_db.query(ServerChannelAgentMember)
+            .filter(ServerChannelAgentMember.agent_identity_id == agent_identity_id)
+            .order_by(ServerChannelAgentMember.joined_at.asc())
+            .all()
+        )
+
+    @staticmethod
     def delete(
         session_db: Session,
         membership: ServerChannelAgentMember,

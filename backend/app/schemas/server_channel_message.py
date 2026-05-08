@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.server_channel_message_reaction import (
     ServerChannelMessageReactionGroupResponse,
 )
+from app.schemas.agent_identity import AgentIdentityResponse
 from app.schemas.user_profile import UserPublicProfileResponse
 
 ServerChannelMessageType = Literal["user", "system", "task"]
@@ -24,6 +25,7 @@ class ServerChannelMessageResponse(BaseModel):
     channel_id: UUID
     author_user_id: str | None
     author_user: UserPublicProfileResponse | None = None
+    author_agent: AgentIdentityResponse | None = None
     message_type: ServerChannelMessageType
     content: dict[str, Any]
     text_preview: str | None = None

@@ -46,6 +46,8 @@ class AgentIdentityResponse(BaseModel):
     lifecycle_state: str
     created_by: str
     updated_by: str | None = None
+    removed_at: datetime | None = None
+    removed_by: str | None = None
     persistent_state: AgentPersistentStateResponse | None = None
     created_at: datetime
     updated_at: datetime

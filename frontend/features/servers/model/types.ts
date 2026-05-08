@@ -36,6 +36,8 @@ export interface ServerAgentItem {
   lifecycleState: string;
   createdBy: string;
   updatedBy?: string | null;
+  removedAt?: string | null;
+  removedBy?: string | null;
   persistentState?: ServerAgentPersistentState | null;
   createdAt: string;
   updatedAt: string;
@@ -111,6 +113,7 @@ export interface ServerConversationMessage {
   channelId: string;
   authorUserId?: string | null;
   authorUser?: ServerUserPublicProfile | null;
+  authorAgent?: ServerAgentItem | null;
   messageType: "user" | "system" | "task";
   content: Record<string, unknown>;
   textPreview?: string | null;

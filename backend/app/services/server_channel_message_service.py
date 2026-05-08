@@ -8,6 +8,7 @@ from app.core.errors.exceptions import AppException
 from app.models.server_channel import ServerChannel
 from app.models.server_channel_message import ServerChannelMessage
 from app.models.user import User
+from app.repositories.agent_identity_repository import AgentIdentityRepository
 from app.repositories.server_channel_message_repository import (
     ServerChannelMessageRepository,
 )
@@ -23,6 +24,7 @@ from app.schemas.server_channel_message import (
 from app.schemas.server_channel_message_reaction import (
     ServerChannelMessageReactionGroupResponse,
 )
+from app.schemas.agent_identity import AgentIdentityResponse
 from app.schemas.user_profile import UserPublicProfileResponse
 from app.services.server_agent_trigger_service import ServerAgentTriggerService
 from app.services.server_member_service import require_server_member
@@ -41,6 +43,7 @@ class ServerChannelMessageService:
         *,
         reply_count: int = 0,
         author_user: UserPublicProfileResponse | None = None,
+        author_agent: AgentIdentityResponse | None = None,
         reactions: list[ServerChannelMessageReactionGroupResponse] | None = None,
     ) -> ServerChannelMessageResponse:
         return ServerChannelMessageResponse.model_validate(
@@ -49,9 +52,62 @@ class ServerChannelMessageService:
             update={
                 "reply_count": reply_count,
                 "author_user": author_user,
+                "author_agent": author_agent,
                 "reactions": reactions or [],
             }
         )
+
+    @staticmethod
+    def _message_agent_identity_id(message: ServerChannelMessage) -> uuid.UUID | None:
+        content = message.content if isinstance(message.content, dict) else {}
+        raw = content.get("agent_identity_id")
+        if raw is None:
+            return None
+        try:
+            return uuid.UUID(str(raw))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _message_agent_handle(message: ServerChannelMessage) -> str | None:
+        content = message.content if isinstance(message.content, dict) else {}
+        raw = content.get("agent_handle")
+        if not isinstance(raw, str):
+            return None
+        return raw.strip() or None
+
+    def _load_author_agents(
+        self,
+        db: Session,
+        server_id: uuid.UUID,
+        messages: list[ServerChannelMessage],
+    ) -> dict[uuid.UUID, AgentIdentityResponse]:
+        responses: dict[uuid.UUID, AgentIdentityResponse] = {}
+        missing_by_handle: list[ServerChannelMessage] = []
+        for message in messages:
+            if message.message_type != "system":
+                continue
+            agent_identity_id = self._message_agent_identity_id(message)
+            if agent_identity_id is None:
+                missing_by_handle.append(message)
+                continue
+            agent = AgentIdentityRepository.get_by_id(db, agent_identity_id)
+            if agent is not None and agent.server_id == server_id:
+                responses[message.id] = AgentIdentityResponse.model_validate(agent)
+
+        for message in missing_by_handle:
+            handle = self._message_agent_handle(message)
+            if not handle:
+                continue
+            agent = AgentIdentityRepository.get_by_server_and_handle(
+                db,
+                server_id,
+                handle,
+                include_removed=True,
+            )
+            if agent is not None:
+                responses[message.id] = AgentIdentityResponse.model_validate(agent)
+        return responses
 
     def _require_channel_access(
         self,
@@ -181,11 +237,13 @@ class ServerChannelMessageService:
             [item.id for item in messages],
             current_user_id=current_user.id,
         )
+        author_agents = self._load_author_agents(db, server_id, messages)
         return [
             self._build_message_response(
                 item,
                 reply_count=reply_counts.get(item.id, 0),
                 author_user=author_profiles.get(item.author_user_id or ""),
+                author_agent=author_agents.get(item.id),
                 reactions=reactions.get(item.id, []),
             )
             for item in messages
@@ -236,16 +294,19 @@ class ServerChannelMessageService:
             [item.id for item in all_messages],
             current_user_id=current_user.id,
         )
+        author_agents = self._load_author_agents(db, server_id, all_messages)
         return ServerChannelThreadResponse(
             root=self._build_message_response(
                 root,
                 author_user=author_profiles.get(root.author_user_id or ""),
+                author_agent=author_agents.get(root.id),
                 reactions=reactions.get(root.id, []),
             ),
             replies=[
                 self._build_message_response(
                     item,
                     author_user=author_profiles.get(item.author_user_id or ""),
+                    author_agent=author_agents.get(item.id),
                     reactions=reactions.get(item.id, []),
                 )
                 for item in replies

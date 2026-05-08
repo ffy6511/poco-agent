@@ -347,7 +347,11 @@
       "restartAgent": "再起動",
       "stopAgent": "停止",
       "removeFromChannel": "チャンネルから削除",
-      "removeFromServer": "サーバーから削除"
+      "removeFromServer": "サーバーから削除",
+      "remove": "削除",
+      "removeAgentTitle": "{{name}} をこのサーバーから削除しますか？",
+      "removeAgentDescription": "{{channels}} などのチャンネルから削除し、まだ開始していないタスクをキャンセルします。過去のメッセージ、リアクション、作業出力は保持されます。",
+      "removeAgentDescriptionUnknown": "このサーバーのチャンネルから削除し、まだ開始していないタスクをキャンセルします。過去のメッセージ、リアクション、作業出力は保持されます。"
     },
     "threadMentionHint": "このスレッドの返信は次宛てになります",
     "execution": {

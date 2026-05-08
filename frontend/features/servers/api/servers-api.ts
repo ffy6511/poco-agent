@@ -88,6 +88,8 @@ interface ServerAgentResponse {
   lifecycle_state: string;
   created_by: string;
   updated_by?: string | null;
+  removed_at?: string | null;
+  removed_by?: string | null;
   persistent_state?: ServerAgentPersistentStateResponse | null;
   created_at: string;
   updated_at: string;
@@ -125,6 +127,7 @@ interface ServerConversationMessageResponse {
   channel_id: string;
   author_user_id?: string | null;
   author_user?: ServerUserPublicProfileResponse | null;
+  author_agent?: ServerAgentResponse | null;
   message_type: "user" | "system" | "task";
   content: Record<string, unknown>;
   text_preview?: string | null;
@@ -229,6 +232,8 @@ function mapAgent(agent: ServerAgentResponse): ServerAgentItem {
     lifecycleState: agent.lifecycle_state,
     createdBy: agent.created_by,
     updatedBy: agent.updated_by,
+    removedAt: agent.removed_at,
+    removedBy: agent.removed_by,
     persistentState: agent.persistent_state
       ? {
           id: agent.persistent_state.persistent_state_id,
@@ -290,6 +295,7 @@ function mapConversationMessage(
     channelId: message.channel_id,
     authorUserId: message.author_user_id,
     authorUser: mapUserProfile(message.author_user),
+    authorAgent: message.author_agent ? mapAgent(message.author_agent) : null,
     messageType: message.message_type,
     content: message.content,
     textPreview: message.text_preview,

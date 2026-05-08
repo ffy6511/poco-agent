@@ -1,8 +1,9 @@
-import re
 import uuid
+from datetime import datetime
+import re
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin
@@ -50,6 +51,12 @@ class AgentIdentity(Base, TimestampMixin):
     )
     created_by: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     updated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    removed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    removed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     persistent_state: Mapped["AgentPersistentState | None"] = relationship(
         back_populates="agent_identity",

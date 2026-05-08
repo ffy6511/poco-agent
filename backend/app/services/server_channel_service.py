@@ -159,7 +159,11 @@ class ServerChannelService:
         agent_identity_ids = set(request.agent_identity_ids)
         for agent_identity_id in agent_identity_ids:
             agent_identity = AgentIdentityRepository.get_by_id(db, agent_identity_id)
-            if agent_identity is None or agent_identity.server_id != server.id:
+            if (
+                agent_identity is None
+                or agent_identity.server_id != server.id
+                or agent_identity.removed_at is not None
+            ):
                 raise AppException(
                     error_code=ErrorCode.BAD_REQUEST,
                     message=f"Agent identity is not in this server: {agent_identity_id}",
@@ -510,7 +514,11 @@ class ServerChannelService:
                 db,
                 direct_agent_identity_id,
             )
-            if agent_identity is None or agent_identity.server_id != server_id:
+            if (
+                agent_identity is None
+                or agent_identity.server_id != server_id
+                or agent_identity.removed_at is not None
+            ):
                 raise AppException(
                     error_code=ErrorCode.BAD_REQUEST,
                     message="DM target agent must belong to the same server",

@@ -521,10 +521,12 @@ class CallbackService:
         actor_label = "Agent"
         agent_handle = None
         agent_visual_key = None
+        agent_identity_id = None
         agent_identity_raw = projection_context["agent_identity_id"]
         if agent_identity_raw:
             agent = AgentIdentityRepository.get_by_id(db, agent_identity_raw)
             if agent is not None:
+                agent_identity_id = str(agent.id)
                 actor_label = (
                     (agent.display_name or "").strip()
                     or (agent.handle or "").strip()
@@ -557,6 +559,7 @@ class CallbackService:
                     "channel_projection_message_id"
                 ),
                 "agent_message_id": db_message.id,
+                "agent_identity_id": agent_identity_id,
                 "agent_handle": agent_handle,
                 "agent_visual_key": agent_visual_key,
                 "trigger_message_id": str(trigger_message_id)
@@ -589,6 +592,7 @@ class CallbackService:
                     if projection_context["projection_message_id"]
                     else None,
                     "agent_message_id": db_message.id,
+                    "agent_identity_id": agent_identity_id,
                     "agent_handle": agent_handle,
                     "agent_visual_key": agent_visual_key,
                     "trigger_message_id": str(trigger_message_id)

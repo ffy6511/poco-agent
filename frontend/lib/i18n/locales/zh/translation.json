@@ -350,7 +350,11 @@
       "restartAgent": "重启",
       "stopAgent": "关闭",
       "removeFromChannel": "从频道移除",
-      "removeFromServer": "从服务器移除"
+      "removeFromServer": "从服务器移除",
+      "remove": "移除",
+      "removeAgentTitle": "确认将 {{name}} 从当前 server 移除吗？",
+      "removeAgentDescription": "将会从 {{channels}} 等频道中移除，并取消尚未开始的任务。历史消息、表情互动和工作输出仍会保留。",
+      "removeAgentDescriptionUnknown": "将会从当前 server 的频道中移除，并取消尚未开始的任务。历史消息、表情互动和工作输出仍会保留。"
     },
     "threadMentionHint": "当前 thread 默认会回复给",
     "execution": {

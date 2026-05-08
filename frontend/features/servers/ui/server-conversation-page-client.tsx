@@ -304,6 +304,7 @@ function ConversationContent({
   onToggleSaved,
   onToggleReaction,
   onOpenExecution,
+  onOpenAgentProfile,
   isSending,
   currentUserId,
 }: {
@@ -327,6 +328,7 @@ function ConversationContent({
   onToggleSaved: (messageId: string) => void;
   onToggleReaction: (message: ServerConversationMessage, emoji: string) => void;
   onOpenExecution: (sessionId: string) => void;
+  onOpenAgentProfile: (agentId: string) => void;
   isSending: boolean;
   currentUserId?: string | null;
 }) {
@@ -550,6 +552,7 @@ function ConversationContent({
                   presets={presets}
                   onOpenThread={() => onOpenThread(message)}
                   onOpenExecution={onOpenExecution}
+                  onOpenAgentProfile={onOpenAgentProfile}
                   isSaved={savedMessageIds.has(message.id)}
                   onToggleSaved={() => onToggleSaved(message.id)}
                   onToggleReaction={(emoji) => onToggleReaction(message, emoji)}
@@ -1332,6 +1335,9 @@ export function ServerConversationPageClient({
   const [channelAgents, setChannelAgents] = React.useState<ServerAgentItem[]>(
     [],
   );
+  const [channelAgentsByChannelId, setChannelAgentsByChannelId] = React.useState<
+    Record<string, ServerAgentItem[]>
+  >({});
   const [channelMembers, setChannelMembers] = React.useState<
     ServerChannelMemberItem[]
   >([]);
@@ -1450,6 +1456,21 @@ export function ServerConversationPageClient({
     () => inferThreadMentionHandle(threadMessages, channelAgents),
     [channelAgents, threadMessages],
   );
+  const knownAgents = React.useMemo(() => {
+    const byId = new Map<string, ServerAgentItem>();
+    const append = (agent: ServerAgentItem | null | undefined) => {
+      if (agent) {
+        byId.set(agent.id, agent);
+      }
+    };
+    serverAgents.forEach(append);
+    channelAgents.forEach(append);
+    Object.values(messagesByChannel).forEach((messages) => {
+      messages.forEach((message) => append(message.authorAgent));
+    });
+    threadMessages.forEach((message) => append(message.authorAgent));
+    return Array.from(byId.values());
+  }, [channelAgents, messagesByChannel, serverAgents, threadMessages]);
   const contentAreaRef = React.useRef<HTMLDivElement | null>(null);
   const isResizingDrawerRef = React.useRef(false);
   const hasDesktopDrawer = drawer.type !== "none";
@@ -1538,6 +1559,15 @@ export function ServerConversationPageClient({
       ),
     [channelIdBySessionId, serverAgents],
   );
+  const channelNamesByAgentId = React.useMemo(() => {
+    const mapping: Record<string, string[]> = {};
+    for (const channel of channels) {
+      for (const agent of channelAgentsByChannelId[channel.id] ?? []) {
+        mapping[agent.id] = [...(mapping[agent.id] ?? []), channel.name];
+      }
+    }
+    return mapping;
+  }, [channelAgentsByChannelId, channels]);
 
   const filteredSearchItems = React.useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();
@@ -1658,6 +1688,7 @@ export function ServerConversationPageClient({
       if (!selectedServerId) {
         setChannels([]);
         setMessagesByChannel({});
+        setChannelAgentsByChannelId({});
         setChannelArtifacts([]);
         return;
       }
@@ -1676,12 +1707,23 @@ export function ServerConversationPageClient({
           }),
         );
         setMessagesByChannel(Object.fromEntries(previews));
+        const channelAgentEntries = await Promise.all(
+          nextChannels.map(async (channel) => {
+            const agents = await serversApi.listChannelAgents(
+              selectedServerId,
+              channel.id,
+            );
+            return [channel.id, agents] as const;
+          }),
+        );
+        const nextChannelAgentsByChannelId =
+          Object.fromEntries(channelAgentEntries);
+        setChannelAgentsByChannelId(nextChannelAgentsByChannelId);
 
         if (activeChannelId) {
-          const [nextTasks, nextAgents, nextMembers, nextArtifacts] =
+          const [nextTasks, nextMembers, nextArtifacts] =
             await Promise.all([
               channelTasksApi.listTasks(selectedServerId, activeChannelId),
-              serversApi.listChannelAgents(selectedServerId, activeChannelId),
               serversApi.listChannelMembers(selectedServerId, activeChannelId),
               serversApi.listChannelArtifacts(
                 selectedServerId,
@@ -1689,7 +1731,7 @@ export function ServerConversationPageClient({
               ),
             ]);
           setTasks(nextTasks);
-          setChannelAgents(nextAgents);
+          setChannelAgents(nextChannelAgentsByChannelId[activeChannelId] ?? []);
           setChannelMembers(nextMembers);
           setChannelArtifacts(nextArtifacts);
         } else {
@@ -2419,6 +2461,10 @@ export function ServerConversationPageClient({
         activeChannelId,
       );
       setChannelAgents(nextAgents);
+      setChannelAgentsByChannelId((current) => ({
+        ...current,
+        [activeChannelId]: nextAgents,
+      }));
       toast.success(t("conversationView.toasts.agentAdded"));
     } catch (error) {
       console.error("[ServersWorkspace] add channel agent failed", error);
@@ -2435,9 +2481,15 @@ export function ServerConversationPageClient({
       await serversApi.restartAgent(selectedServerId, agentId);
       await refreshMembership(selectedServerId);
       if (activeChannelId) {
-        setChannelAgents(
-          await serversApi.listChannelAgents(selectedServerId, activeChannelId),
+        const nextAgents = await serversApi.listChannelAgents(
+          selectedServerId,
+          activeChannelId,
         );
+        setChannelAgents(nextAgents);
+        setChannelAgentsByChannelId((current) => ({
+          ...current,
+          [activeChannelId]: nextAgents,
+        }));
       }
       toast.success(t("conversationView.toasts.agentRestarted"));
     } catch (error) {
@@ -2454,9 +2506,15 @@ export function ServerConversationPageClient({
       await serversApi.stopAgent(selectedServerId, agentId);
       await refreshMembership(selectedServerId);
       if (activeChannelId) {
-        setChannelAgents(
-          await serversApi.listChannelAgents(selectedServerId, activeChannelId),
+        const nextAgents = await serversApi.listChannelAgents(
+          selectedServerId,
+          activeChannelId,
         );
+        setChannelAgents(nextAgents);
+        setChannelAgentsByChannelId((current) => ({
+          ...current,
+          [activeChannelId]: nextAgents,
+        }));
       }
       toast.success(t("conversationView.toasts.agentStopped"));
     } catch (error) {
@@ -2474,6 +2532,14 @@ export function ServerConversationPageClient({
       await refreshMembership(selectedServerId);
       setChannelAgents((current) =>
         current.filter((agent) => agent.id !== agentId),
+      );
+      setChannelAgentsByChannelId((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([currentChannelId, agents]) => [
+            currentChannelId,
+            agents.filter((agent) => agent.id !== agentId),
+          ]),
+        ),
       );
       setDrawer({ type: "colleague", selection: null });
       toast.success(t("conversationView.toasts.agentRemoved"));
@@ -2496,6 +2562,12 @@ export function ServerConversationPageClient({
       setChannelAgents((current) =>
         current.filter((agent) => agent.id !== agentId),
       );
+      setChannelAgentsByChannelId((current) => ({
+        ...current,
+        [activeChannelId]: (current[activeChannelId] ?? []).filter(
+          (agent) => agent.id !== agentId,
+        ),
+      }));
       toast.success(t("conversationView.toasts.agentRemovedFromChannel"));
     } catch (error) {
       console.error("[ServersWorkspace] remove channel agent failed", error);
@@ -2784,6 +2856,13 @@ export function ServerConversationPageClient({
                 onOpenExecution={(sessionId) =>
                   setDrawer({ type: "execution", sessionId })
                 }
+                onOpenAgentProfile={(agentId) => {
+                  setColleagueDetailClosed(false);
+                  setDrawer({
+                    type: "colleague",
+                    selection: { kind: "agent", id: agentId },
+                  });
+                }}
                 isSending={isSending}
                 currentUserId={profile?.id}
               />
@@ -2857,7 +2936,7 @@ export function ServerConversationPageClient({
                 ) : drawer.type === "colleague" ? (
                   <ColleagueDetail
                     selection={colleagueSelection}
-                    agents={serverAgents}
+                    agents={knownAgents}
                     presets={presets}
                     members={serverMembers}
                     serverId={selectedServerId}
@@ -2868,6 +2947,7 @@ export function ServerConversationPageClient({
                     activeChannelId={activeChannelId}
                     channelMembers={channelMembers}
                     activeChannelIdByAgentId={activeChannelIdByAgentId}
+                    channelNamesByAgentId={channelNamesByAgentId}
                     onClose={() => {
                       setColleagueDetailClosed(true);
                       setDrawer({ type: "none" });

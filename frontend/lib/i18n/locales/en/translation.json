@@ -350,7 +350,11 @@
       "restartAgent": "Restart",
       "stopAgent": "Stop",
       "removeFromChannel": "Remove from channel",
-      "removeFromServer": "Remove from server"
+      "removeFromServer": "Remove from server",
+      "remove": "Remove",
+      "removeAgentTitle": "Remove {{name}} from this server?",
+      "removeAgentDescription": "This will remove the agent from {{channels}} and other channels, and cancel queued work that has not started. Historical messages, reactions, and work output will be kept.",
+      "removeAgentDescriptionUnknown": "This will remove the agent from this server's channels and cancel queued work that has not started. Historical messages, reactions, and work output will be kept."
     },
     "threadMentionHint": "Replies in this thread will target",
     "execution": {

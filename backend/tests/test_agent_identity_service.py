@@ -7,6 +7,7 @@ from app.models.agent_identity import AgentIdentity
 from app.models.agent_persistent_state import AgentPersistentState
 from app.models.server import Server
 from app.models.server_channel import ServerChannel
+from app.models.server_channel_agent_member import ServerChannelAgentMember
 from app.models.user import User
 from app.schemas.agent_identity import (
     AgentIdentityCreateRequest,
@@ -242,6 +243,101 @@ class AgentIdentityServiceTests(unittest.TestCase):
         self.assertIsNone(agent_identity.persistent_state.active_session_id)
         self.assertIsNone(agent_identity.persistent_state.active_task_id)
         self.assertEqual(result.agent_identity_id, agent_identity.id)
+        self.db.commit.assert_called_once()
+
+    def test_remove_agent_from_server_soft_removes_identity_and_memberships(
+        self,
+    ) -> None:
+        service = AgentIdentityService()
+        session_id = uuid.uuid4()
+        agent_identity = AgentIdentity(
+            id=uuid.uuid4(),
+            server_id=self.server.id,
+            preset_id=7,
+            handle="backend-specialist",
+            display_name="Backend Specialist",
+            description=None,
+            visual_key="preset-visual-02",
+            visibility="server",
+            lifecycle_state="active",
+            created_by="user-1",
+            updated_by="user-1",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        agent_identity.persistent_state = AgentPersistentState(
+            id=uuid.uuid4(),
+            agent_identity_id=agent_identity.id,
+            state_root_path="agents/state",
+            profile_path="agents/state/profile.json",
+            memory_path="agents/state/MEMORY.md",
+            notes_dir_path="agents/state/notes",
+            state_dir_path="agents/state/state",
+            artifacts_dir_path="agents/state/artifacts",
+            state_version=1,
+            runtime_status="busy",
+            active_session_id=session_id,
+            active_task_id=uuid.uuid4(),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        membership = ServerChannelAgentMember(
+            id=1,
+            channel_id=self.channel.id,
+            agent_identity_id=agent_identity.id,
+            role="member",
+            joined_at=datetime.now(UTC),
+            status="active",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        with (
+            patch(
+                "app.services.agent_identity_service.require_server_owner",
+                return_value=MagicMock(role="owner"),
+            ),
+            patch(
+                "app.services.agent_identity_service.AgentIdentityRepository.get_by_id",
+                return_value=agent_identity,
+            ),
+            patch(
+                "app.services.agent_identity_service.SessionService.cancel_session"
+            ) as cancel_session,
+            patch(
+                "app.services.agent_identity_service.SessionQueueItemRepository.list_active_by_agent_scope",
+                return_value=[],
+            ),
+            patch(
+                "app.services.agent_identity_service.ServerChannelMessageRepository.list_open_execution_placeholders_by_agent_scope",
+                return_value=[],
+            ),
+            patch(
+                "app.services.agent_identity_service.ServerChannelAgentMemberRepository.list_by_agent",
+                return_value=[membership],
+            ),
+            patch(
+                "app.services.agent_identity_service.AgentIdentityRepository.delete"
+            ) as delete_agent,
+        ):
+            service.remove_agent_from_server(
+                self.db,
+                self.user,
+                self.server.id,
+                agent_identity.id,
+            )
+
+        cancel_session.assert_called_once_with(
+            self.db,
+            session_id,
+            user_id=agent_identity.created_by,
+            reason="Agent removed from server",
+        )
+        delete_agent.assert_not_called()
+        self.assertEqual(agent_identity.lifecycle_state, "inactive")
+        self.assertIsNotNone(agent_identity.removed_at)
+        self.assertEqual(agent_identity.removed_by, self.user.id)
+        self.assertEqual(membership.status, "removed")
         self.db.commit.assert_called_once()
 
 

@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 from typing import cast
 
 from sqlalchemy.orm import Session
@@ -75,6 +76,10 @@ class AgentIdentityService:
         return handle
 
     @staticmethod
+    def _is_removed(agent_identity: AgentIdentity) -> bool:
+        return agent_identity.removed_at is not None
+
+    @staticmethod
     def _resolve_preset_for_user(db: Session, user_id: str, preset_id: int):
         preset = PresetRepository.get_visible_by_id(db, preset_id, user_id)
         if preset is None:
@@ -93,7 +98,11 @@ class AgentIdentityService:
         require_server_member(db, server_id, current_user.id)
         return [
             self._to_agent_response(item)
-            for item in AgentIdentityRepository.list_by_server(db, server_id)
+            for item in AgentIdentityRepository.list_by_server(
+                db,
+                server_id,
+                include_removed=False,
+            )
         ]
 
     def get_agent(
@@ -195,6 +204,8 @@ class AgentIdentityService:
             )
             if agent_identity is None:
                 continue
+            if self._is_removed(agent_identity):
+                continue
             agent_responses.append(self._to_agent_response(agent_identity))
         return agent_responses
 
@@ -221,12 +232,22 @@ class AgentIdentityService:
                 error_code=ErrorCode.NOT_FOUND,
                 message=f"Agent identity not found: {request.agent_identity_id}",
             )
+        if self._is_removed(agent_identity):
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message=f"Agent identity has been removed: {request.agent_identity_id}",
+            )
         existing = ServerChannelAgentMemberRepository.get_by_channel_and_agent(
             db,
             channel.id,
             agent_identity.id,
         )
         if existing is not None:
+            if existing.status != "active":
+                existing.status = "active"
+                existing.role = request.role
+                db.commit()
+                db.refresh(existing)
             return self._to_channel_member_response(existing)
 
         membership = ServerChannelAgentMemberRepository.create(
@@ -263,6 +284,11 @@ class AgentIdentityService:
                 error_code=ErrorCode.NOT_FOUND,
                 message=f"Agent identity not found: {agent_identity_id}",
             )
+        if self._is_removed(agent_identity):
+            raise AppException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"Agent identity not found: {agent_identity_id}",
+            )
         membership = ServerChannelAgentMemberRepository.get_by_channel_and_agent(
             db,
             channel.id,
@@ -278,7 +304,7 @@ class AgentIdentityService:
             agent_identity_id=agent_identity.id,
             channel_id=channel.id,
         )
-        ServerChannelAgentMemberRepository.delete(db, membership)
+        membership.status = "removed"
         db.commit()
 
     def remove_agent_from_server(
@@ -297,6 +323,8 @@ class AgentIdentityService:
         self._discard_all_tasks(db, agent_identity, reason="Agent removed from server")
         agent_identity.lifecycle_state = "inactive"
         agent_identity.updated_by = current_user.id
+        agent_identity.removed_at = datetime.now(UTC)
+        agent_identity.removed_by = current_user.id
         if agent_identity.persistent_state is not None:
             agent_identity.persistent_state.runtime_status = "idle"
             agent_identity.persistent_state.active_session_id = None
@@ -306,7 +334,11 @@ class AgentIdentityService:
             agent_identity_id=agent_identity.id,
             channel_id=None,
         )
-        AgentIdentityRepository.delete(db, agent_identity)
+        for membership in ServerChannelAgentMemberRepository.list_by_agent(
+            db,
+            agent_identity.id,
+        ):
+            membership.status = "removed"
         db.commit()
 
     def restart_agent(
@@ -322,6 +354,11 @@ class AgentIdentityService:
             server_id,
             agent_identity_id,
         )
+        if self._is_removed(agent_identity):
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message=f"Agent identity has been removed: {agent_identity_id}",
+            )
         self._discard_active_execution(db, agent_identity, reason="Agent restarted")
         agent_identity.lifecycle_state = "active"
         agent_identity.updated_by = current_user.id
@@ -346,6 +383,11 @@ class AgentIdentityService:
             server_id,
             agent_identity_id,
         )
+        if self._is_removed(agent_identity):
+            raise AppException(
+                error_code=ErrorCode.BAD_REQUEST,
+                message=f"Agent identity has been removed: {agent_identity_id}",
+            )
         self._discard_active_execution(db, agent_identity, reason="Agent stopped")
         agent_identity.lifecycle_state = "inactive"
         agent_identity.updated_by = current_user.id

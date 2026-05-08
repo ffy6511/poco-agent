@@ -157,7 +157,11 @@ class ServerAgentTriggerService:
             if membership.status != "active":
                 continue
             agent = AgentIdentityRepository.get_by_id(db, membership.agent_identity_id)
-            if agent is None or agent.lifecycle_state != "active":
+            if (
+                agent is None
+                or agent.lifecycle_state != "active"
+                or agent.removed_at is not None
+            ):
                 continue
             mention_keys = {
                 agent.handle.strip().lower(),

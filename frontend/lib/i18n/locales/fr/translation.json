@@ -347,7 +347,11 @@
       "restartAgent": "Redémarrer",
       "stopAgent": "Arrêter",
       "removeFromChannel": "Retirer du canal",
-      "removeFromServer": "Retirer du serveur"
+      "removeFromServer": "Retirer du serveur",
+      "remove": "Retirer",
+      "removeAgentTitle": "Retirer {{name}} de ce serveur ?",
+      "removeAgentDescription": "Cela retirera l'agent de {{channels}} et d'autres canaux, et annulera les tâches en attente qui n'ont pas commencé. Les anciens messages, réactions et résultats seront conservés.",
+      "removeAgentDescriptionUnknown": "Cela retirera l'agent des canaux de ce serveur et annulera les tâches en attente qui n'ont pas commencé. Les anciens messages, réactions et résultats seront conservés."
     },
     "threadMentionHint": "Les réponses dans ce fil cibleront",
     "execution": {

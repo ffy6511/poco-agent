@@ -28,28 +28,38 @@ class AgentIdentityRepository:
         session_db: Session,
         server_id: uuid.UUID,
         handle: str,
+        *,
+        include_removed: bool = True,
     ) -> AgentIdentity | None:
-        return (
+        query = (
             session_db.query(AgentIdentity)
             .filter(
                 AgentIdentity.server_id == server_id,
                 AgentIdentity.handle == handle,
             )
-            .first()
         )
+        if not include_removed:
+            query = query.filter(AgentIdentity.removed_at.is_(None))
+        return query.first()
 
     @staticmethod
     def list_by_server(
         session_db: Session,
         server_id: uuid.UUID,
+        *,
+        include_removed: bool = False,
     ) -> list[AgentIdentity]:
-        return (
+        query = (
             session_db.query(AgentIdentity)
             .options(joinedload(AgentIdentity.persistent_state))
             .filter(AgentIdentity.server_id == server_id)
-            .order_by(AgentIdentity.created_at.asc(), AgentIdentity.display_name.asc())
-            .all()
         )
+        if not include_removed:
+            query = query.filter(AgentIdentity.removed_at.is_(None))
+        return query.order_by(
+            AgentIdentity.created_at.asc(),
+            AgentIdentity.display_name.asc(),
+        ).all()
 
     @staticmethod
     def delete(session_db: Session, agent_identity: AgentIdentity) -> None:

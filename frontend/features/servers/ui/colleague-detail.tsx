@@ -15,6 +15,16 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Preset } from "@/features/capabilities/presets/lib/preset-types";
 import { serversApi } from "@/features/servers";
 import type { FileNode } from "@/features/chat/types";
@@ -49,6 +59,7 @@ export function ColleagueDetail({
   activeChannelId,
   channelMembers = [],
   activeChannelIdByAgentId = {},
+  channelNamesByAgentId = {},
   onClose,
   onOpenDm,
   onOpenActiveChannel,
@@ -68,6 +79,7 @@ export function ColleagueDetail({
   activeChannelId?: string | null;
   channelMembers?: ServerChannelMemberItem[];
   activeChannelIdByAgentId?: Record<string, string>;
+  channelNamesByAgentId?: Record<string, string[]>;
   onClose: () => void;
   onOpenDm: (agentId: string) => void;
   onOpenActiveChannel?: (channelId: string) => void;
@@ -89,6 +101,7 @@ export function ColleagueDetail({
   const selectedRuntimeStatus = selectedAgent
     ? getAgentRuntimeStatus(selectedAgent)
     : null;
+  const selectedAgentRemoved = Boolean(selectedAgent?.removedAt);
   const selectedAgentActiveChannelId = selectedAgent
     ? (activeChannelIdByAgentId[selectedAgent.id] ?? "")
     : "";
@@ -101,6 +114,11 @@ export function ColleagueDetail({
   const [persistentFiles, setPersistentFiles] = React.useState<FileNode[]>([]);
   const [isLoadingPersistentFiles, setIsLoadingPersistentFiles] =
     React.useState(false);
+  const [removeAgentConfirmOpen, setRemoveAgentConfirmOpen] =
+    React.useState(false);
+  const selectedAgentChannelNames = selectedAgent
+    ? (channelNamesByAgentId[selectedAgent.id] ?? [])
+    : [];
 
   React.useEffect(() => {
     if (!canInspectPersistentFiles || !serverId || !selectedAgent) {
@@ -275,6 +293,7 @@ export function ColleagueDetail({
                 type="button"
                 size="sm"
                 onClick={() => onOpenDm(selectedAgent.id)}
+                disabled={selectedAgentRemoved}
               >
                 <MessageSquare className="size-4" />
                 {t("conversationView.messageAgent")}
@@ -286,6 +305,7 @@ export function ColleagueDetail({
                     size="sm"
                     variant="outline"
                     onClick={() => onRestartAgent(selectedAgent.id)}
+                    disabled={selectedAgentRemoved}
                   >
                     <RotateCw className="size-4" />
                     {t("conversationView.colleagues.restartAgent")}
@@ -295,20 +315,65 @@ export function ColleagueDetail({
                     size="sm"
                     variant="outline"
                     onClick={() => onStopAgent(selectedAgent.id)}
+                    disabled={selectedAgentRemoved}
                   >
                     <Power className="size-4" />
                     {t("conversationView.colleagues.stopAgent")}
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onRemoveAgentFromServer(selectedAgent.id)}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="size-4" />
-                    {t("conversationView.colleagues.removeFromServer")}
-                  </Button>
+                  {!selectedAgentRemoved ? (
+                    <AlertDialog
+                      open={removeAgentConfirmOpen}
+                      onOpenChange={setRemoveAgentConfirmOpen}
+                    >
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRemoveAgentConfirmOpen(true)}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                      {t("conversationView.colleagues.remove")}
+                    </Button>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {t("conversationView.colleagues.removeAgentTitle", {
+                            name: selectedAgent.displayName,
+                          })}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {selectedAgentChannelNames.length > 0
+                            ? t(
+                                "conversationView.colleagues.removeAgentDescription",
+                                {
+                                  channels: selectedAgentChannelNames
+                                    .slice(0, 3)
+                                    .join(", "),
+                                },
+                              )
+                            : t(
+                                "conversationView.colleagues.removeAgentDescriptionUnknown",
+                              )}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>
+                          {t("common.cancel")}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => {
+                            onRemoveAgentFromServer(selectedAgent.id);
+                            setRemoveAgentConfirmOpen(false);
+                          }}
+                        >
+                          {t("conversationView.colleagues.remove")}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                    </AlertDialog>
+                  ) : null}
                 </>
               ) : null}
             </div>
