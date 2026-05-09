@@ -191,8 +191,8 @@ export function SettingsDialog({
     [isMobile, resetDragState],
   );
 
-  const sidebarItems = React.useMemo<SettingsSidebarItem[]>(
-    () => [
+  const sidebarItems = React.useMemo<SettingsSidebarItem[]>(() => {
+    const items: SettingsSidebarItem[] = [
       { icon: User, label: t("settings.sidebar.account"), id: "account" },
       { icon: Activity, label: t("settings.sidebar.usage"), id: "usage" },
       {
@@ -200,9 +200,9 @@ export function SettingsDialog({
         label: t("settings.sidebar.shortcuts"),
         id: "shortcuts",
       },
-    ],
-    [t],
-  );
+    ];
+    return items;
+  }, [t]);
 
   const activeTitle = React.useMemo(
     () => sidebarItems.find((item) => item.id === activeTab)?.label,
@@ -295,11 +295,7 @@ export function SettingsDialog({
       return;
     }
 
-    if (
-      view === "account" ||
-      view === "usage" ||
-      view === "shortcuts"
-    ) {
+    if (view === "account" || view === "usage" || view === "shortcuts") {
       setActiveTab(view);
     }
 
@@ -511,9 +507,7 @@ function MobileSettingsOverview({
   const accountItems = sidebarItems.filter(
     (item) => item.id === "account" || item.id === "usage",
   );
-  const generalItems = sidebarItems.filter(
-    (item) => item.id === "shortcuts",
-  );
+  const generalItems = sidebarItems.filter((item) => item.id === "shortcuts");
 
   return (
     <div className="flex-1 space-y-5 overflow-y-auto pb-2">

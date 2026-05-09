@@ -1251,7 +1251,16 @@
     "chat": "Chat",
     "computer": "Ordinateur",
     "artifacts": "Artefacts",
-    "status": "Statut"
+    "status": "Statut",
+    "runs": {
+      "openAll": "Voir tous les runs",
+      "allRuns": "Tous les runs",
+      "sheetDescription": "Basculez rapidement entre les relectures et les artefacts de différents runs.",
+      "sheetHint": "Faites défiler verticalement pour parcourir et choisir les runs précédents.",
+      "current": "Actuel",
+      "viewingHistory": "Historique : Run {{number}}",
+      "backToCurrent": "Retour au run actuel"
+    }
   },
   "computer": {
     "title": "Ordinateur Poco",
@@ -1285,7 +1294,8 @@
         "terminal": "Terminal"
       },
       "limitHint": "Affiche uniquement les {{limit}} premières étapes",
-      "liveLabel": "En direct"
+      "liveLabel": "En direct",
+      "legacyHint": "Les anciennes données de relecture peuvent n'être disponibles que dans l'historique de session hérité."
     },
     "browser": {
       "screenshotAlt": "Capture d'écran du navigateur",
@@ -1303,12 +1313,27 @@
       "killed": "Tué par timeout"
     }
   },
+  "runTimeline": {
+    "runLabel": "Run {{number}}",
+    "selectRun": "Sélectionner le run {{number}}",
+    "node": {
+      "action": "Exécution",
+      "chat": "Conversation"
+    },
+    "preview": {
+      "executionSummary": "Run d’exécution avec activité d’espace de travail",
+      "conversationOnly": "Tour conversationnel uniquement",
+      "execution": "{{files}} modifications de fichiers · {{steps}} étapes de relecture",
+      "duration": "Durée {{duration}}"
+    }
+  },
   "artifacts": {
     "empty": {
       "creating": "Poco est en cours de création...",
       "working": "L'agent travaille sur votre tâche",
       "noChanges": "Aucune modification de fichier",
-      "description": "Les modifications de fichiers générées par l'exécution IA seront affichées ici"
+      "description": "Les modifications de fichiers générées par l'exécution IA seront affichées ici",
+      "legacyHint": "Les anciennes données de fichiers peuvent n'être disponibles que dans la vue du dernier workspace au niveau de la session."
     },
     "viewer": {
       "loadingEngine": "Chargement du moteur de prévisualisation...",
@@ -1422,7 +1447,8 @@
         "set": "Définie",
         "unset": "Non définie",
         "overridden": "Remplacée par l'utilisateur",
-        "overridesSystem": "Remplace le système"
+        "overridesSystem": "Remplace le système",
+        "runtimeEnabled": "Runtime enabled"
       },
       "actions": {
         "override": "Remplacer",
@@ -1445,7 +1471,15 @@
         "user": "Utilisateur",
         "global": "Global",
         "mcp": "MCP"
-      }
+      },
+      "runtimeAccessLabel": "Allow in task runtime",
+      "runtimeAccessShort": "Runtime",
+      "runtimeAccessHint": "Injected values can be read by scripts, commands, plugins, and may leak through output, logs, files, or network requests.",
+      "runtimePromptOnceHint": "The warning dialog is only shown the first time you enable runtime access in this browser.",
+      "runtimeAccessScopeHint": "This switch only controls automatic injection of this saved variable. It does not remove executor-provided base environment variables or required runtime credentials.",
+      "runtimeRiskTitle": "Runtime injection may leak this secret",
+      "runtimeRiskDescription": "After enabling this option, the variable will be available inside the task runtime environment. Bash, Python, Skills, or plugins may read and export it. Enable this only when you trust the task and the capabilities it uses.",
+      "runtimeRiskConfirm": "Enable anyway"
     },
     "personalization": {
       "card": {
@@ -1509,6 +1543,21 @@
         "structured": "Structuré"
       },
       "delete": {
+        "envTitle": "Variables d’environnement système",
+        "envDescription": "Seules les valeurs masquées sont affichées. Adapté aux valeurs par défaut du système.",
+        "envKeyPlaceholder": "KEY",
+        "envValuePlaceholder": "Valeur",
+        "envDescriptionPlaceholder": "Description",
+        "envKeyRequired": "Veuillez saisir la clé de la variable d’environnement",
+        "envCreated": "Variable d’environnement système créée",
+        "envUpdated": "Variable d’environnement système mise à jour",
+        "envDeleted": "Variable d’environnement système supprimée",
+        "envUpdateHint": "Laissez vide pour conserver la valeur secrète actuelle et ne mettre à jour que la description",
+        "skillsMpHelp": "Pour SkillsMP_API_KEY, veuillez utiliser la section Settings > API Keys.",
+        "runtimeVisibilityDescription": "Contrôle si cette variable peut être injectée automatiquement dans les conteneurs d’exécution des tâches.",
+        "runtimeVisibilityNoneHint": "Ne jamais injecter automatiquement dans les conteneurs de tâche.",
+        "runtimeVisibilityAdminsOnlyHint": "Injecter uniquement dans les environnements d’exécution lancés par des administrateurs.",
+        "runtimeVisibilityAllUsersHint": "Peut être injectée dans les environnements d’exécution de tous les utilisateurs si la politique globale l’autorise.",
         "title": "Supprimer la commande ?",
         "description": "Après suppression, cette commande ne sera plus disponible dans les sessions."
       },
@@ -2541,7 +2590,62 @@
     "providerModelDocsSuffix": " pour plus de modèles",
     "providerModelsDialogTitle": "Ajouter un modèle personnalisé",
     "providerModelsDialogDescription": "Ajoutez manuellement les ID de modèle fournis.",
-    "providerModelsDialogPlaceholder": "ID du modèle (ex. gpt-4o-mini)"
+    "providerModelsDialogPlaceholder": "ID du modèle (ex. gpt-4o-mini)",
+    "admin": {
+      "navRuntimeEnvPolicy": "Runtime env policy",
+      "runtimeEnvPolicyTitle": "Runtime environment policy",
+      "runtimeEnvPolicyDescription": "Control which environment variables may be injected into task runtime environments.",
+      "runtimeEnvPolicySaved": "Runtime environment policy updated",
+      "runtimeEnvPolicyRiskTitle": "Runtime injection increases secret exposure risk",
+      "runtimeEnvPolicyRiskDescription": "Any value injected into the task runtime may be printed, logged, written to files, or sent over the network by the task itself.",
+      "runtimeEnvPolicyScopeHint": "This policy only controls automatic injection of saved user/system env vars. It does not change executor base environment variables or runtime credentials required by the platform.",
+      "runtimeEnvPolicyMode": "Policy mode",
+      "runtimeEnvPolicyModeOptIn": "Opt-in runtime injection",
+      "runtimeEnvPolicyModeDisabled": "Disable runtime injection",
+      "runtimeEnvAllowlist": "Allowlist patterns",
+      "runtimeEnvDenylist": "Denylist patterns",
+      "runtimeEnvProtectedPrefixes": "Protected prefixes",
+      "runtimeEnvProtectedKeys": "Protected keys",
+      "runtimeEnvProtectedHint": "Protected runtime variables are always blocked from automatic injection.",
+      "runtimeVisibilityLabel": "Runtime visibility",
+      "runtimeVisibilityNone": "Do not inject",
+      "runtimeVisibilityAdminsOnly": "Admins only",
+      "runtimeVisibilityAllUsers": "All users",
+      "runtimeVisibilityProtectedWarning": "This key matches a protected runtime key/prefix. The visibility setting can be saved, but automatic runtime injection will still be blocked.",
+      "envCreateTitle": "Créer une variable d’environnement système",
+      "envCreateDescription": "Ajoutez des variables partagées par défaut et contrôlez si elles peuvent être injectées dans les conteneurs d’exécution.",
+      "envListTitle": "Variables configurées",
+      "envListDescription": "Modifiez les valeurs masquées, ajustez la visibilité à l’exécution ou supprimez les variables devenues inutiles.",
+      "envEmpty": "Aucune variable d’environnement système pour le moment.",
+      "envSearchPlaceholder": "Rechercher des variables d’environnement",
+      "envDeleteTitle": "Supprimer la variable d’environnement système ?",
+      "envDeleteDescription": "{{key}} sera supprimée définitivement de la liste des variables d’environnement système.",
+      "envDeleteConfirm": "Supprimer la variable",
+      "delete": "Supprimer",
+      "create": "Créer",
+      "refresh": "Actualiser",
+      "edit": "Modifier",
+      "cancel": "Annuler",
+      "update": "Enregistrer",
+      "envTitle": "Variables d’environnement système",
+      "envDescription": "Seules les valeurs masquées sont affichées. Adapté aux valeurs par défaut du système.",
+      "envKeyPlaceholder": "KEY",
+      "envValuePlaceholder": "Valeur",
+      "envDescriptionPlaceholder": "Description",
+      "envKeyRequired": "Veuillez saisir la clé de la variable d’environnement",
+      "envCreated": "Variable d’environnement système créée",
+      "envUpdated": "Variable d’environnement système mise à jour",
+      "envDeleted": "Variable d’environnement système supprimée",
+      "envUpdateHint": "Laissez vide pour conserver la valeur secrète actuelle et ne mettre à jour que la description",
+      "skillsMpHelp": "SkillsMP n’apparaît ici que si un administrateur enregistre explicitement SKILLSMP_API_KEY comme variable d’environnement système.",
+      "skillsMpInternalHint": "Cette clé est utilisée en interne par la plateforme pour SkillsMP et ne sera pas injectée dans les conteneurs d’exécution des tâches.",
+      "skillsMpRowDescription": "Identifiant SkillsMP utilisé en interne par la plateforme.",
+      "internalOnlyBadge": "Interne uniquement",
+      "runtimeVisibilityDescription": "Contrôle si cette variable peut être injectée automatiquement dans les conteneurs d’exécution des tâches.",
+      "runtimeVisibilityNoneHint": "Ne jamais injecter automatiquement dans les conteneurs de tâche.",
+      "runtimeVisibilityAdminsOnlyHint": "Injecter uniquement dans les environnements d’exécution lancés par des administrateurs.",
+      "runtimeVisibilityAllUsersHint": "Peut être injectée dans les environnements d’exécution de tous les utilisateurs si la politique globale l’autorise."
+    }
   },
   "validation": {
     "projectNameRequired": "Veuillez entrer un nom de projet",
@@ -2997,16 +3101,32 @@
     "login": {
       "title": "Se connecter à Poco",
       "subtitle": "Utilisez Google ou GitHub pour continuer.",
+      "subtitleMultiple": "Utilisez un fournisseur de connexion disponible pour continuer.",
+      "subtitleGoogleOnly": "Utilisez Google pour continuer.",
+      "subtitleGithubOnly": "Utilisez GitHub pour continuer.",
+      "setupRequiredSubtitle": "Un administrateur doit configurer la connexion avant que ce déploiement puisse être utilisé.",
       "google": "Continuer avec Google",
       "github": "Continuer avec GitHub",
       "hint": "Nous utilisons une session de navigateur sécurisée pour vous garder connecté.",
+      "loading": "Vérification des méthodes de connexion disponibles...",
+      "setupRequiredTitle": "Configuration de connexion requise",
+      "setupRequiredDescription": "Ce déploiement nécessite une connexion OAuth avant utilisation. Demandez à un administrateur de configurer Google ou GitHub.",
+      "setupRequiredHint": "Configurez au moins un fournisseur de connexion, puis actualisez cette page.",
       "errors": {
         "default": "La connexion a échoué. Veuillez réessayer.",
+        "runtime_config_failed": "Impossible de charger la configuration de connexion. Veuillez actualiser la page et réessayer.",
         "provider_not_configured": "Ce fournisseur de connexion n’est pas encore configuré.",
         "invalid_oauth_state": "Votre session de connexion a expiré. Veuillez réessayer.",
         "oauth_failed": "Impossible de terminer la connexion. Veuillez réessayer."
       },
-      "noProviders": "Aucun fournisseur de connexion n’est configuré pour cet environnement. Vérifiez les paramètres OAuth du backend."
+      "feishu": "Continuer avec Feishu/Lark",
+      "subtitleSingle": "Utilisez {{provider}} pour continuer.",
+      "noProviders": "Aucun fournisseur de connexion n’est disponible.",
+      "providers": {
+        "google": "Google",
+        "github": "GitHub",
+        "feishu": "Feishu/Lark"
+      }
     }
   }
 }

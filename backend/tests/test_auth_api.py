@@ -37,10 +37,18 @@ class AuthApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["code"], 0)
-        self.assertEqual(body["data"]["auth_mode"], "oauth_required")
+        self.assertEqual(body["data"]["mode"], "oauth_required")
         self.assertTrue(body["data"]["login_required"])
         self.assertTrue(body["data"]["workspace_features_enabled"])
-        self.assertEqual(body["data"]["providers"], ["google", "github"])
+        self.assertEqual(body["data"]["configured_providers"], ["google", "github"])
+        self.assertEqual(
+            body["data"]["providers"],
+            [
+                {"name": "google", "enabled": True},
+                {"name": "github", "enabled": True},
+                {"name": "feishu", "enabled": False},
+            ],
+        )
 
 
 if __name__ == "__main__":

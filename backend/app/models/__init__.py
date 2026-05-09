@@ -30,6 +30,7 @@ from app.models.preset_visual import PresetVisual
 from app.models.project import Project
 from app.models.project_file import ProjectFile
 from app.models.project_local_mount import ProjectLocalMount
+from app.models.runtime_env_policy import RuntimeEnvPolicy
 from app.models.server import Server
 from app.models.server_channel import ServerChannel
 from app.models.server_channel_message import ServerChannelMessage
@@ -91,6 +92,7 @@ __all__ = [
     "Project",
     "ProjectFile",
     "ProjectLocalMount",
+    "RuntimeEnvPolicy",
     "Server",
     "ServerChannel",
     "ServerChannelAgentMember",

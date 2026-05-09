@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.callback import AgentCurrentState
 from app.schemas.usage import UsageResponse
 
 
@@ -32,6 +33,12 @@ class RunResponse(BaseModel):
     scheduled_task_id: UUID | None = None
     scheduled_at: datetime
     config_snapshot: dict | None = None
+    state_patch: AgentCurrentState | None = None
+    workspace_archive_url: str | None = None
+    workspace_files_prefix: str | None = None
+    workspace_manifest_key: str | None = None
+    workspace_archive_key: str | None = None
+    workspace_export_status: str | None = None
     claimed_by: str | None
     lease_expires_at: datetime | None
     attempts: int
@@ -41,6 +48,8 @@ class RunResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     usage: UsageResponse | None = None
+    replay_step_count: int = 0
+    file_change_count: int = 0
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 

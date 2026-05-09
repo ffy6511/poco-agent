@@ -16,6 +16,7 @@ from app.repositories.preset_repository import PresetRepository
 from app.repositories.preset_visual_repository import PresetVisualRepository
 from app.repositories.skill_repository import SkillRepository
 from app.schemas.preset import (
+    PresetAdminResponse,
     PresetCreateRequest,
     PresetCopyRequest,
     PresetResponse,
@@ -23,6 +24,7 @@ from app.schemas.preset import (
     PresetVisualSummary,
     PresetUpdateRequest,
 )
+from app.services.constants import SYSTEM_USER_ID
 from app.services.workspace_member_service import require_workspace_member
 from app.services.storage_service import S3StorageService
 
@@ -35,8 +37,16 @@ class PresetService:
         self.storage_service = storage_service
 
     def list_presets(self, db: Session, user_id: str) -> list[PresetResponse]:
-        presets = PresetRepository.list_visible_by_user(db, user_id)
+        presets = PresetRepository.list_visible(
+            db, user_id=user_id, system_user_id=SYSTEM_USER_ID
+        )
         return [self._to_response(db, item) for item in presets]
+
+    def list_presets_for_admin(
+        self, db: Session, *, user_id: str
+    ) -> list[PresetAdminResponse]:
+        presets = PresetRepository.list_by_user(db, user_id)
+        return [self._to_admin_response(db, item) for item in presets]
 
     def list_preset_visuals(self, db: Session) -> list[PresetVisualSummary]:
         visuals = PresetVisualRepository.list_active(db)
@@ -51,7 +61,12 @@ class PresetService:
         ]
 
     def get_preset(self, db: Session, user_id: str, preset_id: int) -> PresetResponse:
-        preset = PresetRepository.get_visible_by_id(db, preset_id, user_id)
+        preset = PresetRepository.get_visible_by_id(
+            db,
+            preset_id=preset_id,
+            user_id=user_id,
+            system_user_id=SYSTEM_USER_ID,
+        )
         if not preset:
             raise AppException(
                 error_code=ErrorCode.PRESET_NOT_FOUND,
@@ -203,6 +218,11 @@ class PresetService:
                 error_code=ErrorCode.PRESET_NOT_FOUND,
                 message=f"Preset not found: {preset_id}",
             )
+        if preset.user_id == SYSTEM_USER_ID and user_id != SYSTEM_USER_ID:
+            raise AppException(
+                error_code=ErrorCode.FORBIDDEN,
+                message="Cannot modify system presets",
+            )
 
         update_data = request.model_dump(exclude_unset=True)
         if "name" in update_data:
@@ -261,6 +281,11 @@ class PresetService:
             raise AppException(
                 error_code=ErrorCode.PRESET_NOT_FOUND,
                 message=f"Preset not found: {preset_id}",
+            )
+        if preset.user_id == SYSTEM_USER_ID and user_id != SYSTEM_USER_ID:
+            raise AppException(
+                error_code=ErrorCode.FORBIDDEN,
+                message="Cannot delete system presets",
             )
 
         usage_count = PresetRepository.count_projects_using_as_default(db, preset_id)
@@ -328,6 +353,10 @@ class PresetService:
             payload.visual_name = visual.name
             payload.visual_version = visual.version
             payload.visual_url = self._build_visual_url(visual)
+        return payload
+
+    def _to_admin_response(self, db: Session, preset: Preset) -> PresetAdminResponse:
+        payload = PresetAdminResponse.model_validate(self._to_response(db, preset))
         return payload
 
     def _require_visual(self, db: Session, visual_key: str) -> PresetVisual:

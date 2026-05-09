@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 interface FileChangeCardProps {
   change: FileChange;
   sessionStatus?:
+    | "queued"
+    | "claimed"
     | "pending"
     | "running"
     | "canceling"
@@ -84,7 +86,10 @@ export function FileChangeCard({
 
   // Determine if session is running (execution state)
   const isSessionRunning =
-    sessionStatus === "running" || sessionStatus === "pending";
+    sessionStatus === "queued" ||
+    sessionStatus === "claimed" ||
+    sessionStatus === "running" ||
+    sessionStatus === "pending";
 
   const handlePreviewClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -227,7 +232,6 @@ export function FileChangeCard({
         <div className="border-t border-border px-4 py-3">
           <div className="w-full min-w-0">
             <div className="w-full min-w-0 text-xs font-mono bg-muted/50 rounded p-2 whitespace-pre-wrap break-all">
-              {/* fuck you overflow! */}
               {diffLines.map((line, index) => (
                 <div
                   key={`${index}-${line}`}

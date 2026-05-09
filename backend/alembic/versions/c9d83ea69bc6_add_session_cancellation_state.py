@@ -5,6 +5,7 @@ Revises: a1d8c5be4d22
 Create Date: 2026-04-08 16:35:44.922899
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'c9d83ea69bc6'
-down_revision: Union[str, Sequence[str], None] = 'a1d8c5be4d22'
+revision: str = "c9d83ea69bc6"
+down_revision: Union[str, Sequence[str], None] = "a1d8c5be4d22"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -22,11 +23,15 @@ def upgrade() -> None:
     """Upgrade schema."""
     op.add_column(
         "agent_sessions",
-        sa.Column("cancellation_requested_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "cancellation_requested_at", sa.DateTime(timezone=True), nullable=True
+        ),
     )
     op.add_column(
         "agent_sessions",
-        sa.Column("cancellation_completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "cancellation_completed_at", sa.DateTime(timezone=True), nullable=True
+        ),
     )
     op.add_column(
         "agent_sessions",
@@ -34,7 +39,9 @@ def upgrade() -> None:
     )
     op.add_column(
         "agent_sessions",
-        sa.Column("cancellation_target_worker_id", sa.String(length=255), nullable=True),
+        sa.Column(
+            "cancellation_target_worker_id", sa.String(length=255), nullable=True
+        ),
     )
     op.add_column(
         "agent_sessions",
@@ -46,7 +53,9 @@ def upgrade() -> None:
     )
     op.add_column(
         "agent_sessions",
-        sa.Column("cancellation_lease_expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "cancellation_lease_expires_at", sa.DateTime(timezone=True), nullable=True
+        ),
     )
     op.add_column(
         "agent_sessions",

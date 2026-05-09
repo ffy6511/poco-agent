@@ -13,12 +13,14 @@ import {
   Bookmark,
   Clock,
   Brain,
+  Shield,
 } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
 import { useLanguage } from "@/hooks/use-language";
 import { useMemoryFeatureEnabled } from "@/hooks/use-memory-feature-enabled";
 import { useMobileSidebar } from "@/hooks/use-mobile-sidebar";
+import { useUserAccount } from "@/features/user";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -76,6 +78,13 @@ const TOP_NAV_ITEMS = [
     icon: Brain,
     href: "/memories",
   },
+  {
+    id: "admin",
+    labelKey: "sidebar.admin",
+    defaultLabel: "System Admin",
+    icon: Shield,
+    href: "/admin",
+  },
 ] as const;
 
 const ICON_ANIMATIONS: Record<string, string> = {
@@ -91,6 +100,8 @@ const ICON_ANIMATIONS: Record<string, string> = {
     "transition-transform duration-300 group-hover/menu-item:scale-110 group-hover/menu-item:-translate-y-0.5",
   memories:
     "transition-transform duration-300 group-hover/menu-item:scale-110 group-hover/menu-item:rotate-6",
+  admin:
+    "transition-transform duration-300 group-hover/menu-item:scale-110 group-hover/menu-item:-translate-y-0.5",
 };
 
 // ---------------------------------------------------------------------------
@@ -110,6 +121,8 @@ export function SidebarHeaderSection({
   const router = useRouter();
   const lng = useLanguage();
   const memoryFeatureEnabled = useMemoryFeatureEnabled();
+  const { profile } = useUserAccount();
+  const isSystemAdmin = profile?.systemRole === "admin";
   const { toggleSidebar } = useSidebar();
   const { closeMobileSidebar } = useMobileSidebar();
   const isMacPlatform = React.useMemo(() => {
@@ -189,6 +202,9 @@ export function SidebarHeaderSection({
       {/* Navigation items */}
       {TOP_NAV_ITEMS.map(({ id, labelKey, defaultLabel, icon: Icon, href }) => {
         if (id === "memories" && !memoryFeatureEnabled) {
+          return null;
+        }
+        if (id === "admin" && !isSystemAdmin) {
           return null;
         }
 

@@ -100,7 +100,9 @@ async def claim_session_cancellation_internal(
     )
     return Response.success(
         data=result,
-        message="Session cancellation claimed" if result else "No pending cancellations",
+        message="Session cancellation claimed"
+        if result
+        else "No pending cancellations",
     )
 
 

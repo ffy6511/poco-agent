@@ -1,4 +1,4 @@
-export type AuthProvider = "google" | "github";
+import type { AuthProvider } from "@/features/auth/model/types";
 
 export const AUTH_SESSION_COOKIE_NAME =
   process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || "poco_session";

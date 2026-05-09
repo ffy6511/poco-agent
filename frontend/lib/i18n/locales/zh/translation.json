@@ -22,6 +22,7 @@
     "allTasks": "任务清单",
     "filterTasks": "筛选任务",
     "settings": "设置",
+    "admin": "系统管理",
     "deleteTask": "删除任务",
     "rename": "重命名",
     "moveToProject": "移动到项目",
@@ -1254,7 +1255,16 @@
     "chat": "对话",
     "computer": "电脑",
     "artifacts": "产物",
-    "status": "状态"
+    "status": "状态",
+    "runs": {
+      "openAll": "查看全部 Run",
+      "allRuns": "全部 Run",
+      "sheetDescription": "快速切换查看不同运行轮次的回放与产物。",
+      "sheetHint": "上下滑动可浏览并切换更早的运行记录。",
+      "current": "当前",
+      "viewingHistory": "正在查看历史 Run {{number}}",
+      "backToCurrent": "回到当前"
+    }
   },
   "computer": {
     "title": "电脑",
@@ -1288,7 +1298,8 @@
         "terminal": "终端"
       },
       "limitHint": "仅展示前 {{limit}} 步",
-      "liveLabel": "实时"
+      "liveLabel": "实时",
+      "legacyHint": "较早的回放数据可能仅能在旧的会话级历史中查看。"
     },
     "browser": {
       "screenshotAlt": "浏览器截图",
@@ -1311,7 +1322,8 @@
       "creating": "Poco 正在创造中...",
       "working": "Agent is working on your task",
       "noChanges": "暂无文件变更",
-      "description": "AI 执行产生的文件变更将在此处展示"
+      "description": "AI 执行产生的文件变更将在此处展示",
+      "legacyHint": "较早的文件数据可能仅能在会话级的最新工作区视图中查看。"
     },
     "viewer": {
       "loadingEngine": "正在加载预览引擎...",
@@ -1425,7 +1437,8 @@
         "set": "已设置",
         "unset": "未设置",
         "overridden": "已被个人覆盖",
-        "overridesSystem": "覆盖系统"
+        "overridesSystem": "覆盖系统",
+        "runtimeEnabled": "已注入运行环境"
       },
       "actions": {
         "override": "覆盖",
@@ -1448,7 +1461,15 @@
         "user": "个人",
         "global": "全局变量",
         "mcp": "MCP 变量"
-      }
+      },
+      "runtimeAccessLabel": "允许传入任务运行环境",
+      "runtimeAccessShort": "运行时",
+      "runtimeAccessHint": "注入后，脚本、命令、插件都可能读取该值，并通过输出、日志、文件或网络请求泄露。",
+      "runtimePromptOnceHint": "在当前浏览器中，只有第一次开启运行时访问时才会弹出警告确认。",
+      "runtimeAccessScopeHint": "这个开关只控制当前已保存变量的自动注入，不会移除执行器基础环境变量，也不会移除平台运行所需的凭证。",
+      "runtimeRiskTitle": "注入运行环境存在泄露风险",
+      "runtimeRiskDescription": "启用后，该变量会进入任务运行环境。Bash、Python、Skills 或插件都可能读取并导出它。仅在你信任当前任务及其使用能力时启用。",
+      "runtimeRiskConfirm": "仍然启用"
     },
     "personalization": {
       "card": {
@@ -1804,7 +1825,8 @@
         "uninstalled": "技能已卸载",
         "enabled": "技能已启用",
         "disabled": "技能已停用",
-        "actionFailed": "操作失败，请稍后再试"
+        "actionFailed": "操作失败，请稍后再试",
+        "noEligibleBatchToggle": "没有可更新的技能"
       },
       "empty": "暂无技能",
       "unknownSkill": "未知技能",
@@ -1942,7 +1964,8 @@
         "enabled": "插件已启用",
         "disabled": "插件已停用",
         "actionFailed": "操作失败，请稍后再试",
-        "exclusiveEnabled": "（同时关闭其他插件）"
+        "exclusiveEnabled": "（同时关闭其他插件）",
+        "noEligibleBatchToggle": "没有可更新的插件"
       },
       "empty": "暂无插件",
       "unknownPlugin": "未知插件"
@@ -2064,7 +2087,8 @@
         "error": "操作失败，请稍后重试",
         "actionFailed": "操作失败，请稍后重试",
         "created": "MCP 服务器已创建",
-        "updated": "MCP 服务器已更新"
+        "updated": "MCP 服务器已更新",
+        "noEligibleBatchToggle": "没有可更新的 MCP 服务"
       }
     },
     "sources": {
@@ -2360,7 +2384,9 @@
     "enabled": "已开启",
     "disabled": "已禁用",
     "edit": "编辑",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "default": "默认",
+    "forced": "强制"
   },
   "pagination": {
     "previous": "上一页",
@@ -2379,7 +2405,8 @@
       "models": "模型",
       "other": "其他",
       "usage": "使用情况",
-      "shortcuts": "快捷键"
+      "shortcuts": "快捷键",
+      "admin": "系统管理"
     },
     "upgrade": "升级",
     "credits": "积分",
@@ -2543,7 +2570,153 @@
     "providerModelDocsSuffix": " 获取更多模型",
     "providerModelsDialogTitle": "添加自定义模型",
     "providerModelsDialogDescription": "手动添加该提供方可用的模型 ID。",
-    "providerModelsDialogPlaceholder": "输入模型 ID（例如 gpt-4o-mini）"
+    "providerModelsDialogPlaceholder": "输入模型 ID（例如 gpt-4o-mini）",
+    "admin": {
+      "title": "系统管理",
+      "description": "管理系统级默认配置与资源。",
+      "scopeHint": "此处配置会影响整个部署实例。",
+      "loading": "正在加载系统管理数据...",
+      "loadFailed": "加载系统管理数据失败",
+      "reloadFailed": "操作已完成，但刷新数据失败，请稍后重试",
+      "actionFailed": "操作失败",
+      "save": "保存",
+      "create": "创建",
+      "refresh": "刷新",
+      "edit": "编辑",
+      "cancel": "取消",
+      "update": "更新",
+      "modelConfigTitle": "模型配置",
+      "modelConfigDescription": "在线维护默认模型与模型白名单。",
+      "modelConfigSaved": "模型配置已更新",
+      "envTitle": "系统环境变量",
+      "envDescription": "仅展示脱敏后的值，适合作为系统默认配置。",
+      "envCreateTitle": "创建系统环境变量",
+      "envCreateDescription": "添加共享默认变量，并控制它们是否可被注入到运行时容器。",
+      "envListTitle": "已配置变量",
+      "envListDescription": "可编辑脱敏值、调整运行时可见范围，或删除不再需要的变量。",
+      "envEmpty": "当前还没有系统环境变量。",
+      "envSearchPlaceholder": "搜索环境变量",
+      "envDeleteTitle": "确认删除系统环境变量？",
+      "envDeleteDescription": "删除后，{{key}} 将从系统级环境变量列表中永久移除。",
+      "envDeleteConfirm": "删除变量",
+      "delete": "删除",
+      "envKeyPlaceholder": "KEY",
+      "envValuePlaceholder": "值",
+      "envDescriptionPlaceholder": "描述",
+      "envKeyRequired": "请先填写环境变量 Key",
+      "envCreated": "系统环境变量已创建",
+      "envUpdated": "系统环境变量已更新",
+      "envDeleted": "系统环境变量已删除",
+      "envUpdateHint": "留空表示不更新密钥值，仅更新描述",
+      "valueConfigured": "已配置",
+      "valueEmpty": "未设置",
+      "skillsTitle": "系统 Skills",
+      "skillsDescription": "创建后对全体用户可见，用户可用同名个人 Skill 覆盖。",
+      "skillNamePlaceholder": "Skill 名称",
+      "skillNameRequired": "请先填写 Skill 名称",
+      "skillCreated": "系统 Skill 已创建",
+      "skillUpdated": "系统 Skill 已更新",
+      "skillDeleted": "系统 Skill 已删除",
+      "mcpTitle": "系统 MCP 服务器",
+      "mcpDescription": "配置全局可见的 MCP 服务器默认项。",
+      "mcpNamePlaceholder": "MCP 名称",
+      "mcpNameRequired": "请先填写 MCP 名称",
+      "mcpCreated": "系统 MCP 服务器已创建",
+      "mcpUpdated": "系统 MCP 服务器已更新",
+      "mcpDeleted": "系统 MCP 服务器已删除",
+      "mcpSecretHint": "列表返回会对敏感字段脱敏；如需覆盖 MCP 配置，请手动重新输入完整 JSON。",
+      "pluginsTitle": "系统插件",
+      "pluginsDescription": "配置全局默认插件。",
+      "pluginNamePlaceholder": "插件名称",
+      "pluginNameRequired": "请先填写插件名称",
+      "pluginVersionPlaceholder": "版本",
+      "pluginEntry": "插件入口配置",
+      "pluginManifest": "插件清单",
+      "pluginCreated": "系统插件已创建",
+      "pluginUpdated": "系统插件已更新",
+      "pluginDeleted": "系统插件已删除",
+      "usersTitle": "用户与系统角色",
+      "usersDescription": "维护平台级管理员权限。",
+      "userRoleUpdated": "用户系统角色已更新",
+      "roleUser": "普通用户",
+      "roleAdmin": "系统管理员",
+      "jsonConfig": "JSON 配置",
+      "invalidJsonObject": "请输入合法的 JSON 对象",
+      "masked": "已脱敏",
+      "reenterConfigPlaceholder": "如需覆盖当前配置，请重新输入完整 JSON",
+      "maskedUpdateHint": "列表中的敏感字段已脱敏；如需修改，请手动重新输入完整 JSON 配置。",
+      "slashCommandsTitle": "系统 Slash Commands",
+      "slashCommandsDescription": "配置对所有用户可见的共享 slash commands。若用户创建同名命令，则优先使用用户命令。",
+      "slashCommandNamePlaceholder": "Slash Command 名称",
+      "slashCommandNameRequired": "请先填写 Slash Command 名称",
+      "slashCommandCreated": "系统 Slash Command 已创建",
+      "slashCommandUpdated": "系统 Slash Command 已更新",
+      "slashCommandDeleted": "系统 Slash Command 已删除",
+      "claudeMdTitle": "系统个性化",
+      "claudeMdDescription": "配置系统默认个性化内容。若用户配置了个人个性化，则优先使用用户设置。",
+      "claudeMdSaved": "系统个性化已更新",
+      "claudeMdDeleted": "系统个性化已清空",
+      "subAgentsTitle": "系统子代理",
+      "subAgentsDescription": "管理系统级可复用子代理。",
+      "subAgentCreated": "系统子代理已创建",
+      "subAgentUpdated": "系统子代理已更新",
+      "subAgentDeleted": "系统子代理已删除",
+      "presetsTitle": "系统预设",
+      "presetsDescription": "管理系统级默认预设。",
+      "presetCreated": "系统预设已创建",
+      "presetUpdated": "系统预设已更新",
+      "presetDeleted": "系统预设已删除",
+      "policyDefaultEnabled": "默认启用",
+      "policyForceEnabled": "强制启用",
+      "policyDescription": "默认启用会在用户没有显式安装记录时生效；强制启用后用户不可关闭。",
+      "navOverview": "概览",
+      "navOverviewDescription": "查看系统级配置与资源状态。",
+      "navModels": "模型配置",
+      "navEnvVars": "环境变量",
+      "navSkills": "Skills",
+      "navMcp": "MCP",
+      "navPlugins": "插件",
+      "navSlashCommands": "Slash Commands",
+      "navSubAgents": "子代理",
+      "navPresets": "预设",
+      "navClaudeMd": "CLAUDE.md",
+      "navPersonalization": "系统个性化",
+      "navUsers": "用户管理",
+      "summaryResources": "系统资源",
+      "summaryUsers": "用户",
+      "summaryEnvVars": "环境变量",
+      "skillsMpHelp": "除非管理员显式将 SKILLSMP_API_KEY 保存为系统环境变量，否则 SkillsMP 不会显示在这里。",
+      "skillsMpInternalHint": "这个 key 由平台内部用于 SkillsMP，不会注入到任务运行容器中。",
+      "skillsMpRowDescription": "平台内部使用的 SkillsMP 凭证。",
+      "internalOnlyBadge": "仅内部使用",
+      "pageSubtitle": "使用与个人 Capabilities 一致的方式管理全局默认能力与系统配置。",
+      "systemScopeBadge": "System Scope",
+      "adminOnlyBadge": "Admin Only",
+      "navRuntimeEnvPolicy": "运行时环境策略",
+      "runtimeEnvPolicyTitle": "运行时环境策略",
+      "runtimeEnvPolicyDescription": "控制哪些环境变量允许自动注入任务运行环境。",
+      "runtimeEnvPolicySaved": "运行时环境策略已更新",
+      "runtimeEnvPolicyRiskTitle": "运行时注入会提升敏感信息暴露风险",
+      "runtimeEnvPolicyRiskDescription": "任何注入到任务运行环境的值，都可能被任务主动打印、记录日志、写入文件或发送到外部网络。",
+      "runtimeEnvPolicyScopeHint": "该策略只控制已保存的用户/系统环境变量的自动注入，不会改变执行器基础环境变量，也不会移除平台运行所需的凭证。",
+      "runtimeEnvPolicyMode": "策略模式",
+      "runtimeEnvPolicyModeOptIn": "按变量显式开启注入",
+      "runtimeEnvPolicyModeDisabled": "禁用运行时注入",
+      "runtimeEnvAllowlist": "允许列表模式",
+      "runtimeEnvDenylist": "禁止列表模式",
+      "runtimeEnvProtectedPrefixes": "受保护前缀",
+      "runtimeEnvProtectedKeys": "受保护键",
+      "runtimeEnvProtectedHint": "受保护的运行时变量始终禁止自动注入。",
+      "runtimeVisibilityLabel": "运行时可见范围",
+      "runtimeVisibilityDescription": "选择哪些任务可以通过自动运行时注入拿到这个系统变量。",
+      "runtimeVisibilityNone": "不注入",
+      "runtimeVisibilityNoneHint": "仅保存在管理员设置中，不自动注入任务。",
+      "runtimeVisibilityAdminsOnly": "仅管理员任务",
+      "runtimeVisibilityAdminsOnlyHint": "只有系统管理员发起的任务可以读取它。",
+      "runtimeVisibilityAllUsers": "所有用户任务",
+      "runtimeVisibilityAllUsersHint": "自动注入到所有用户的任务运行环境中。",
+      "runtimeVisibilityProtectedWarning": "该 key 命中了受保护的运行时 key/前缀。可见范围设置可以保存，但自动运行时注入仍会被阻止。"
+    }
   },
   "validation": {
     "projectNameRequired": "请输入项目名称",
@@ -2662,6 +2835,20 @@
     "fileChanges": "文件变更",
     "totalFiles": "个文件"
   },
+  "runTimeline": {
+    "runLabel": "Run {{number}}",
+    "selectRun": "切换到 Run {{number}}",
+    "node": {
+      "action": "执行型",
+      "chat": "对话型"
+    },
+    "preview": {
+      "executionSummary": "包含工作区活动的执行轮次",
+      "conversationOnly": "纯对话轮次",
+      "execution": "{{files}} 个文件变更 · {{steps}} 个回放步骤",
+      "duration": "耗时 {{duration}}"
+    }
+  },
   "mcpGrid": {
     "availableServers": "可用服务器: {{count}}",
     "enabledServers": "已启用: {{count}}",
@@ -2686,6 +2873,8 @@
     "jsonConfig": "完整的 JSON 配置",
     "configureServer": "配置 MCP 服务器",
     "fullJsonConfig": "完整的 JSON 配置",
+    "fullJsonConfigHint": "粘贴 Claude 风格的 MCP 配置，例如：{\"mcpServers\": {...}}",
+    "maskedJsonConfigHint": "系统 MCP 配置在只读查看时会进行脱敏展示。",
     "invalidJson": "JSON 配置格式错误",
     "nameRequired": "名称不能为空",
     "saveFailed": "保存 MCP 服务器失败"
@@ -3000,15 +3189,31 @@
     "login": {
       "title": "登录 Poco",
       "subtitle": "使用 Google 或 GitHub 继续。",
+      "subtitleMultiple": "请选择已启用的登录方式继续。",
+      "subtitleGoogleOnly": "使用 Google 继续。",
+      "subtitleGithubOnly": "使用 GitHub 继续。",
+      "setupRequiredSubtitle": "当前部署需要管理员先配置登录后才能使用。",
       "google": "使用 Google 继续",
       "github": "使用 GitHub 继续",
       "hint": "我们会使用安全的浏览器会话来保持登录状态。",
-      "noProviders": "当前环境未配置可用的登录方式，请检查服务端 OAuth 配置。",
+      "loading": "正在检查可用的登录方式...",
+      "setupRequiredTitle": "需要先配置登录方式",
+      "setupRequiredDescription": "当前部署要求先接入 OAuth 登录后才能使用。请联系管理员至少配置一种 OAuth 登录方式。",
+      "setupRequiredHint": "请至少配置一种登录方式后再刷新页面。",
       "errors": {
         "default": "登录失败，请重试。",
+        "runtime_config_failed": "无法加载登录配置，请刷新后重试。",
         "provider_not_configured": "该登录方式尚未配置。",
         "invalid_oauth_state": "登录会话已过期，请重试。",
         "oauth_failed": "无法完成登录，请重试。"
+      },
+      "feishu": "使用飞书/Lark继续",
+      "subtitleSingle": "使用 {{provider}} 继续。",
+      "noProviders": "当前没有可用的登录方式。",
+      "providers": {
+        "google": "Google",
+        "github": "GitHub",
+        "feishu": "飞书/Lark"
       }
     }
   }

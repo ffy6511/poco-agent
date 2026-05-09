@@ -2,7 +2,7 @@ import logging
 import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -93,9 +93,7 @@ class SessionService:
             return
 
         suffix = (
-            f": {reason.strip()}"
-            if isinstance(reason, str) and reason.strip()
-            else ""
+            f": {reason.strip()}" if isinstance(reason, str) and reason.strip() else ""
         )
         for execution in executions:
             execution.is_error = True
@@ -142,7 +140,7 @@ class SessionService:
     def _build_executor_cancel_status(
         *,
         has_active_runs: bool,
-    ) -> str:
+    ) -> Literal["not_required", "pending"]:
         return "pending" if has_active_runs else "not_required"
 
     @classmethod
@@ -284,7 +282,7 @@ class SessionService:
         canceled_runs: int,
         canceled_queue_items: int,
         expired_requests: int,
-        executor_cancel_status: str,
+        executor_cancel_status: Literal["not_required", "pending", "completed"],
     ) -> SessionCancelResponse:
         return SessionCancelResponse(
             session_id=db_session.id,
@@ -412,10 +410,12 @@ class SessionService:
 
         if request.status is not None:
             next_status = request.status
-            if (
-                db_session.status in {"canceling", "canceled"}
-                and next_status in {"pending", "running", "completed", "failed"}
-            ):
+            if db_session.status in {"canceling", "canceled"} and next_status in {
+                "pending",
+                "running",
+                "completed",
+                "failed",
+            }:
                 next_status = db_session.status
             db_session.status = next_status
         if request.sdk_session_id is not None:
@@ -1028,6 +1028,7 @@ class SessionService:
                 )
                 branched_run.status = source_run.status
                 branched_run.progress = source_run.progress
+                branched_run.state_patch = self._deepcopy_json(source_run.state_patch)
                 branched_run.scheduled_task_id = None
                 branched_run.claimed_by = None
                 branched_run.lease_expires_at = None
@@ -1035,6 +1036,13 @@ class SessionService:
                 branched_run.last_error = source_run.last_error
                 branched_run.started_at = source_run.started_at
                 branched_run.finished_at = source_run.finished_at
+                branched_run.workspace_archive_url = source_run.workspace_archive_url
+                branched_run.workspace_files_prefix = source_run.workspace_files_prefix
+                branched_run.workspace_manifest_key = source_run.workspace_manifest_key
+                branched_run.workspace_archive_key = source_run.workspace_archive_key
+                branched_run.workspace_export_status = (
+                    source_run.workspace_export_status
+                )
                 db.flush()
                 run_id_map[source_run.id] = branched_run.id
 

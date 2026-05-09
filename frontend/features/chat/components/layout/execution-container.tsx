@@ -11,6 +11,13 @@ import { ChatPanelSkeleton } from "@/features/chat/components/layout/execution-c
 import { ExecutionTabsSwitch } from "@/features/chat/components/layout/execution-tabs-switch";
 import { DesktopExecutionLayout } from "@/features/chat/components/layout/desktop-execution-layout";
 import { useToolExecutions } from "@/features/chat/components/execution/computer-panel/hooks/use-tool-executions";
+import {
+  getRunsBySessionAction,
+  getToolExecutionsAction,
+} from "@/features/chat/actions/query-actions";
+import type { RunResponse } from "@/features/chat/types";
+import { countFileChanges } from "@/features/chat/lib/run-record-utils";
+import { getRunFileChangeCount } from "@/features/chat/components/layout/run-timeline-utils";
 
 interface ExecutionContainerProps {
   sessionId: string;
@@ -27,6 +34,11 @@ export function ExecutionContainer({
 }: ExecutionContainerProps) {
   const { t } = useT("translation");
   const { refreshTasks } = useTaskHistoryContext();
+  const [runs, setRuns] = React.useState<RunResponse[]>([]);
+  const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null);
+  const [isPinnedToHistory, setIsPinnedToHistory] = React.useState(false);
+  const [hasLegacySessionReplay, setHasLegacySessionReplay] =
+    React.useState(false);
   const { session, isLoading, error, updateSession } = useExecutionSession({
     sessionId,
     onPollingStop: refreshTasks,
@@ -39,20 +51,75 @@ export function ExecutionContainer({
     session?.state_patch?.browser?.enabled,
   );
   const fileChanges = session?.state_patch.workspace_state?.file_changes ?? [];
+  const sessionFileChangeCount = countFileChanges(fileChanges);
   const hasLocalMountArtifacts =
     session?.config_snapshot?.filesystem_mode === "local_mount" &&
     (session.config_snapshot.local_mounts?.length ?? 0) > 0;
-  const hasArtifacts = fileChanges.length > 0 || hasLocalMountArtifacts;
+  const hasArtifacts = sessionFileChangeCount > 0 || hasLocalMountArtifacts;
+  const activeRun = React.useMemo(
+    () =>
+      runs.find((run) =>
+        ["queued", "claimed", "running", "canceling"].includes(run.status),
+      ) ?? null,
+    [runs],
+  );
+  const latestRun = React.useMemo(
+    () => (runs.length > 0 ? runs[runs.length - 1] : null),
+    [runs],
+  );
+  const currentRunId = activeRun?.run_id ?? latestRun?.run_id ?? null;
+  const effectiveSelectedRunId = selectedRunId ?? currentRunId;
+  const selectedRun = React.useMemo(
+    () => runs.find((run) => run.run_id === effectiveSelectedRunId) ?? null,
+    [effectiveSelectedRunId, runs],
+  );
   const { executions, isLoading: isLoadingToolExecutions } = useToolExecutions({
-    sessionId,
-    isActive: isSessionActive,
+    runId: effectiveSelectedRunId ?? undefined,
+    isActive:
+      selectedRun?.run_id != null &&
+      selectedRun.run_id === activeRun?.run_id &&
+      isSessionActive,
     pollingIntervalMs: 2000,
     limit: 1,
   });
-  const hasComputerRecords = executions.length > 0;
-  const isRightPanelReady = !isLoadingToolExecutions;
-  const showArtifactsTab = isRightPanelReady && hasArtifacts;
-  const showComputerTab = isRightPanelReady && hasComputerRecords;
+  const hasComputerRecords = executions.length > 0 || runs.length > 0;
+  const selectedRunFileChanges =
+    selectedRun?.state_patch?.workspace_state?.file_changes ?? [];
+  const selectedRunFileChangeCount = selectedRun
+    ? getRunFileChangeCount(selectedRun)
+    : 0;
+  const hasSelectedRunWorkspace = Boolean(
+    selectedRun?.workspace_manifest_key ||
+    selectedRun?.workspace_files_prefix ||
+    selectedRun?.workspace_archive_key ||
+    selectedRun?.workspace_export_status === "ready",
+  );
+  const hasAnyRunArtifacts = runs.some(
+    (run) =>
+      getRunFileChangeCount(run) > 0 ||
+      Boolean(
+        run.workspace_manifest_key ||
+        run.workspace_files_prefix ||
+        run.workspace_archive_key ||
+        run.workspace_export_status === "ready",
+      ),
+  );
+  const hasSelectedRunArtifacts =
+    selectedRunFileChangeCount > 0 ||
+    hasSelectedRunWorkspace ||
+    hasLocalMountArtifacts;
+  const showArtifactsTab =
+    hasSelectedRunArtifacts || hasArtifacts || hasAnyRunArtifacts;
+  const legacySessionArtifactsAvailable = Boolean(
+    !hasSelectedRunArtifacts &&
+    (sessionFileChangeCount > 0 ||
+      session?.workspace_export_status === "ready" ||
+      hasLocalMountArtifacts),
+  );
+  const legacySessionReplayAvailable = Boolean(
+    effectiveSelectedRunId && executions.length === 0 && hasLegacySessionReplay,
+  );
+  const showComputerTab = hasComputerRecords || isLoadingToolExecutions;
   const showFilePanel = showArtifactsTab || showComputerTab;
 
   const defaultRightTab = React.useMemo(() => {
@@ -73,6 +140,15 @@ export function ExecutionContainer({
   const lastSessionIdRef = React.useRef<string | null>(null);
   const executionTabsHighlightId = React.useId();
 
+  const loadRuns = React.useCallback(async () => {
+    try {
+      const data = await getRunsBySessionAction({ sessionId });
+      setRuns(data);
+    } catch (error) {
+      console.error("[ExecutionContainer] Failed to load runs:", error);
+    }
+  }, [sessionId]);
+
   // Reset right panel tab when session changes.
   React.useEffect(() => {
     if (lastSessionIdRef.current === sessionId) return;
@@ -81,7 +157,66 @@ export function ExecutionContainer({
     prevDefaultRef.current = defaultRightTab;
     setRightTab(defaultRightTab);
     setIsRightPanelCollapsed(defaultRightPanelCollapsed);
+    setRuns([]);
+    setSelectedRunId(null);
+    setIsPinnedToHistory(false);
   }, [defaultRightTab, defaultRightPanelCollapsed, sessionId]);
+
+  React.useEffect(() => {
+    void loadRuns();
+  }, [loadRuns]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadLegacyReplay = async () => {
+      try {
+        const data = await getToolExecutionsAction({
+          sessionId,
+          limit: 1,
+          offset: 0,
+        });
+        if (!cancelled) {
+          setHasLegacySessionReplay(data.length > 0);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setHasLegacySessionReplay(false);
+        }
+        console.error(
+          "[ExecutionContainer] Failed to load legacy replay availability:",
+          error,
+        );
+      }
+    };
+
+    void loadLegacyReplay();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  React.useEffect(() => {
+    if (!isSessionActive) return;
+    const id = window.setInterval(() => {
+      void loadRuns();
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [isSessionActive, loadRuns]);
+
+  React.useEffect(() => {
+    if (!session?.status) return;
+    if (!["completed", "failed", "canceled"].includes(session.status)) return;
+    void loadRuns();
+  }, [loadRuns, session?.status]);
+
+  React.useEffect(() => {
+    if (isPinnedToHistory) return;
+    const nextRunId = activeRun?.run_id ?? latestRun?.run_id ?? null;
+    if (nextRunId && nextRunId !== selectedRunId) {
+      setSelectedRunId(nextRunId);
+    }
+  }, [activeRun?.run_id, isPinnedToHistory, latestRun?.run_id, selectedRunId]);
 
   // Smart default: switch to artifacts on completion only if user didn't manually switch.
   React.useEffect(() => {
@@ -143,6 +278,24 @@ export function ExecutionContainer({
       <MobileExecutionView
         session={session}
         sessionId={sessionId}
+        runs={runs}
+        selectedRunId={effectiveSelectedRunId ?? undefined}
+        currentRunId={currentRunId ?? undefined}
+        isViewingHistory={Boolean(
+          effectiveSelectedRunId &&
+          currentRunId &&
+          effectiveSelectedRunId !== currentRunId,
+        )}
+        legacySessionReplayAvailable={legacySessionReplayAvailable}
+        legacySessionArtifactsAvailable={legacySessionArtifactsAvailable}
+        onSelectRun={(runId) => {
+          setSelectedRunId(runId);
+          setIsPinnedToHistory(runId !== activeRun?.run_id);
+        }}
+        onFollowCurrentRun={() => {
+          setSelectedRunId(currentRunId);
+          setIsPinnedToHistory(false);
+        }}
         updateSession={updateSession}
         showArtifactsTab={showArtifactsTab}
         showComputerTab={showComputerTab}
@@ -183,6 +336,25 @@ export function ExecutionContainer({
     <DesktopExecutionLayout
       sessionId={sessionId}
       session={session}
+      runs={runs}
+      selectedRunId={effectiveSelectedRunId ?? undefined}
+      selectedRun={selectedRun}
+      legacySessionReplayAvailable={legacySessionReplayAvailable}
+      legacySessionArtifactsAvailable={legacySessionArtifactsAvailable}
+      onSelectRun={(runId) => {
+        setSelectedRunId(runId);
+        setIsPinnedToHistory(runId !== activeRun?.run_id);
+      }}
+      onFollowCurrentRun={() => {
+        const currentRunId = activeRun?.run_id ?? latestRun?.run_id ?? null;
+        setSelectedRunId(currentRunId);
+        setIsPinnedToHistory(false);
+      }}
+      isViewingHistory={Boolean(
+        selectedRun?.run_id &&
+        activeRun?.run_id &&
+        selectedRun.run_id !== activeRun.run_id,
+      )}
       rightTab={rightTab}
       onRightTabChange={(value) => {
         didManualSwitchRef.current = true;
@@ -195,6 +367,7 @@ export function ExecutionContainer({
       chatPanel={chatPanel}
       tabsSwitch={tabsSwitch}
       browserEnabled={browserEnabled}
+      selectedRunFileChanges={selectedRunFileChanges}
     />
   );
 }

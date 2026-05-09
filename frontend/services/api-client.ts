@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/errors";
+import { ApiError } from "../lib/errors/index.ts";
 import type { ApiResponse } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -93,6 +93,15 @@ export const API_ENDPOINTS = {
 
   // Runs
   runsBySession: (sessionId: string) => `/runs/session/${sessionId}`,
+  runToolExecutions: (runId: string) => `/runs/${runId}/tool-executions`,
+  runToolExecutionsDelta: (runId: string) =>
+    `/runs/${runId}/tool-executions/delta`,
+  runBrowserScreenshot: (runId: string, toolUseId: string) =>
+    `/runs/${runId}/computer/browser/${toolUseId}`,
+  runWorkspaceFiles: (runId: string) => `/runs/${runId}/workspace/files`,
+  runWorkspaceArchive: (runId: string) => `/runs/${runId}/workspace/archive`,
+  runWorkspaceFolderArchive: (runId: string) =>
+    `/runs/${runId}/workspace/folder-archive`,
 
   // Custom Instructions
   customInstructions: "/claude-md",
@@ -250,6 +259,36 @@ export const API_ENDPOINTS = {
   authConfig: "/auth/config",
   authMe: "/auth/me",
   authLogout: "/auth/logout",
+
+  // Admin
+  adminSystemEnvVars: "/admin/system-env-vars",
+  adminSystemEnvVar: (envVarId: number) => `/admin/system-env-vars/${envVarId}`,
+  adminRuntimeEnvPolicy: "/admin/runtime-env-policy",
+  adminModelConfig: "/admin/model-config",
+  adminSkills: "/admin/skills",
+  adminSkill: (skillId: number) => `/admin/skills/${skillId}`,
+  adminSkillImportDiscover: "/admin/skills/import/discover",
+  adminSkillImportCommit: "/admin/skills/import/commit",
+  adminSkillImportJob: (jobId: string) => `/admin/skills/import/jobs/${jobId}`,
+  adminMcpServers: "/admin/mcp-servers",
+  adminMcpServer: (serverId: number) => `/admin/mcp-servers/${serverId}`,
+  adminPlugins: "/admin/plugins",
+  adminPlugin: (pluginId: number) => `/admin/plugins/${pluginId}`,
+  adminPluginImportDiscover: "/admin/plugins/import/discover",
+  adminPluginImportCommit: "/admin/plugins/import/commit",
+  adminPluginImportJob: (jobId: string) =>
+    `/admin/plugins/import/jobs/${jobId}`,
+  adminSlashCommands: "/admin/slash-commands",
+  adminSlashCommand: (commandId: number) =>
+    `/admin/slash-commands/${commandId}`,
+  adminClaudeMd: "/admin/claude-md",
+  adminSubAgents: "/admin/subagents",
+  adminSubAgent: (subAgentId: number) => `/admin/subagents/${subAgentId}`,
+  adminPresetVisuals: "/admin/preset-visuals",
+  adminPresets: "/admin/presets",
+  adminPreset: (presetId: number) => `/admin/presets/${presetId}`,
+  adminUsers: "/admin/users",
+  adminUserSystemRole: (userId: string) => `/admin/users/${userId}/system-role`,
 
   // Health
   health: "/health",

@@ -126,6 +126,8 @@ services:
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
       AUTH_SESSION_TTL_DAYS: ${AUTH_SESSION_TTL_DAYS:-30}
       OAUTH_SESSION_COOKIE_NAME: ${OAUTH_SESSION_COOKIE_NAME:-poco_oauth}
+      AUTH_MODE: ${AUTH_MODE:-oauth_required}
+      SYSTEM_ADMIN_EMAILS: ${SYSTEM_ADMIN_EMAILS:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
@@ -157,6 +159,10 @@ services:
       FEISHU_STREAM_ENABLED: ${FEISHU_STREAM_ENABLED:-true}
       FEISHU_APP_ID: ${FEISHU_APP_ID:-}
       FEISHU_APP_SECRET: ${FEISHU_APP_SECRET:-}
+      FEISHU_OAUTH_CLIENT_ID: ${FEISHU_OAUTH_CLIENT_ID:-}
+      FEISHU_OAUTH_CLIENT_SECRET: ${FEISHU_OAUTH_CLIENT_SECRET:-}
+      FEISHU_OAUTH_REGION: ${FEISHU_OAUTH_REGION:-cn}
+      FEISHU_OAUTH_SCOPE: ${FEISHU_OAUTH_SCOPE:-}
       FEISHU_VERIFICATION_TOKEN: ${FEISHU_VERIFICATION_TOKEN:-}
       FEISHU_BASE_URL: ${FEISHU_BASE_URL:-https://open.feishu.cn}
 
@@ -166,6 +172,10 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-poco-secret}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:-poco}
+      S3_KEY_PREFIX: ${S3_KEY_PREFIX:-}
+      S3_PUBLIC_READ: ${S3_PUBLIC_READ:-false}
+      S3_PUBLIC_ENDPOINT_BUCKET_BOUND: ${S3_PUBLIC_ENDPOINT_BUCKET_BOUND:-false}
+      S3_SIGNATURE_VERSION: ${S3_SIGNATURE_VERSION:-s3v4}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
       S3_PRESIGN_EXPIRES: ${S3_PRESIGN_EXPIRES:-300}
 
@@ -206,6 +216,18 @@ services:
       UVICORN_ACCESS_LOG: ${UVICORN_ACCESS_LOG:-false}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   executor-manager:
     # Default to pulling from GHCR; override via EXECUTOR_MANAGER_IMAGE if needed.
@@ -214,7 +236,7 @@ services:
     user: "${EXECUTOR_UID:-1000}:${EXECUTOR_GID:-1000}"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
       rustfs:
         condition: service_started
     environment:
@@ -266,6 +288,10 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-poco-secret}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:-poco}
+      S3_KEY_PREFIX: ${S3_KEY_PREFIX:-}
+      S3_PUBLIC_READ: ${S3_PUBLIC_READ:-false}
+      S3_PUBLIC_ENDPOINT_BUCKET_BOUND: ${S3_PUBLIC_ENDPOINT_BUCKET_BOUND:-false}
+      S3_SIGNATURE_VERSION: ${S3_SIGNATURE_VERSION:-s3v4}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
 
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -284,6 +310,18 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "${EXECUTOR_MANAGER_PORT:-8001}:8001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   frontend:
     # Default to pulling from GHCR; override via FRONTEND_IMAGE if needed.
@@ -291,13 +329,20 @@ services:
     restart: unless-stopped
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     environment:
       # Runtime backend URL for the Next.js API proxy (/api/v1/* -> backend).
       BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:3000}
       NEXT_PUBLIC_AUTH_COOKIE_NAME: ${NEXT_PUBLIC_AUTH_COOKIE_NAME:-poco_session}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   postgres_data:

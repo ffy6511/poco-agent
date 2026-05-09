@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from typing import Any
 import uuid
 
@@ -35,8 +36,19 @@ class PresetRepository:
         session_db: Session,
         preset_id: int,
         user_id: str,
+        *,
+        system_user_id: str | None = None,
+        include_deleted: bool = False,
     ) -> Preset | None:
-        return (
+        visibility = [
+            Preset.scope == "system",
+            Preset.user_id == user_id,
+            WorkspaceMember.id.is_not(None),
+        ]
+        if system_user_id:
+            visibility.append(Preset.user_id == system_user_id)
+
+        query = (
             session_db.query(Preset)
             .outerjoin(
                 WorkspaceMember,
@@ -44,17 +56,11 @@ class PresetRepository:
                 & (WorkspaceMember.user_id == user_id)
                 & (WorkspaceMember.status == "active"),
             )
-            .filter(
-                Preset.id == preset_id,
-                Preset.is_deleted.is_(False),
-                (
-                    (Preset.scope == "system")
-                    | (Preset.user_id == user_id)
-                    | (WorkspaceMember.id.is_not(None))
-                ),
-            )
-            .first()
+            .filter(Preset.id == preset_id, or_(*visibility))
         )
+        if not include_deleted:
+            query = query.filter(Preset.is_deleted.is_(False))
+        return query.first()
 
     @staticmethod
     def list_by_user(
@@ -69,11 +75,14 @@ class PresetRepository:
         return query.order_by(Preset.created_at.desc()).all()
 
     @staticmethod
-    def list_visible_by_user(
+    def list_visible(
         session_db: Session,
+        *,
         user_id: str,
+        system_user_id: str,
+        include_deleted: bool = False,
     ) -> list[Preset]:
-        return (
+        query = (
             session_db.query(Preset)
             .outerjoin(
                 WorkspaceMember,
@@ -82,16 +91,17 @@ class PresetRepository:
                 & (WorkspaceMember.status == "active"),
             )
             .filter(
-                Preset.is_deleted.is_(False),
-                (
-                    (Preset.scope == "system")
-                    | (Preset.user_id == user_id)
-                    | (WorkspaceMember.id.is_not(None))
-                ),
+                or_(
+                    Preset.scope == "system",
+                    Preset.user_id == user_id,
+                    Preset.user_id == system_user_id,
+                    WorkspaceMember.id.is_not(None),
+                )
             )
-            .order_by(Preset.created_at.desc())
-            .all()
         )
+        if not include_deleted:
+            query = query.filter(Preset.is_deleted.is_(False))
+        return query.order_by(Preset.created_at.desc()).all()
 
     @staticmethod
     def update(

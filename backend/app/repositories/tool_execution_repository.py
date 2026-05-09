@@ -2,10 +2,13 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.tool_execution import ToolExecution
+
+POCO_PLAYWRIGHT_MCP_PREFIX = "mcp____poco_playwright__"
+REPLAYABLE_GENERIC_TOOL_NAMES = ("edit", "read", "write", "glob", "grep")
 
 
 class ToolExecutionRepository:
@@ -16,6 +19,7 @@ class ToolExecutionRepository:
         session_db: Session,
         session_id: uuid.UUID,
         message_id: int,
+        run_id: uuid.UUID | None,
         tool_use_id: str | None,
         tool_name: str,
         tool_input: dict[str, Any] | None = None,
@@ -27,6 +31,7 @@ class ToolExecutionRepository:
         """Creates a new tool execution record."""
         tool_execution = ToolExecution(
             session_id=session_id,
+            run_id=run_id,
             message_id=message_id,
             tool_use_id=tool_use_id,
             tool_name=tool_name,
@@ -72,6 +77,19 @@ class ToolExecutionRepository:
         return (
             session_db.query(ToolExecution)
             .filter(ToolExecution.session_id == session_id)
+            .order_by(ToolExecution.created_at.asc())
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+
+    @staticmethod
+    def list_by_run(
+        session_db: Session, run_id: uuid.UUID, limit: int = 100, offset: int = 0
+    ) -> list[ToolExecution]:
+        return (
+            session_db.query(ToolExecution)
+            .filter(ToolExecution.run_id == run_id)
             .order_by(ToolExecution.created_at.asc())
             .limit(limit)
             .offset(offset)
@@ -130,6 +148,37 @@ class ToolExecutionRepository:
         )
 
     @staticmethod
+    def list_by_run_after_cursor(
+        session_db: Session,
+        run_id: uuid.UUID,
+        *,
+        after_created_at: datetime | None = None,
+        after_id: uuid.UUID | None = None,
+        limit: int = 100,
+    ) -> list[ToolExecution]:
+        query = session_db.query(ToolExecution).filter(ToolExecution.run_id == run_id)
+
+        if after_created_at is not None:
+            if after_id is not None:
+                query = query.filter(
+                    or_(
+                        ToolExecution.updated_at > after_created_at,
+                        and_(
+                            ToolExecution.updated_at == after_created_at,
+                            ToolExecution.id > after_id,
+                        ),
+                    )
+                )
+            else:
+                query = query.filter(ToolExecution.updated_at > after_created_at)
+
+        return (
+            query.order_by(ToolExecution.updated_at.asc(), ToolExecution.id.asc())
+            .limit(limit)
+            .all()
+        )
+
+    @staticmethod
     def list_unfinished_by_session(
         session_db: Session, session_id: uuid.UUID
     ) -> list[ToolExecution]:
@@ -160,3 +209,36 @@ class ToolExecutionRepository:
             .filter(ToolExecution.session_id == session_id)
             .count()
         )
+
+    @staticmethod
+    def count_by_run_ids(
+        session_db: Session,
+        run_ids: list[uuid.UUID],
+    ) -> dict[uuid.UUID, int]:
+        """Counts replayable tool executions for each run id."""
+        if not run_ids:
+            return {}
+
+        normalized_tool_name = func.replace(
+            func.replace(
+                func.replace(func.lower(func.trim(ToolExecution.tool_name)), " ", ""),
+                "_",
+                "",
+            ),
+            "-",
+            "",
+        )
+        replayable_filter = or_(
+            normalized_tool_name == "bash",
+            ToolExecution.tool_name.startswith(POCO_PLAYWRIGHT_MCP_PREFIX),
+            normalized_tool_name.in_(REPLAYABLE_GENERIC_TOOL_NAMES),
+        )
+
+        rows = (
+            session_db.query(ToolExecution.run_id, func.count(ToolExecution.id))
+            .filter(ToolExecution.run_id.in_(run_ids))
+            .filter(replayable_filter)
+            .group_by(ToolExecution.run_id)
+            .all()
+        )
+        return {run_id: count for run_id, count in rows if run_id is not None}

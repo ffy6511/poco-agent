@@ -1251,7 +1251,16 @@
     "chat": "Chat",
     "computer": "Computer",
     "artifacts": "Artefakte",
-    "status": "Status"
+    "status": "Status",
+    "runs": {
+      "openAll": "Alle Runs anzeigen",
+      "allRuns": "Alle Runs",
+      "sheetDescription": "Wechsle schnell zwischen Replays und Artefakten verschiedener Runs.",
+      "sheetHint": "Scrolle vertikal, um frühere Runs zu durchsuchen und auszuwählen.",
+      "current": "Aktuell",
+      "viewingHistory": "Verlauf: Run {{number}}",
+      "backToCurrent": "Zurück zum aktuellen"
+    }
   },
   "computer": {
     "title": "Poco-Computer",
@@ -1285,7 +1294,8 @@
         "terminal": "Terminal"
       },
       "limitHint": "Zeigt nur die ersten {{limit}} Schritte",
-      "liveLabel": "Live"
+      "liveLabel": "Live",
+      "legacyHint": "Ältere Replay-Daten sind möglicherweise nur im Legacy-Sitzungsverlauf verfügbar."
     },
     "browser": {
       "screenshotAlt": "Browser-Screenshot",
@@ -1303,12 +1313,27 @@
       "killed": "Durch Timeout beendet"
     }
   },
+  "runTimeline": {
+    "runLabel": "Run {{number}}",
+    "selectRun": "Run {{number}} auswählen",
+    "node": {
+      "action": "Ausführung",
+      "chat": "Konversation"
+    },
+    "preview": {
+      "executionSummary": "Ausführungs-Run mit Workspace-Aktivität",
+      "conversationOnly": "Nur-Konversationsdurchlauf",
+      "execution": "{{files}} Dateiänderungen · {{steps}} Replay-Schritte",
+      "duration": "Dauer {{duration}}"
+    }
+  },
   "artifacts": {
     "empty": {
       "creating": "Poco wird erstellt...",
       "working": "Agent arbeitet an deiner Aufgabe",
       "noChanges": "Keine Dateiänderungen",
-      "description": "Durch KI-Ausführung generierte Dateiänderungen werden hier angezeigt"
+      "description": "Durch KI-Ausführung generierte Dateiänderungen werden hier angezeigt",
+      "legacyHint": "Ältere Dateidaten sind möglicherweise nur in der sitzungsweiten Latest-Workspace-Ansicht verfügbar."
     },
     "viewer": {
       "loadingEngine": "Vorschau-Engine wird geladen...",
@@ -1422,7 +1447,8 @@
         "set": "Festgelegt",
         "unset": "Nicht festgelegt",
         "overridden": "Von Benutzer überschrieben",
-        "overridesSystem": "Überschreibt System"
+        "overridesSystem": "Überschreibt System",
+        "runtimeEnabled": "Runtime enabled"
       },
       "actions": {
         "override": "Überschreiben",
@@ -1445,7 +1471,15 @@
         "user": "Benutzer",
         "global": "Global",
         "mcp": "MCP"
-      }
+      },
+      "runtimeAccessLabel": "Allow in task runtime",
+      "runtimeAccessShort": "Runtime",
+      "runtimeAccessHint": "Injected values can be read by scripts, commands, plugins, and may leak through output, logs, files, or network requests.",
+      "runtimePromptOnceHint": "The warning dialog is only shown the first time you enable runtime access in this browser.",
+      "runtimeAccessScopeHint": "This switch only controls automatic injection of this saved variable. It does not remove executor-provided base environment variables or required runtime credentials.",
+      "runtimeRiskTitle": "Runtime injection may leak this secret",
+      "runtimeRiskDescription": "After enabling this option, the variable will be available inside the task runtime environment. Bash, Python, Skills, or plugins may read and export it. Enable this only when you trust the task and the capabilities it uses.",
+      "runtimeRiskConfirm": "Enable anyway"
     },
     "personalization": {
       "card": {
@@ -1509,6 +1543,21 @@
         "structured": "Strukturiert"
       },
       "delete": {
+        "envTitle": "System-Umgebungsvariablen",
+        "envDescription": "Es werden nur maskierte Werte angezeigt. Geeignet für System-Standards.",
+        "envKeyPlaceholder": "KEY",
+        "envValuePlaceholder": "Wert",
+        "envDescriptionPlaceholder": "Beschreibung",
+        "envKeyRequired": "Bitte gib den Schlüssel der Umgebungsvariable ein",
+        "envCreated": "System-Umgebungsvariable erstellt",
+        "envUpdated": "System-Umgebungsvariable aktualisiert",
+        "envDeleted": "System-Umgebungsvariable gelöscht",
+        "envUpdateHint": "Leer lassen, um den aktuellen geheimen Wert beizubehalten und nur die Beschreibung zu aktualisieren",
+        "skillsMpHelp": "Für SkillsMP_API_KEY bitte den Settings > API Keys Bereich verwenden.",
+        "runtimeVisibilityDescription": "Steuert, ob diese Variable automatisch in Aufgabenlaufzeit-Container injiziert werden darf.",
+        "runtimeVisibilityNoneHint": "Nie automatisch in Aufgaben-Container injizieren.",
+        "runtimeVisibilityAdminsOnlyHint": "Nur in Laufzeitumgebungen injizieren, die von Administratoren gestartet werden.",
+        "runtimeVisibilityAllUsersHint": "Für alle Benutzerlaufzeiten injizierbar, sofern die globale Richtlinie dies zulässt.",
         "title": "Befehl löschen?",
         "description": "Nach dem Löschen ist dieser Befehl nicht mehr in Sitzungen verfügbar."
       },
@@ -2540,7 +2589,62 @@
     "providerModelDocsSuffix": " für weitere Modelle an",
     "providerModelsDialogTitle": "Benutzerdefiniertes Modell hinzufügen",
     "providerModelsDialogDescription": "Füge manuell die vom Anbieter unterstützten Modell-IDs hinzu.",
-    "providerModelsDialogPlaceholder": "Modell-ID (z. B. gpt-4o-mini)"
+    "providerModelsDialogPlaceholder": "Modell-ID (z. B. gpt-4o-mini)",
+    "admin": {
+      "navRuntimeEnvPolicy": "Runtime env policy",
+      "runtimeEnvPolicyTitle": "Runtime environment policy",
+      "runtimeEnvPolicyDescription": "Control which environment variables may be injected into task runtime environments.",
+      "runtimeEnvPolicySaved": "Runtime environment policy updated",
+      "runtimeEnvPolicyRiskTitle": "Runtime injection increases secret exposure risk",
+      "runtimeEnvPolicyRiskDescription": "Any value injected into the task runtime may be printed, logged, written to files, or sent over the network by the task itself.",
+      "runtimeEnvPolicyScopeHint": "This policy only controls automatic injection of saved user/system env vars. It does not change executor base environment variables or runtime credentials required by the platform.",
+      "runtimeEnvPolicyMode": "Policy mode",
+      "runtimeEnvPolicyModeOptIn": "Opt-in runtime injection",
+      "runtimeEnvPolicyModeDisabled": "Disable runtime injection",
+      "runtimeEnvAllowlist": "Allowlist patterns",
+      "runtimeEnvDenylist": "Denylist patterns",
+      "runtimeEnvProtectedPrefixes": "Protected prefixes",
+      "runtimeEnvProtectedKeys": "Protected keys",
+      "runtimeEnvProtectedHint": "Protected runtime variables are always blocked from automatic injection.",
+      "runtimeVisibilityLabel": "Runtime visibility",
+      "runtimeVisibilityNone": "Do not inject",
+      "runtimeVisibilityAdminsOnly": "Admins only",
+      "runtimeVisibilityAllUsers": "All users",
+      "runtimeVisibilityProtectedWarning": "This key matches a protected runtime key/prefix. The visibility setting can be saved, but automatic runtime injection will still be blocked.",
+      "envCreateTitle": "System-Umgebungsvariable erstellen",
+      "envCreateDescription": "Gemeinsame Standardvariablen hinzufügen und steuern, ob sie in Runtime-Container injiziert werden dürfen.",
+      "envListTitle": "Konfigurierte Variablen",
+      "envListDescription": "Maskierte Werte bearbeiten, Runtime-Sichtbarkeit anpassen oder nicht mehr benötigte Variablen entfernen.",
+      "envEmpty": "Es sind noch keine System-Umgebungsvariablen vorhanden.",
+      "envSearchPlaceholder": "Umgebungsvariablen durchsuchen",
+      "envDeleteTitle": "System-Umgebungsvariable löschen?",
+      "envDeleteDescription": "{{key}} wird dauerhaft aus der Liste der System-Umgebungsvariablen entfernt.",
+      "envDeleteConfirm": "Variable löschen",
+      "delete": "Löschen",
+      "create": "Erstellen",
+      "refresh": "Aktualisieren",
+      "edit": "Bearbeiten",
+      "cancel": "Abbrechen",
+      "update": "Speichern",
+      "envTitle": "System-Umgebungsvariablen",
+      "envDescription": "Es werden nur maskierte Werte angezeigt. Geeignet für System-Standards.",
+      "envKeyPlaceholder": "KEY",
+      "envValuePlaceholder": "Wert",
+      "envDescriptionPlaceholder": "Beschreibung",
+      "envKeyRequired": "Bitte gib den Schlüssel der Umgebungsvariable ein",
+      "envCreated": "System-Umgebungsvariable erstellt",
+      "envUpdated": "System-Umgebungsvariable aktualisiert",
+      "envDeleted": "System-Umgebungsvariable gelöscht",
+      "envUpdateHint": "Leer lassen, um den aktuellen geheimen Wert beizubehalten und nur die Beschreibung zu aktualisieren",
+      "skillsMpHelp": "SkillsMP wird hier nur angezeigt, wenn ein Administrator SKILLSMP_API_KEY ausdrücklich als System-Umgebungsvariable speichert.",
+      "skillsMpInternalHint": "Dieser Schlüssel wird intern von der Plattform für SkillsMP verwendet und nicht in Task-Laufzeitcontainer injiziert.",
+      "skillsMpRowDescription": "Plattforminternes SkillsMP-Zugangsdatenfeld.",
+      "internalOnlyBadge": "Nur intern",
+      "runtimeVisibilityDescription": "Steuert, ob diese Variable automatisch in Aufgabenlaufzeit-Container injiziert werden darf.",
+      "runtimeVisibilityNoneHint": "Nie automatisch in Aufgaben-Container injizieren.",
+      "runtimeVisibilityAdminsOnlyHint": "Nur in Laufzeitumgebungen injizieren, die von Administratoren gestartet werden.",
+      "runtimeVisibilityAllUsersHint": "Für alle Benutzerlaufzeiten injizierbar, sofern die globale Richtlinie dies zulässt."
+    }
   },
   "validation": {
     "projectNameRequired": "Bitte gib einen Projektnamen ein",
@@ -2996,15 +3100,31 @@
     "login": {
       "title": "Bei Poco anmelden",
       "subtitle": "Mit Google oder GitHub fortfahren.",
+      "subtitleMultiple": "Mit einem verfügbaren Anmeldeanbieter fortfahren.",
+      "subtitleGoogleOnly": "Mit Google fortfahren.",
+      "subtitleGithubOnly": "Mit GitHub fortfahren.",
+      "setupRequiredSubtitle": "Ein Administrator muss die Anmeldung konfigurieren, bevor diese Bereitstellung verwendet werden kann.",
       "google": "Mit Google fortfahren",
       "github": "Mit GitHub fortfahren",
       "hint": "Wir verwenden eine sichere Browser-Sitzung, damit Sie angemeldet bleiben.",
-      "noProviders": "Für diese Umgebung sind keine Anmeldeanbieter konfiguriert. Prüfen Sie die OAuth-Einstellungen des Backends.",
+      "loading": "Verfügbare Anmeldeoptionen werden geprüft...",
+      "setupRequiredTitle": "Anmeldekonfiguration erforderlich",
+      "setupRequiredDescription": "Diese Bereitstellung erfordert eine OAuth-Anmeldung vor der Nutzung. Bitten Sie einen Administrator, Google- oder GitHub-Login zu konfigurieren.",
+      "setupRequiredHint": "Konfigurieren Sie mindestens einen Anmeldeanbieter und laden Sie dann diese Seite neu.",
       "errors": {
         "default": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        "runtime_config_failed": "Anmeldekonfiguration konnte nicht geladen werden. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.",
         "provider_not_configured": "Dieser Anmeldeanbieter ist noch nicht konfiguriert.",
         "invalid_oauth_state": "Ihre Anmeldesitzung ist abgelaufen. Bitte versuchen Sie es erneut.",
         "oauth_failed": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut."
+      },
+      "feishu": "Mit Feishu/Lark fortfahren",
+      "subtitleSingle": "Mit {{provider}} fortfahren.",
+      "noProviders": "Es ist kein Anmeldeanbieter verfügbar.",
+      "providers": {
+        "google": "Google",
+        "github": "GitHub",
+        "feishu": "Feishu/Lark"
       }
     }
   }

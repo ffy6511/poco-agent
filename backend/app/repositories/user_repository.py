@@ -15,6 +15,7 @@ class UserRepository:
         display_name: str | None,
         avatar_url: str | None,
         status: str = "active",
+        system_role: str = "user",
     ) -> User:
         user = User(
             id=user_id,
@@ -22,6 +23,7 @@ class UserRepository:
             display_name=display_name,
             avatar_url=avatar_url,
             status=status,
+            system_role=system_role,
         )
         session_db.add(user)
         return user
@@ -39,3 +41,7 @@ class UserRepository:
         if not user_ids:
             return []
         return session_db.query(User).filter(User.id.in_(user_ids)).all()
+
+    @staticmethod
+    def list_all(session_db: Session) -> list[User]:
+        return session_db.query(User).order_by(User.created_at.desc()).all()

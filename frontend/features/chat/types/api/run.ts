@@ -3,6 +3,7 @@
  */
 
 import type { TaskConfig, UsageResponse } from "./session";
+import type { ApiStatePatch } from "./callback";
 
 export type { TaskConfig, InputFile, UsageResponse } from "./session";
 
@@ -37,7 +38,15 @@ export interface RunResponse {
   schedule_mode: string;
   scheduled_task_id?: string | null;
   scheduled_at: string; // ISO datetime
+  state_patch?: ApiStatePatch | null;
+  workspace_archive_url?: string | null;
+  workspace_files_prefix?: string | null;
+  workspace_manifest_key?: string | null;
+  workspace_archive_key?: string | null;
+  workspace_export_status?: string | null;
   usage?: UsageResponse | null;
+  replay_step_count?: number;
+  file_change_count?: number;
   claimed_by: string | null;
   lease_expires_at: string | null;
   attempts: number;

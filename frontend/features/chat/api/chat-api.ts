@@ -9,7 +9,7 @@
  * - `../services/file-tree-builder.ts` - flat file list -> hierarchical tree
  */
 
-import { apiClient, API_ENDPOINTS } from "@/services/api-client";
+import { apiClient, API_ENDPOINTS } from "../../../services/api-client.ts";
 import type {
   ComputerBrowserScreenshotResponse,
   ExecutionSession,
@@ -43,8 +43,8 @@ import {
   parseMessages,
   parseConfigSnapshot,
   type RawApiMessage,
-} from "../services/message-parser";
-import { buildFileTree } from "../services/file-tree-builder";
+} from "../services/message-parser.ts";
+import { buildFileTree } from "../services/file-tree-builder.ts";
 
 function buildQuery(params?: Record<string, string | number | undefined>) {
   if (!params) return "";
@@ -68,6 +68,7 @@ function toExecutionSession(
     progress,
     state_patch: session.state_patch ?? {},
     config_snapshot: parseConfigSnapshot(session.config_snapshot),
+    workspace_export_status: session.workspace_export_status ?? null,
     task_name: undefined,
     user_prompt: undefined,
     title: session.title,
@@ -84,6 +85,7 @@ function createDefaultSession(sessionId: string): ExecutionSession {
     status: "pending",
     progress: 0,
     state_patch: {},
+    workspace_export_status: null,
     task_name: undefined,
     user_prompt: undefined,
     title: null,
@@ -325,6 +327,59 @@ export const chatService = {
   ): Promise<ComputerBrowserScreenshotResponse> => {
     return apiClient.get<ComputerBrowserScreenshotResponse>(
       API_ENDPOINTS.sessionBrowserScreenshot(sessionId, toolUseId),
+    );
+  },
+
+  getRunToolExecutions: async (
+    runId: string,
+    params?: { limit?: number; offset?: number },
+  ): Promise<ToolExecutionResponse[]> => {
+    const query = buildQuery(params);
+    return apiClient.get<ToolExecutionResponse[]>(
+      `${API_ENDPOINTS.runToolExecutions(runId)}${query}`,
+    );
+  },
+
+  getRunToolExecutionsDelta: async (
+    runId: string,
+    params?: {
+      after_created_at?: string;
+      after_id?: string;
+      limit?: number;
+    },
+  ): Promise<ToolExecutionDeltaResponse> => {
+    const query = buildQuery(params);
+    return apiClient.get<ToolExecutionDeltaResponse>(
+      `${API_ENDPOINTS.runToolExecutionsDelta(runId)}${query}`,
+    );
+  },
+
+  getRunBrowserScreenshot: async (
+    runId: string,
+    toolUseId: string,
+  ): Promise<ComputerBrowserScreenshotResponse> => {
+    return apiClient.get<ComputerBrowserScreenshotResponse>(
+      API_ENDPOINTS.runBrowserScreenshot(runId, toolUseId),
+    );
+  },
+
+  getRunFiles: async (runId: string): Promise<FileNode[]> => {
+    return apiClient.get<FileNode[]>(API_ENDPOINTS.runWorkspaceFiles(runId));
+  },
+
+  getRunArchive: async (runId: string): Promise<WorkspaceArchiveResponse> => {
+    return apiClient.get<WorkspaceArchiveResponse>(
+      API_ENDPOINTS.runWorkspaceArchive(runId),
+    );
+  },
+
+  getRunFolderArchive: async (
+    runId: string,
+    path: string,
+  ): Promise<WorkspaceArchiveResponse> => {
+    const query = buildQuery({ path });
+    return apiClient.get<WorkspaceArchiveResponse>(
+      `${API_ENDPOINTS.runWorkspaceFolderArchive(runId)}${query}`,
     );
   },
 
