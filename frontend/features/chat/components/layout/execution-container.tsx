@@ -22,6 +22,7 @@ import { getRunFileChangeCount } from "@/features/chat/components/layout/run-tim
 interface ExecutionContainerProps {
   sessionId: string;
   defaultRightPanelCollapsed?: boolean;
+  collapsedChatContentInsetPercent?: number;
   hidePresetBadge?: boolean;
   onCancelExecution?: (() => Promise<void>) | undefined;
 }
@@ -29,6 +30,7 @@ interface ExecutionContainerProps {
 export function ExecutionContainer({
   sessionId,
   defaultRightPanelCollapsed = false,
+  collapsedChatContentInsetPercent,
   hidePresetBadge = false,
   onCancelExecution,
 }: ExecutionContainerProps) {
@@ -330,6 +332,7 @@ export function ExecutionContainer({
       }
       hidePresetBadge={hidePresetBadge}
       onCancelExecution={onCancelExecution}
+      collapsedChatContentInsetPercent={collapsedChatContentInsetPercent}
     />
   );
 

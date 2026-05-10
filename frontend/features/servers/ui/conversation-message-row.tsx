@@ -445,7 +445,7 @@ export function MessageRow({
                 </p>
               ) : null}
             </div>
-            <div className="mt-2 cursor-text select-text text-sm leading-6 text-muted-foreground">
+            <div className="mt-2 max-h-[4.5rem] cursor-text select-text overflow-hidden text-sm leading-6 text-muted-foreground">
               <ServerMessageContent
                 content={text || t("conversationView.execution.emptySummary")}
               />

@@ -559,6 +559,7 @@ export function ExecutionDrawer({
           <ExecutionContainer
             sessionId={sessionId}
             defaultRightPanelCollapsed
+            collapsedChatContentInsetPercent={10}
             hidePresetBadge
             onCancelExecution={handleCancel}
           />

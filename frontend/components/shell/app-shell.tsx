@@ -122,7 +122,7 @@ export function AppShell({
                   onStartOnboarding={onboarding.startTour}
                 />
 
-                <SidebarInset className="flex flex-col bg-muted/30 min-h-0">
+                <SidebarInset className="flex min-w-0 flex-col bg-muted/30 min-h-0">
                   {children}
                 </SidebarInset>
 
