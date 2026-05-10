@@ -424,13 +424,26 @@ class ServerChannelServiceTests(unittest.TestCase):
                 "app.services.server_channel_service.ServerChannelAgentMemberRepository.create"
             ) as create_agent_member,
         ):
+            created_channel = None
+
             def build_channel(_db, channel):
-                channel.id = uuid.uuid4()
+                nonlocal created_channel
+                created_channel = channel
                 channel.created_at = datetime.now(UTC)
                 channel.updated_at = datetime.now(UTC)
                 return channel
 
+            def flush_side_effect():
+                assert created_channel is not None
+                created_channel.id = uuid.uuid4()
+
+            def build_agent_member(_db, membership):
+                self.assertIsNotNone(membership.channel_id)
+                return membership
+
             create_channel.side_effect = build_channel
+            self.db.flush.side_effect = flush_side_effect
+            create_agent_member.side_effect = build_agent_member
 
             result = service.create_direct_message(
                 self.db,
@@ -440,6 +453,7 @@ class ServerChannelServiceTests(unittest.TestCase):
             )
 
         create_channel.assert_called_once()
+        self.db.flush.assert_called_once()
         create_member.assert_called_once()
         create_agent_member.assert_called_once()
         created_channel = create_channel.call_args.args[1]

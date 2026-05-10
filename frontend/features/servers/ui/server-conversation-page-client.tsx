@@ -378,11 +378,14 @@ function ConversationContent({
     (behavior: ScrollBehavior = "smooth") => {
       const element = scrollContainerRef.current;
       if (!element) {
-        return;
+        return false;
       }
-      element.scrollTo({ top: element.scrollHeight, behavior });
-      setIsUserScrolling(false);
-      setShowScrollButton(false);
+      window.requestAnimationFrame(() => {
+        element.scrollTo({ top: element.scrollHeight, behavior });
+        setIsUserScrolling(false);
+        setShowScrollButton(false);
+      });
+      return true;
     },
     [],
   );
@@ -428,9 +431,10 @@ function ConversationContent({
     if (messages.length === 0 || hasInitializedScrollRef.current) {
       return;
     }
-    scrollToBottom("auto");
-    hasInitializedScrollRef.current = true;
-  }, [messages.length, scrollToBottom]);
+    if (scrollToBottom("auto")) {
+      hasInitializedScrollRef.current = true;
+    }
+  }, [isLoading, messages.length, scrollToBottom]);
 
   React.useEffect(() => {
     const hasNewMessages = messages.length > lastMessageCountRef.current;

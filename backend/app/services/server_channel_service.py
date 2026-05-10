@@ -553,6 +553,7 @@ class ServerChannelService:
                 created_by=current_user.id,
             ),
         )
+        db.flush()
         ServerChannelMemberRepository.create(
             db,
             ServerChannelMember(
