@@ -61,7 +61,8 @@ def get_current_user_id(
         user_session = auth_service.authenticate_session_token(db, session_token)
         if user_session and user_session.user_id:
             return user_session.user_id
-        raise HTTPException(status_code=401, detail="Authentication required")
+        if settings.auth_mode == "oauth_required":
+            raise HTTPException(status_code=401, detail="Authentication required")
 
     if _is_valid_internal_token(x_internal_token):
         value = (x_user_id or "").strip()
@@ -114,3 +115,15 @@ def get_user_id_by_session_id(
             message=f"Session not found: {session_id}",
         )
     return db_session.user_id
+
+
+def require_system_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Require the current user to be a system administrator."""
+    if current_user.system_role != "admin":
+        raise AppException(
+            error_code=ErrorCode.FORBIDDEN,
+            message="System admin permission required",
+        )
+    return current_user

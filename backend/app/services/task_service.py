@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+import logging
+import uuid
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -18,24 +20,34 @@ from app.repositories.user_skill_install_repository import UserSkillInstallRepos
 from app.schemas.input_file import InputFile
 from app.schemas.session import TaskConfig
 from app.schemas.task import TaskEnqueueRequest, TaskEnqueueResponse
+from app.services.env_var_service import EnvVarService
 from app.services.model_config_service import (
     PROVIDER_SPEC_MAP,
     get_allowed_model_ids,
     infer_provider_id,
 )
+from app.services.agent_runtime_service import AgentRuntimeService
 from app.services.session_queue_service import SessionQueueService
+
+logger = logging.getLogger(__name__)
+env_var_service = EnvVarService()
 
 
 class TaskService:
     """Service layer for task enqueue operations."""
 
     @staticmethod
-    def _validate_and_normalize_model(config: dict) -> None:
+    def _validate_and_normalize_model(
+        config: dict,
+        *,
+        default_model: str,
+        allowed_model_ids: list[str],
+    ) -> None:
         """Validate `model` override and normalize config in-place.
 
         Rules:
         - `model` unset/empty -> removed and clear `model_provider_id`
-        - `model` equals settings.default_model -> removed and clear `model_provider_id`
+        - `model` equals effective default_model -> removed and clear `model_provider_id`
         - explicit `model_provider_id` must be a known provider and match the inferred provider when available
         - otherwise `model` must be in the backend model catalog or belong to a known provider
         """
@@ -64,8 +76,6 @@ class TaskService:
             config.pop("model_provider_id", None)
             return
 
-        settings = get_settings()
-        default_model = (settings.default_model or "").strip()
         if value == default_model:
             config.pop("model", None)
             config.pop("model_provider_id", None)
@@ -89,7 +99,7 @@ class TaskService:
                 message=f"Invalid model provider: {provider_id}",
             )
 
-        allowed = set(get_allowed_model_ids(settings))
+        allowed = set(allowed_model_ids)
         if value not in allowed:
             raise AppException(
                 error_code=ErrorCode.BAD_REQUEST,
@@ -230,6 +240,32 @@ class TaskService:
             for project_file in ProjectFileRepository.list_by_project(db, project.id)
         ]
 
+    @staticmethod
+    def _parse_model_list(raw_value: str | None, *, fallback: list[str]) -> list[str]:
+        if raw_value is None or not raw_value.strip():
+            return fallback
+        return [
+            item.strip()
+            for item in raw_value.replace("\n", ",").split(",")
+            if item.strip()
+        ]
+
+    def _resolve_effective_model_policy(self, db: Session) -> tuple[str, list[str]]:
+        settings = get_settings()
+        system_env_map = env_var_service.get_system_env_map(db)
+        effective_default_model = (
+            system_env_map.get("DEFAULT_MODEL") or settings.default_model or ""
+        ).strip()
+        effective_model_list = self._parse_model_list(
+            system_env_map.get("MODEL_LIST"),
+            fallback=settings.model_list,
+        )
+        return effective_default_model, get_allowed_model_ids(
+            settings,
+            default_model=effective_default_model,
+            model_list=effective_model_list,
+        )
+
     def _normalize_scheduled_at(
         self, scheduled_at: datetime, timezone_name: str | None
     ) -> datetime:
@@ -324,8 +360,8 @@ class TaskService:
         project_id = request.project_id
         project = None
         if project_id is not None:
-            project = ProjectRepository.get_by_id(db, project_id)
-            if not project or project.user_id != user_id:
+            project = ProjectRepository.get_visible_by_id(db, project_id, user_id)
+            if not project:
                 raise AppException(
                     error_code=ErrorCode.PROJECT_NOT_FOUND,
                     message=f"Project not found: {project_id}",
@@ -397,6 +433,12 @@ class TaskService:
             )
             db.flush()
 
+        self._reserve_agent_runtime_if_needed(
+            db,
+            merged_config,
+            db_session.id,
+        )
+
         run_config_snapshot = dict(merged_config or {})
         merged_input_files = self._merge_input_files(
             self._build_project_input_files(db, project),
@@ -451,6 +493,15 @@ class TaskService:
         db.commit()
         db.refresh(db_session)
         db.refresh(db_run)
+        logger.info(
+            "timing",
+            extra={
+                "step": "backend_run_materialized",
+                "session_id": str(db_session.id),
+                "run_id": str(db_run.id),
+                "schedule_mode": schedule_mode,
+            },
+        )
 
         return TaskEnqueueResponse(
             session_id=db_session.id,
@@ -459,6 +510,28 @@ class TaskService:
             status=db_run.status,
             queued_query_count=session_queue_service.count_active_items(
                 db, db_session.id
+            ),
+        )
+
+    @staticmethod
+    def _reserve_agent_runtime_if_needed(
+        db: Session,
+        merged_config: dict | None,
+        session_id,
+    ) -> None:
+        if not isinstance(merged_config, dict):
+            return
+        agent_identity_id = merged_config.get("agent_identity_id")
+        runtime_mode = (merged_config.get("agent_runtime_mode") or "").strip().lower()
+        if not agent_identity_id or runtime_mode != "persistent":
+            return
+        channel_task_id = merged_config.get("channel_task_id")
+        AgentRuntimeService().reserve_persistent_runtime(
+            db,
+            agent_identity_id=uuid.UUID(str(agent_identity_id)),
+            session_id=session_id,
+            channel_task_id=(
+                uuid.UUID(str(channel_task_id)) if channel_task_id else None
             ),
         )
 
@@ -493,7 +566,10 @@ class TaskService:
         if task_config is not None:
             # Only merge fields explicitly provided by the caller to avoid
             # overriding existing session config with schema defaults.
-            request_config = task_config.model_dump(exclude_unset=True)
+            request_config = task_config.model_dump(
+                mode="json",
+                exclude_unset=True,
+            )
             # input_files are per-run and should not be merged into session config.
             request_config.pop("input_files", None)
             # Extract mcp_config toggles before merging (don't merge as dict)
@@ -505,7 +581,14 @@ class TaskService:
             merged_base = self._merge_config_map(merged_base, request_config)
 
         # Validate and normalize `model` after merging base + overrides.
-        self._validate_and_normalize_model(merged_base)
+        effective_default_model, allowed_model_ids = (
+            self._resolve_effective_model_policy(db)
+        )
+        self._validate_and_normalize_model(
+            merged_base,
+            default_model=effective_default_model,
+            allowed_model_ids=allowed_model_ids,
+        )
         self._normalize_memory_enabled(merged_base)
 
         if mcp_toggles is not None:

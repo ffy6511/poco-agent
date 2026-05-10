@@ -95,6 +95,26 @@ class AuthService:
     def _get_settings(self) -> Settings:
         return get_settings()
 
+    def _normalize_admin_emails(self) -> set[str]:
+        settings = self._get_settings()
+        normalized: set[str] = set()
+        for item in settings.system_admin_emails or []:
+            if not isinstance(item, str):
+                continue
+            for raw_part in item.split(","):
+                value = self.normalize_email(raw_part)
+                if value:
+                    normalized.add(value)
+        return normalized
+
+    def _resolve_system_role(self, email: str | None) -> str:
+        if self.is_single_user_mode_effective():
+            return "admin"
+        normalized_email = self.normalize_email(email)
+        if normalized_email and normalized_email in self._normalize_admin_emails():
+            return "admin"
+        return "user"
+
     def _get_client(self, provider: str):
         client = get_oauth_registry().create_client(provider)
         if client is None:
@@ -107,16 +127,16 @@ class AuthService:
     def get_configured_providers(self) -> list[AuthProviderName]:
         settings = self._get_settings()
         providers: list[AuthProviderName] = []
-        if (settings.google_client_id or "").strip() and (
-            settings.google_client_secret or ""
+        if (getattr(settings, "google_client_id", None) or "").strip() and (
+            getattr(settings, "google_client_secret", None) or ""
         ).strip():
             providers.append("google")
-        if (settings.github_client_id or "").strip() and (
-            settings.github_client_secret or ""
+        if (getattr(settings, "github_client_id", None) or "").strip() and (
+            getattr(settings, "github_client_secret", None) or ""
         ).strip():
             providers.append("github")
-        if (settings.feishu_oauth_client_id or "").strip() and (
-            settings.feishu_oauth_client_secret or ""
+        if (getattr(settings, "feishu_oauth_client_id", None) or "").strip() and (
+            getattr(settings, "feishu_oauth_client_secret", None) or ""
         ).strip():
             providers.append("feishu")
         return providers
@@ -129,12 +149,10 @@ class AuthService:
         - if no providers are configured, the system falls back to single-user mode.
         """
         settings = self._get_settings()
-        if settings.auth_mode == "single_user":
+        auth_mode = getattr(settings, "auth_mode", "oauth_required")
+        if auth_mode in {"disabled", "single_user"}:
             return True
-        return (
-            settings.auth_mode == "oauth_optional"
-            and not self.get_configured_providers()
-        )
+        return auth_mode == "oauth_optional" and not self.get_configured_providers()
 
     def is_login_required(self) -> bool:
         return not self.is_single_user_mode_effective()
@@ -144,8 +162,13 @@ class AuthService:
 
     def get_auth_config(self) -> AuthConfigResponse:
         configured_providers = self.get_configured_providers()
+        settings = self._get_settings()
+        auth_mode = getattr(settings, "auth_mode", "oauth_required")
+        mode = "single_user" if auth_mode == "disabled" else auth_mode
+        if mode not in {"oauth_required", "oauth_optional", "single_user"}:
+            mode = "oauth_required"
         return AuthConfigResponse(
-            mode=self._get_settings().auth_mode,
+            mode=mode,
             login_required=self.is_login_required(),
             single_user_effective=self.is_single_user_mode_effective(),
             setup_required=self.is_setup_required(),
@@ -157,6 +180,9 @@ class AuthService:
                 )
                 for provider in SUPPORTED_AUTH_PROVIDERS
             ],
+            workspace_features_enabled=bool(
+                getattr(settings, "workspace_features_enabled", True)
+            ),
         )
 
     def _default_next_path(self) -> str:
@@ -406,6 +432,7 @@ class AuthService:
                     primary_email=verified_email,
                     display_name=profile.display_name,
                     avatar_url=profile.avatar_url,
+                    system_role=self._resolve_system_role(verified_email),
                 )
                 db.flush()
             AuthIdentityRepository.create(
@@ -420,6 +447,11 @@ class AuthService:
 
         if verified_email and user.primary_email != verified_email:
             user.primary_email = verified_email
+        resolved_system_role = self._resolve_system_role(
+            verified_email or user.primary_email
+        )
+        if user.system_role != resolved_system_role:
+            user.system_role = resolved_system_role
         if profile.display_name:
             user.display_name = profile.display_name
         if profile.avatar_url:
@@ -717,6 +749,7 @@ class AuthService:
                 display_name=display_name,
                 avatar_url=None,
                 status="active",
+                system_role="admin",
             )
             db.commit()
             return user
@@ -730,6 +763,9 @@ class AuthService:
             updated = True
         if user.status != "active":
             user.status = "active"
+            updated = True
+        if user.system_role != "admin":
+            user.system_role = "admin"
             updated = True
         if updated:
             db.commit()

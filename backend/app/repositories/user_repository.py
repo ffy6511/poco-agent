@@ -15,6 +15,7 @@ class UserRepository:
         display_name: str | None,
         avatar_url: str | None,
         status: str = "active",
+        system_role: str = "user",
     ) -> User:
         user = User(
             id=user_id,
@@ -22,6 +23,7 @@ class UserRepository:
             display_name=display_name,
             avatar_url=avatar_url,
             status=status,
+            system_role=system_role,
         )
         session_db.add(user)
         return user
@@ -33,3 +35,13 @@ class UserRepository:
     @staticmethod
     def get_by_email(session_db: Session, email: str) -> User | None:
         return session_db.query(User).filter(User.primary_email == email).first()
+
+    @staticmethod
+    def list_by_ids(session_db: Session, user_ids: list[str]) -> list[User]:
+        if not user_ids:
+            return []
+        return session_db.query(User).filter(User.id.in_(user_ids)).all()
+
+    @staticmethod
+    def list_all(session_db: Session) -> list[User]:
+        return session_db.query(User).order_by(User.created_at.desc()).all()

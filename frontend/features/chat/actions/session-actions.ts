@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { chatService } from "@/features/chat/api/chat-api";
+import { chatService } from "../api/chat-api.ts";
 
 const VALIDATION_ERRORS = {
   taskContentRequired: "validation.taskContentRequired",
@@ -297,6 +297,13 @@ export type CancelSessionInput = z.infer<typeof cancelSessionSchema>;
 export async function cancelSessionAction(input: CancelSessionInput) {
   const { sessionId, reason } = cancelSessionSchema.parse(input);
   return chatService.cancelSession(sessionId, {
+    reason: reason ?? undefined,
+  });
+}
+
+export async function cancelCurrentRunAction(input: CancelSessionInput) {
+  const { sessionId, reason } = cancelSessionSchema.parse(input);
+  return chatService.cancelCurrentRun(sessionId, {
     reason: reason ?? undefined,
   });
 }
