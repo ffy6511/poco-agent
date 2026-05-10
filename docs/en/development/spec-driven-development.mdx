@@ -40,12 +40,12 @@ This keeps "why," "how," and "current progress" separate. Constitution records l
 
 The `specs/` folders represent development state, not only document categories.
 
-| Directory | Role | Use it when |
-| --- | --- | --- |
-| `constitution/` | Records decided design choices, experience goals, and structural boundaries. | The direction is settled and should become a long-lived constraint. |
-| `active/` | Records current implementation plans with background, design, and phases. | The work is ready to implement. |
-| `research/` | Records problem analysis, technical evaluation, performance investigation, and architecture exploration. | The work is not ready or does not need short-term implementation. |
-| `archive/` | Stores completed or abandoned specs. | Implementation is finished, or the approach has been dropped. |
+| Directory       | Role                                                                                                     | Use it when                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `constitution/` | Records decided design choices, experience goals, and structural boundaries.                             | The direction is settled and should become a long-lived constraint. |
+| `active/`       | Records current implementation plans with background, design, and phases.                                | The work is ready to implement.                                     |
+| `research/`     | Records problem analysis, technical evaluation, performance investigation, and architecture exploration. | The work is not ready or does not need short-term implementation.   |
+| `archive/`      | Stores completed or abandoned specs.                                                                     | Implementation is finished, or the approach has been dropped.       |
 
 Large feature work should default to reading current context from `active/`. A new agent should read the related constitution first, then the active spec, instead of reconstructing design intent from code alone.
 
@@ -81,4 +81,3 @@ Specs should help future implementation, not add ceremony.
 - Do not silently delete outdated context. Use history, archive, or superseded status to preserve how the work evolved.
 
 The goal is that future developers and agents can recover context from the repository: why the design exists, what plan to follow now, and which ideas are still only research.
-

@@ -97,9 +97,7 @@ class InternalServerChannelTasksApiTests(unittest.TestCase):
         list_tasks.assert_called_once()
 
     @patch("app.api.v1.internal_server_channel_tasks.service.read_task")
-    def test_read_internal_server_channel_task_returns_payload(
-        self, read_task
-    ) -> None:
+    def test_read_internal_server_channel_task_returns_payload(self, read_task) -> None:
         task = build_task_response(server_id=self.server_id, channel_id=self.channel_id)
         read_task.return_value = {
             "action": "read_channel_task",

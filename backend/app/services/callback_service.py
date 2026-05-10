@@ -387,9 +387,10 @@ class CallbackService:
         fallback: AgentMessage | None = None
         for message in messages:
             content = message.content if isinstance(message.content, dict) else {}
-            text = _extract_visible_message_text(content) or (
-                message.text_preview or ""
-            ).strip()
+            text = (
+                _extract_visible_message_text(content)
+                or (message.text_preview or "").strip()
+            )
             if not text:
                 continue
             if fallback is None:

@@ -91,9 +91,7 @@ class ServerChannelMessageRepository:
             query = query.filter(
                 or_(
                     ServerChannelMessage.created_at > anchor_message.created_at,
-                    (
-                        ServerChannelMessage.created_at == anchor_message.created_at
-                    )
+                    (ServerChannelMessage.created_at == anchor_message.created_at)
                     & (ServerChannelMessage.id > anchor_message.id),
                 )
             ).order_by(
@@ -104,9 +102,7 @@ class ServerChannelMessageRepository:
             query = query.filter(
                 or_(
                     ServerChannelMessage.created_at < anchor_message.created_at,
-                    (
-                        ServerChannelMessage.created_at == anchor_message.created_at
-                    )
+                    (ServerChannelMessage.created_at == anchor_message.created_at)
                     & (ServerChannelMessage.id < anchor_message.id),
                 )
             ).order_by(

@@ -514,9 +514,7 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
             text_preview="Full assistant answer",
             content={
                 "_type": "AssistantMessage",
-                "content": [
-                    {"_type": "TextBlock", "text": "Full assistant answer"}
-                ],
+                "content": [{"_type": "TextBlock", "text": "Full assistant answer"}],
             },
         )
         result_message = SimpleNamespace(
@@ -562,9 +560,7 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
             text_preview="Final assistant answer",
             content={
                 "_type": "AssistantMessage",
-                "content": [
-                    {"_type": "TextBlock", "text": "Final assistant answer"}
-                ],
+                "content": [{"_type": "TextBlock", "text": "Final assistant answer"}],
             },
         )
         callback = AgentCallbackRequest(
@@ -678,9 +674,7 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
             text_preview="Final channel answer",
             content={
                 "_type": "AssistantMessage",
-                "content": [
-                    {"_type": "TextBlock", "text": "Final channel answer"}
-                ],
+                "content": [{"_type": "TextBlock", "text": "Final channel answer"}],
             },
         )
         query = MagicMock()

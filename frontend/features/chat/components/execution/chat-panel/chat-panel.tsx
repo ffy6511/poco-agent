@@ -1022,8 +1022,7 @@ export function ChatPanel({
     20,
     Math.max(0, collapsedChatContentInsetPercent),
   );
-  const collapsedContentInsetClass =
-    "px-[var(--chat-collapsed-content-inset)]";
+  const collapsedContentInsetClass = "px-[var(--chat-collapsed-content-inset)]";
   const contentPaddingClass = isRightPanelCollapsed
     ? collapsedContentInsetClass
     : "px-4";
@@ -1390,7 +1389,9 @@ export function ChatPanel({
           browser={statePatch?.browser}
           preset={hidePresetBadge ? null : currentPreset}
           onPresetChange={setDraftPreset}
-          className={isRightPanelCollapsed ? collapsedContentInsetClass : undefined}
+          className={
+            isRightPanelCollapsed ? collapsedContentInsetClass : undefined
+          }
         />
       )}
 
@@ -1402,7 +1403,9 @@ export function ChatPanel({
           onSend={handleSendPendingMessage}
           onModify={handleModifyPendingMessage}
           onDelete={handleDeletePendingMessage}
-          className={isRightPanelCollapsed ? collapsedContentInsetClass : undefined}
+          className={
+            isRightPanelCollapsed ? collapsedContentInsetClass : undefined
+          }
         />
       )}
 
@@ -1420,7 +1423,9 @@ export function ChatPanel({
           session?.status === "canceling"
         }
         history={userPromptHistory}
-        className={isRightPanelCollapsed ? collapsedContentInsetClass : undefined}
+        className={
+          isRightPanelCollapsed ? collapsedContentInsetClass : undefined
+        }
       />
     </div>
   );
