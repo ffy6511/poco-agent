@@ -2811,7 +2811,7 @@ export function ServerConversationPageClient({
             className={cn(
               "flex min-h-0 min-w-0 flex-1 flex-col",
               hasDesktopDrawer &&
-                "xl:flex-none xl:w-[calc(100%_-_var(--server-drawer-width)_-_3rem)]",
+                "xl:flex-none xl:w-[calc(100%_-_var(--server-drawer-width)_-_0.25rem)]",
             )}
           >
             {feedModeActive ? (

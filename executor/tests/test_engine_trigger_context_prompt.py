@@ -53,6 +53,14 @@ class AgentExecutorTriggerContextPromptTests(unittest.TestCase):
         )
         self.assertIn("target_agent_handle: reviewer", prompt)
         self.assertIn("source_actor: user Alice (user-1)", prompt)
+        self.assertIn("This is a channel collaboration run", prompt)
+        self.assertIn("Field meanings:", prompt)
+        self.assertIn("trigger_type: how this run was started", prompt)
+        self.assertIn(
+            "target_agent_handle is your channel handle in this run", prompt
+        )
+        self.assertIn("Other named people or agents in the user request", prompt)
+        self.assertIn("Use list_channel_agents", prompt)
         self.assertIn("Use read_channel_messages", prompt)
         self.assertIn("list_channel_artifacts", prompt)
         self.assertIn("Please review this API error handling", prompt)

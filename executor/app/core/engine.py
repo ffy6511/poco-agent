@@ -19,6 +19,7 @@ from claude_agent_sdk.types import (
     HookMatcher,
     PermissionResultAllow,
     PermissionResultDeny,
+    ResultMessage,
     SdkPluginConfig,
     SyncHookJSONOutput,
 )
@@ -419,6 +420,8 @@ class AgentExecutor:
                     )
                     async for msg in lease.client.receive_response():
                         await self.hooks.run_on_response(ctx, msg)
+                        if self._is_terminal_response_message(msg):
+                            break
 
         except Exception as e:
             status = "failed"
@@ -450,6 +453,12 @@ class AgentExecutor:
         if config.agent_runtime_mode != "persistent" or not config.agent_identity_id:
             return None
         return f"agent:{config.agent_identity_id}:session:{self.session_id}"
+
+    @staticmethod
+    def _is_terminal_response_message(message: object) -> bool:
+        return isinstance(message, ResultMessage) or (
+            type(message).__name__ == "ResultMessage"
+        )
 
     @staticmethod
     def _build_client_cache_fingerprint(
@@ -678,6 +687,25 @@ class AgentExecutor:
 
         lines = [
             "Channel trigger context:",
+            "This is a channel collaboration run. You are responding as the target agent in a shared server/channel conversation, not as an isolated one-off chat session.",
+            "People and agents mentioned by name or @handle in the user request are likely channel collaborators. Do not assume you know every collaborator from this prompt alone; use list_channel_agents to discover channel agents when identity matters.",
+            "The identifiers below are routing and lookup handles. Use them with channel runtime tools instead of treating them as user-facing content.",
+            "",
+            "Field meanings:",
+            "- source_actor: the human, agent, or system actor whose message caused this run.",
+            "- trigger_type: how this run was started, such as channel_mention, agent_dm, or agent_collaboration.",
+            "- server_id: the long-lived collaboration workspace containing the channel.",
+            "- channel_id: the conversation scope whose messages, tasks, artifacts, reactions, and agents are available through channel tools.",
+            "- trigger_message_id: the message that directly triggered this run; read it when the visible prompt is ambiguous or truncated.",
+            "- thread_root_message_id: the root message of the current thread; use it to read thread context when the user is replying in a thread.",
+            "- target_agent_identity_id: your stable agent identity in this server.",
+            "- target_agent_handle is your channel handle in this run.",
+            "- reference_message_ids: messages selected or implied as context for this trigger.",
+            "- reference_artifact_ids: published channel artifacts selected as context; list or read artifacts before relying on their content.",
+            "- reference_task_ids: channel tasks selected as context.",
+            "- handoff_dedupe_key: an internal loop/deduplication key; do not show it to users unless explicitly asked.",
+            "",
+            "Raw trigger values:",
             f"- version: {context.get('version', 1)}",
             f"- trigger_type: {context.get('trigger_type') or config.trigger_type or 'unknown'}",
             f"- server_id: {context.get('server_id') or config.server_id}",
@@ -717,6 +745,7 @@ class AgentExecutor:
                 "",
                 "Channel context access contract:",
                 "- Treat the visible user prompt as the trigger body.",
+                "- Other named people or agents in the user request may refer to channel members or channel agents. Use list_channel_agents when you need to resolve who they are or what handles are available.",
                 "- Use read_channel_messages with trigger_message_id, thread_root_message_id, or reference_message_ids when you need full channel history.",
                 "- Use list_channel_artifacts, search_channel_artifacts, and read_channel_artifact when you need shared files.",
                 "- Do not assume recent channel conversation or artifact content is fully inlined in this prompt.",

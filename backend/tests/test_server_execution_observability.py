@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from app.models.server_channel_message import ServerChannelMessage
+from app.schemas.agent_trigger import AgentTriggerEnvelope, TriggerSourceActor
 from app.models.user import User
 from app.schemas.callback import AgentCallbackRequest, CallbackStatus
 from app.schemas.task import TaskEnqueueResponse
@@ -58,10 +59,28 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
             visual_key="preset-visual-01",
             lifecycle_state="active",
             created_by="owner-user",
+            removed_at=None,
             persistent_state=SimpleNamespace(active_session_id=None),
         )
-        membership = SimpleNamespace(agent_identity_id=self.agent_id)
-        context_service.build_message_trigger_prompt.return_value = "shared prompt"
+        membership = SimpleNamespace(
+            agent_identity_id=self.agent_id,
+            status="active",
+        )
+        context_service.extract_trigger_body.return_value = "shared prompt"
+        context_service.build_trigger_envelope.return_value = AgentTriggerEnvelope(
+            trigger_type="channel_mention",
+            server_id=self.server_id,
+            channel_id=self.channel_id,
+            trigger_message_id=message.id,
+            thread_root_message_id=message.id,
+            target_agent_identity_id=self.agent_id,
+            target_agent_handle="api-specialist",
+            source_actor=TriggerSourceActor(
+                actor_type="user",
+                user_id="user-1",
+                display_name="Alice",
+            ),
+        )
         task_service.enqueue_task.return_value = TaskEnqueueResponse(
             session_id=self.session_id,
             accepted_type="run",
@@ -351,7 +370,7 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
 
         with (
             patch(
-                "app.services.callback_service.ServerChannelMessageRepository.find_execution_placeholder",
+                "app.services.callback_service.ServerChannelMessageRepository.find_session_projection_by_run",
                 return_value=placeholder,
             ),
             patch(
@@ -430,6 +449,272 @@ class ServerExecutionObservabilityTests(unittest.TestCase):
         self.assertEqual(placeholder.content["source"], "agent_session")
         self.assertEqual(placeholder.content["text"], long_text.strip())
         self.assertEqual(placeholder.text_preview, long_text.strip())
+
+    def test_completed_callback_does_not_promote_summary_to_final_text(
+        self,
+    ) -> None:
+        service = CallbackService.__new__(CallbackService)
+        summary = "Summary " * 40
+        placeholder = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_execution",
+                "session_id": str(self.session_id),
+                "execution_status": "running",
+                "summary": summary,
+                "actor_label": "API Specialist",
+            },
+            text_preview=summary,
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db_session = SimpleNamespace(
+            id=self.session_id,
+            config_snapshot={
+                "channel_id": str(self.channel_id),
+                "agent_identity_id": str(self.agent_id),
+            },
+            state_patch=None,
+        )
+        callback = AgentCallbackRequest(
+            session_id=str(self.session_id),
+            time=datetime.now(UTC),
+            status=CallbackStatus.COMPLETED,
+            progress=100,
+        )
+
+        with patch(
+            "app.services.callback_service.ServerChannelMessageRepository.find_execution_placeholder",
+            return_value=placeholder,
+        ):
+            replaced = service._sync_execution_placeholder_to_server_channel(
+                self.db,
+                db_session=db_session,
+                db_run=None,
+                callback=callback,
+            )
+
+        self.assertFalse(replaced)
+        self.assertEqual(placeholder.content["source"], "agent_execution")
+        self.assertEqual(placeholder.content["execution_status"], "completed")
+        self.assertNotIn("text", placeholder.content)
+        self.assertEqual(placeholder.text_preview, summary.strip())
+
+    def test_latest_channel_projectable_assistant_prefers_non_result_message(
+        self,
+    ) -> None:
+        service = CallbackService.__new__(CallbackService)
+        final_message = SimpleNamespace(
+            id=10,
+            role="assistant",
+            text_preview="Full assistant answer",
+            content={
+                "_type": "AssistantMessage",
+                "content": [
+                    {"_type": "TextBlock", "text": "Full assistant answer"}
+                ],
+            },
+        )
+        result_message = SimpleNamespace(
+            id=11,
+            role="assistant",
+            text_preview="Summary only",
+            content={"_type": "ResultMessage", "result": "Summary only"},
+        )
+        query = MagicMock()
+        query.filter.return_value = query
+        query.order_by.return_value = query
+        query.limit.return_value = query
+        query.all.return_value = [result_message, final_message]
+        self.db.query.return_value = query
+
+        selected = service._latest_channel_projectable_assistant_message(
+            self.db,
+            self.session_id,
+        )
+
+        self.assertIs(selected, final_message)
+
+    def test_completed_teardown_callback_uses_prior_assistant_message_without_new_message(
+        self,
+    ) -> None:
+        service = CallbackService()
+        db_session = SimpleNamespace(
+            id=self.session_id,
+            status="running",
+            sdk_session_id=None,
+            config_snapshot={
+                "channel_id": str(self.channel_id),
+                "agent_identity_id": str(self.agent_id),
+            },
+            workspace_export_status=None,
+            workspace_files_prefix=None,
+            workspace_manifest_key=None,
+            workspace_archive_key=None,
+        )
+        prior_message = SimpleNamespace(
+            id=12,
+            role="assistant",
+            text_preview="Final assistant answer",
+            content={
+                "_type": "AssistantMessage",
+                "content": [
+                    {"_type": "TextBlock", "text": "Final assistant answer"}
+                ],
+            },
+        )
+        callback = AgentCallbackRequest(
+            session_id=str(self.session_id),
+            time=datetime.now(UTC),
+            status=CallbackStatus.COMPLETED,
+            progress=100,
+        )
+        service._im_events = MagicMock()
+        service._assignment_service = MagicMock()
+        service._channel_artifact_service = MagicMock()
+        service._im_events.enqueue_assistant_message_created.side_effect = RuntimeError(
+            "should not enqueue assistant-message event without a raw message"
+        )
+
+        with (
+            patch.object(
+                service,
+                "_resolve_session_and_run",
+                return_value=(db_session, None),
+            ),
+            patch.object(
+                service,
+                "_sync_execution_placeholder_to_server_channel",
+                return_value=False,
+            ),
+            patch.object(
+                service,
+                "_latest_channel_projectable_assistant_message",
+                return_value=prior_message,
+            ),
+            patch.object(
+                service,
+                "_mirror_assistant_message_to_server_channel",
+            ) as mirror_message,
+            patch.object(service, "_should_apply_workspace_export", return_value=True),
+            patch.object(
+                service,
+                "_should_preserve_existing_ready_workspace",
+                return_value=False,
+            ),
+            patch.object(service, "_sync_agent_runtime"),
+            patch(
+                "app.services.callback_service.RunRepository.get_unfinished_by_session",
+                return_value=None,
+            ),
+            patch(
+                "app.services.callback_service.RunRepository.get_blocking_by_session",
+                return_value=None,
+            ),
+            patch(
+                "app.services.callback_service.session_queue_service.has_active_items",
+                return_value=False,
+            ),
+            patch(
+                "app.services.callback_service.pending_skill_creation_service.detect_and_create_pending"
+            ),
+        ):
+            response = service.process_agent_callback(self.db, callback)
+
+        self.assertEqual(response.status, "completed")
+        self.assertEqual(db_session.status, "completed")
+        mirror_message.assert_called_once_with(
+            self.db,
+            db_session=db_session,
+            db_run=None,
+            db_message=prior_message,
+        )
+        service._im_events.enqueue_assistant_message_created.assert_not_called()
+        service._im_events.enqueue_run_terminal.assert_called_once()
+        self.db.commit.assert_called_once()
+
+    def test_mirror_prior_assistant_preserves_channel_root_projection_and_is_idempotent(
+        self,
+    ) -> None:
+        service = CallbackService.__new__(CallbackService)
+        trigger_message_id = uuid.uuid4()
+        placeholder = ServerChannelMessage(
+            id=uuid.uuid4(),
+            channel_id=self.channel_id,
+            author_user_id=None,
+            message_type="system",
+            content={
+                "source": "agent_execution",
+                "session_id": str(self.session_id),
+                "channel_projection_message_id": "",
+                "execution_status": "completed",
+                "summary": "Execution completed.",
+                "trigger_message_id": str(trigger_message_id),
+                "thread_root_message_id": str(trigger_message_id),
+            },
+            text_preview="Execution completed.",
+            thread_root_message_id=None,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        placeholder.content["channel_projection_message_id"] = str(placeholder.id)
+        db_session = SimpleNamespace(
+            id=self.session_id,
+            config_snapshot={
+                "channel_id": str(self.channel_id),
+                "channel_projection_message_id": str(placeholder.id),
+                "agent_identity_id": str(self.agent_id),
+                "trigger_message_id": str(trigger_message_id),
+                "thread_root_message_id": str(trigger_message_id),
+            },
+        )
+        db_message = SimpleNamespace(
+            id=23,
+            role="assistant",
+            text_preview="Final channel answer",
+            content={
+                "_type": "AssistantMessage",
+                "content": [
+                    {"_type": "TextBlock", "text": "Final channel answer"}
+                ],
+            },
+        )
+        query = MagicMock()
+        query.filter.return_value = query
+        query.order_by.return_value = query
+        query.all.return_value = [placeholder]
+        self.db.query.return_value = query
+
+        with patch(
+            "app.services.callback_service.AgentIdentityRepository.get_by_id",
+            return_value=SimpleNamespace(
+                id=self.agent_id,
+                display_name="API Specialist",
+                handle="api-specialist",
+                visual_key="preset-visual-01",
+            ),
+        ):
+            service._mirror_assistant_message_to_server_channel(
+                self.db,
+                db_session=db_session,
+                db_run=None,
+                db_message=db_message,
+            )
+            service._mirror_assistant_message_to_server_channel(
+                self.db,
+                db_session=db_session,
+                db_run=None,
+                db_message=db_message,
+            )
+
+        self.assertIsNone(placeholder.thread_root_message_id)
+        self.assertEqual(placeholder.content["source"], "agent_session")
+        self.assertEqual(placeholder.content["text"], "Final channel answer")
+        self.db.add.assert_not_called()
 
     def test_find_execution_placeholder_prefers_run_id_over_session_only(self) -> None:
         run_id_target = uuid.uuid4()

@@ -369,6 +369,36 @@ class CallbackService:
             return callback.error_message
         return None
 
+    def _latest_channel_projectable_assistant_message(
+        self,
+        db: Session,
+        session_id: uuid.UUID,
+    ) -> AgentMessage | None:
+        messages = (
+            db.query(AgentMessage)
+            .filter(
+                AgentMessage.session_id == session_id,
+                AgentMessage.role == "assistant",
+            )
+            .order_by(AgentMessage.id.desc())
+            .limit(20)
+            .all()
+        )
+        fallback: AgentMessage | None = None
+        for message in messages:
+            content = message.content if isinstance(message.content, dict) else {}
+            text = _extract_visible_message_text(content) or (
+                message.text_preview or ""
+            ).strip()
+            if not text:
+                continue
+            if fallback is None:
+                fallback = message
+            message_type = str(content.get("_type", "")).strip()
+            if "ResultMessage" not in message_type:
+                return message
+        return fallback
+
     def _resolve_server_channel_projection_context(
         self,
         *,
@@ -485,7 +515,7 @@ class CallbackService:
             if isinstance(existing_text, str):
                 existing_final_text = existing_text.strip()
 
-        replacement_text = full_text or existing_final_text or summary
+        replacement_text = full_text or existing_final_text
         if callback.status == CallbackStatus.COMPLETED and replacement_text:
             agent_label = str(
                 content.get("actor_label") or content.get("agent_label") or "Agent"
@@ -556,22 +586,20 @@ class CallbackService:
                 agent_handle = (agent.handle or "").strip() or None
                 agent_visual_key = (agent.visual_key or "").strip() or None
 
-        existing_placeholder = (
-            ServerChannelMessageRepository.find_execution_placeholder(
+        existing_projection = (
+            ServerChannelMessageRepository.find_session_projection_by_run(
                 db,
                 channel_id=channel_id,
                 session_id=db_session.id,
                 projection_message_id=projection_context["projection_message_id"],
                 run_id=db_run.id if db_run is not None else None,
                 queue_item_id=projection_context["queue_item_id"],
-                trigger_message_id=trigger_message_id,
-                thread_root_message_id=thread_root_message_id,
             )
         )
-        if existing_placeholder is not None:
-            existing_placeholder.text_preview = text
-            existing_content = dict(existing_placeholder.content or {})
-            existing_placeholder.content = {
+        if existing_projection is not None:
+            existing_projection.text_preview = text
+            existing_content = dict(existing_projection.content or {})
+            existing_projection.content = {
                 "text": text,
                 "actor_label": actor_label,
                 "source": "agent_session",
@@ -589,7 +617,6 @@ class CallbackService:
                 if trigger_message_id
                 else None,
             }
-            existing_placeholder.thread_root_message_id = thread_root_message_id
             db.flush()
             return
 
@@ -667,8 +694,6 @@ class CallbackService:
     ) -> AgentMessage:
         role = self._extract_role_from_message(message)
         text_preview = _extract_visible_message_text(message)
-        if text_preview:
-            text_preview = text_preview[:500]
 
         db_message = MessageRepository.create(
             session_db=db,
@@ -858,10 +883,26 @@ class CallbackService:
                 if promoted_run is not None:
                     db_session.status = "pending"
 
+        message_to_mirror = persisted_message
         if (
-            persisted_message is not None
-            and callback.new_message
-            and isinstance(callback.new_message, dict)
+            callback.status == CallbackStatus.COMPLETED
+            and not placeholder_replaced_with_final_message
+        ):
+            if message_to_mirror is None:
+                message_to_mirror = self._latest_channel_projectable_assistant_message(
+                    db,
+                    db_session.id,
+                )
+            elif isinstance(message_to_mirror.content, dict) and (
+                "ResultMessage" in str(message_to_mirror.content.get("_type", ""))
+            ):
+                message_to_mirror = self._latest_channel_projectable_assistant_message(
+                    db,
+                    db_session.id,
+                )
+
+        if (
+            message_to_mirror is not None
             and callback.status == CallbackStatus.COMPLETED
             and not placeholder_replaced_with_final_message
         ):
@@ -870,7 +911,7 @@ class CallbackService:
                     db,
                     db_session=db_session,
                     db_run=db_run,
-                    db_message=persisted_message,
+                    db_message=message_to_mirror,
                 )
             except Exception:
                 logger.exception(
@@ -878,28 +919,29 @@ class CallbackService:
                     extra={
                         "session_id": str(db_session.id),
                         "run_id": str(db_run.id) if db_run is not None else None,
-                        "message_id": persisted_message.id,
+                        "message_id": getattr(message_to_mirror, "id", None),
                     },
                 )
-            try:
-                self._im_events.enqueue_assistant_message_created(
-                    db,
-                    db_session=db_session,
-                    db_run=db_run,
-                    db_message=persisted_message,
-                    raw_message=callback.new_message,
-                    callback=callback,
-                )
-            except Exception:
-                logger.exception(
-                    "im_event_enqueue_failed",
-                    extra={
-                        "event_type": "assistant_message.created",
-                        "session_id": str(db_session.id),
-                        "run_id": str(db_run.id) if db_run is not None else None,
-                        "message_id": persisted_message.id,
-                    },
-                )
+            if persisted_message is not None and isinstance(callback.new_message, dict):
+                try:
+                    self._im_events.enqueue_assistant_message_created(
+                        db,
+                        db_session=db_session,
+                        db_run=db_run,
+                        db_message=persisted_message,
+                        raw_message=callback.new_message,
+                        callback=callback,
+                    )
+                except Exception:
+                    logger.exception(
+                        "im_event_enqueue_failed",
+                        extra={
+                            "event_type": "assistant_message.created",
+                            "session_id": str(db_session.id),
+                            "run_id": str(db_run.id) if db_run is not None else None,
+                            "message_id": persisted_message.id,
+                        },
+                    )
 
         if callback.status in {CallbackStatus.COMPLETED, CallbackStatus.FAILED}:
             try:

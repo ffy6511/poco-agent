@@ -558,6 +558,7 @@ export function ExecutionDrawer({
         >
           <ExecutionContainer
             sessionId={sessionId}
+            defaultRightPanelCollapsed
             hidePresetBadge
             onCancelExecution={handleCancel}
           />
