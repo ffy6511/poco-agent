@@ -47,15 +47,23 @@ class ChannelRuntimeClient:
     async def read_messages(
         self,
         *,
-        message_ids: list[str] | None,
-        thread_root_message_id: str | None,
-        limit: int | None,
+        message_ids: list[str] | None = None,
+        thread_root_message_id: str | None = None,
+        anchor_message_id: str | None = None,
+        direction: str | None = None,
+        include_anchor: bool = True,
+        read_all: bool = False,
+        limit: int | None = None,
     ) -> Any:
         return await self._request(
             "/api/v1/agent-channel-runtime/messages/read",
             {
                 "message_ids": message_ids or [],
                 "thread_root_message_id": thread_root_message_id,
+                "anchor_message_id": anchor_message_id,
+                "direction": direction,
+                "include_anchor": include_anchor,
+                "read_all": read_all,
                 "limit": limit,
             },
         )
@@ -273,20 +281,25 @@ def create_channel_runtime_mcp_server(
         {
             "message_ids": list,
             "thread_root_message_id": str,
+            "anchor_message_id": str,
+            "direction": str,
+            "include_anchor": bool,
+            "read_all": bool,
             "limit": int,
         },
     )
     async def read_channel_messages(args: dict[str, Any]) -> dict[str, Any]:
         raw_message_ids = args.get("message_ids")
-        message_ids = (
-            [
+        if isinstance(raw_message_ids, list):
+            message_ids = [
                 item.strip()
                 for item in raw_message_ids
                 if isinstance(item, str) and item.strip()
             ]
-            if isinstance(raw_message_ids, list)
-            else []
-        )
+        elif isinstance(raw_message_ids, str) and raw_message_ids.strip():
+            message_ids = [raw_message_ids.strip()]
+        else:
+            message_ids = []
         thread_root_message_id = args.get("thread_root_message_id")
         thread_root_message_id = (
             thread_root_message_id.strip()
@@ -294,18 +307,38 @@ def create_channel_runtime_mcp_server(
             and thread_root_message_id.strip()
             else None
         )
-        if not message_ids and thread_root_message_id is None:
+        anchor_message_id = args.get("anchor_message_id")
+        anchor_message_id = (
+            anchor_message_id.strip()
+            if isinstance(anchor_message_id, str) and anchor_message_id.strip()
+            else None
+        )
+        direction = args.get("direction")
+        direction = (
+            direction.strip().lower()
+            if isinstance(direction, str) and direction.strip()
+            else None
+        )
+        if direction is not None and direction not in {"before", "after"}:
             return _format_tool_error(
                 "read_channel_messages",
-                "message_ids or thread_root_message_id must be provided",
+                "direction must be 'before' or 'after'",
                 code="invalid_arguments",
             )
+        include_anchor = args.get("include_anchor")
+        read_all = args.get("read_all")
         limit = args.get("limit")
         return await _run_tool(
             "read_channel_messages",
             runtime_client.read_messages(
                 message_ids=message_ids,
                 thread_root_message_id=thread_root_message_id,
+                anchor_message_id=anchor_message_id,
+                direction=direction,
+                include_anchor=include_anchor
+                if isinstance(include_anchor, bool)
+                else True,
+                read_all=read_all if isinstance(read_all, bool) else False,
                 limit=limit if isinstance(limit, int) else None,
             ),
         )

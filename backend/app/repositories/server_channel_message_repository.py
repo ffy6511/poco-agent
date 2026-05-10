@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.server_channel_message import ServerChannelMessage
@@ -32,7 +32,7 @@ class ServerChannelMessageRepository:
         channel_id: uuid.UUID,
         *,
         before_message_id: uuid.UUID | None = None,
-        limit: int = 50,
+        limit: int | None = 50,
     ) -> list[ServerChannelMessage]:
         query = session_db.query(ServerChannelMessage).filter(
             ServerChannelMessage.channel_id == channel_id,
@@ -47,14 +47,73 @@ class ServerChannelMessageRepository:
                 query = query.filter(
                     ServerChannelMessage.created_at < before.created_at
                 )
-        return (
-            query.order_by(
+        query = query.order_by(
+            ServerChannelMessage.created_at.desc(),
+            ServerChannelMessage.id.desc(),
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
+
+    @staticmethod
+    def list_all_by_channel(
+        session_db: Session,
+        channel_id: uuid.UUID,
+        *,
+        limit: int | None = None,
+    ) -> list[ServerChannelMessage]:
+        query = (
+            session_db.query(ServerChannelMessage)
+            .filter(ServerChannelMessage.channel_id == channel_id)
+            .order_by(
                 ServerChannelMessage.created_at.desc(),
                 ServerChannelMessage.id.desc(),
             )
-            .limit(limit)
-            .all()
         )
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
+
+    @staticmethod
+    def list_from_anchor(
+        session_db: Session,
+        channel_id: uuid.UUID,
+        *,
+        anchor_message: ServerChannelMessage,
+        direction: str,
+        limit: int = 50,
+    ) -> list[ServerChannelMessage]:
+        query = session_db.query(ServerChannelMessage).filter(
+            ServerChannelMessage.channel_id == channel_id,
+            ServerChannelMessage.thread_root_message_id.is_(None),
+        )
+        if direction == "after":
+            query = query.filter(
+                or_(
+                    ServerChannelMessage.created_at > anchor_message.created_at,
+                    (
+                        ServerChannelMessage.created_at == anchor_message.created_at
+                    )
+                    & (ServerChannelMessage.id > anchor_message.id),
+                )
+            ).order_by(
+                ServerChannelMessage.created_at.asc(),
+                ServerChannelMessage.id.asc(),
+            )
+        else:
+            query = query.filter(
+                or_(
+                    ServerChannelMessage.created_at < anchor_message.created_at,
+                    (
+                        ServerChannelMessage.created_at == anchor_message.created_at
+                    )
+                    & (ServerChannelMessage.id < anchor_message.id),
+                )
+            ).order_by(
+                ServerChannelMessage.created_at.desc(),
+                ServerChannelMessage.id.desc(),
+            )
+        return query.limit(limit).all()
 
     @staticmethod
     def list_replies(

@@ -652,7 +652,7 @@ class AgentExecutor:
         return "\n".join(
             [
                 "Channel runtime tools contract:",
-                "- Use read_channel_messages with message_ids or thread_root_message_id when you need full channel message text or reaction groups.",
+                "- Use read_channel_messages with message_ids for exact messages, thread_root_message_id for a thread, anchor_message_id plus direction before/after for channel timeline paging, no selector for recent channel messages, or read_all=true only when you truly need the full channel timeline.",
                 "- Use list_channel_agents before requesting another agent's help when you need to discover available collaborators.",
                 "- Use request_agent_collaboration for explicit agent-to-agent collaboration; include the smallest useful request_text and references.",
                 "- Agent output that mentions @handle is visible text only and does not trigger another agent.",
@@ -746,7 +746,7 @@ class AgentExecutor:
                 "Channel context access contract:",
                 "- Treat the visible user prompt as the trigger body.",
                 "- Other named people or agents in the user request may refer to channel members or channel agents. Use list_channel_agents when you need to resolve who they are or what handles are available.",
-                "- Use read_channel_messages with trigger_message_id, thread_root_message_id, or reference_message_ids when you need full channel history.",
+                "- Use read_channel_messages with trigger_message_id, thread_root_message_id, reference_message_ids, anchor_message_id plus direction before/after, no selector, or read_all=true when you need channel history beyond the visible prompt.",
                 "- Use list_channel_artifacts, search_channel_artifacts, and read_channel_artifact when you need shared files.",
                 "- Do not assume recent channel conversation or artifact content is fully inlined in this prompt.",
             ]

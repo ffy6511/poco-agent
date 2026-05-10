@@ -120,6 +120,181 @@ class ChannelRuntimeServiceTests(unittest.TestCase):
         self.assertEqual(result.messages[0].reply_count, 2)
         self.assertEqual(result.messages[0].reactions[0], reaction_group)
 
+    def test_read_messages_without_selector_returns_channel_timeline(self) -> None:
+        message_id = uuid.uuid4()
+        message = self._message(message_id, text="Latest channel message")
+
+        with (
+            patch.object(
+                self.service._scope_service,
+                "resolve_scope",
+                return_value=self.scope,
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.list_by_channel",
+                return_value=[message],
+            ) as list_by_channel,
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.count_replies_by_roots",
+                return_value={},
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageReactionService.list_grouped_by_messages",
+                return_value={},
+            ),
+        ):
+            result = self.service.read_messages(
+                self.db,
+                session_id=self.session_id,
+                request=AgentChannelMessageReadRequest(limit=20),
+            )
+
+        list_by_channel.assert_called_once_with(
+            self.db,
+            self.channel_id,
+            before_message_id=None,
+            limit=20,
+        )
+        self.assertEqual([item.message_id for item in result.messages], [message_id])
+
+    def test_read_messages_can_read_all_channel_timeline_messages(self) -> None:
+        message_id = uuid.uuid4()
+        message = self._message(message_id, text="Timeline message")
+
+        with (
+            patch.object(
+                self.service._scope_service,
+                "resolve_scope",
+                return_value=self.scope,
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.list_all_by_channel",
+                return_value=[message],
+            ) as list_all_by_channel,
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.count_replies_by_roots",
+                return_value={},
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageReactionService.list_grouped_by_messages",
+                return_value={},
+            ),
+        ):
+            result = self.service.read_messages(
+                self.db,
+                session_id=self.session_id,
+                request=AgentChannelMessageReadRequest(read_all=True),
+            )
+
+        list_all_by_channel.assert_called_once_with(
+            self.db,
+            self.channel_id,
+            limit=None,
+        )
+        self.assertEqual([item.message_id for item in result.messages], [message_id])
+
+    def test_read_messages_can_page_before_anchor_message(self) -> None:
+        anchor_id = uuid.uuid4()
+        older_id = uuid.uuid4()
+        anchor = self._message(anchor_id, text="anchor")
+        older = self._message(older_id, text="older")
+
+        with (
+            patch.object(
+                self.service._scope_service,
+                "resolve_scope",
+                return_value=self.scope,
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.get_by_id",
+                return_value=anchor,
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.list_from_anchor",
+                return_value=[older],
+            ) as list_from_anchor,
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.count_replies_by_roots",
+                return_value={},
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageReactionService.list_grouped_by_messages",
+                return_value={},
+            ),
+        ):
+            result = self.service.read_messages(
+                self.db,
+                session_id=self.session_id,
+                request=AgentChannelMessageReadRequest(
+                    anchor_message_id=anchor_id,
+                    direction="before",
+                    limit=20,
+                ),
+            )
+
+        list_from_anchor.assert_called_once_with(
+            self.db,
+            self.channel_id,
+            anchor_message=anchor,
+            direction="before",
+            limit=19,
+        )
+        self.assertEqual(
+            [item.message_id for item in result.messages],
+            [anchor_id, older_id],
+        )
+
+    def test_read_messages_can_page_after_anchor_message(self) -> None:
+        anchor_id = uuid.uuid4()
+        newer_id = uuid.uuid4()
+        anchor = self._message(anchor_id, text="anchor")
+        newer = self._message(newer_id, text="newer")
+
+        with (
+            patch.object(
+                self.service._scope_service,
+                "resolve_scope",
+                return_value=self.scope,
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.get_by_id",
+                return_value=anchor,
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.list_from_anchor",
+                return_value=[newer],
+            ) as list_from_anchor,
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageRepository.count_replies_by_roots",
+                return_value={},
+            ),
+            patch(
+                "app.services.channel_runtime_service.ServerChannelMessageReactionService.list_grouped_by_messages",
+                return_value={},
+            ),
+        ):
+            result = self.service.read_messages(
+                self.db,
+                session_id=self.session_id,
+                request=AgentChannelMessageReadRequest(
+                    anchor_message_id=anchor_id,
+                    direction="after",
+                    limit=20,
+                ),
+            )
+
+        list_from_anchor.assert_called_once_with(
+            self.db,
+            self.channel_id,
+            anchor_message=anchor,
+            direction="after",
+            limit=19,
+        )
+        self.assertEqual(
+            [item.message_id for item in result.messages],
+            [anchor_id, newer_id],
+        )
+
     def test_list_agents_returns_active_channel_agents(self) -> None:
         target_agent_id = uuid.uuid4()
         memberships = [

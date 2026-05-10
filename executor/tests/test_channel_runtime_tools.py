@@ -58,6 +58,10 @@ class ChannelRuntimeToolContractTests(unittest.IsolatedAsyncioTestCase):
             result = await client.read_messages(
                 message_ids=["message-1"],
                 thread_root_message_id=None,
+                anchor_message_id="anchor-1",
+                direction="after",
+                include_anchor=False,
+                read_all=True,
                 limit=20,
             )
 
@@ -67,6 +71,10 @@ class ChannelRuntimeToolContractTests(unittest.IsolatedAsyncioTestCase):
             {
                 "message_ids": ["message-1"],
                 "thread_root_message_id": None,
+                "anchor_message_id": "anchor-1",
+                "direction": "after",
+                "include_anchor": False,
+                "read_all": True,
                 "limit": 20,
             },
         )

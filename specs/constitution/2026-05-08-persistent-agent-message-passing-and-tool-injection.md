@@ -185,7 +185,7 @@ sequenceDiagram
 | 共享文件 | 当前保留 | `list_channel_artifacts` | 列出当前频道 published artifacts |
 | 共享文件 | 当前保留 | `search_channel_artifacts` | 按名称、logical path、来源或文本搜索 |
 | 共享文件 | 当前保留 | `read_channel_artifact` | 按 `artifact_id` 或 `logical_path` 读取内容 |
-| 频道消息 | 新增建议 | `read_channel_messages` | 按 `message_ids` 或 `thread_root_message_id` 读取完整消息/回复 |
+| 频道消息 | 当前实现 | `read_channel_messages` | 按 `message_ids` 精确读、按 `thread_root_message_id` 读 thread、按 `anchor_message_id + direction` 翻阅频道 timeline、或用 `read_all` 显式读取当前频道全部消息 |
 | 频道消息 | 延后可选 | `search_channel_messages` | 当轻量索引不足以发现历史消息时再加 |
 | 频道成员 | 新增建议 | `list_channel_agents` | 返回当前频道可协作 agent 的 handle/id/display name |
 | Agent 协作 | 新增建议 | `request_agent_collaboration` | 显式触发另一个 agent，参数保持路由与最小请求语义 |
@@ -197,6 +197,39 @@ sequenceDiagram
 | 消息互动 | 来自 reaction draft | `remove_channel_message_reaction` | 撤销当前 agent 的 reaction |
 
 这个表描述的是 agent 看到的工具能力，不要求每个领域单独创建一个 MCP server。第一版实现时，新增 message / collaboration / reaction tools 应直接进入统一 channel runtime MCP server；现有 artifacts / tasks 可以在同一阶段迁移，或先通过 facade 包装旧 client，后续再删除旧注入入口。
+
+#### `read_channel_messages` 当前契约
+
+`read_channel_messages` 是频道消息读取的统一入口，不再只表示“读取 thread”。它必须同时覆盖精确读取、thread 读取、频道 timeline 翻页和显式全量读取，避免 agent 因为只拿到当前 thread 而误判频道上下文。
+
+当前输入字段：
+
+```json
+{
+  "message_ids": ["00000000-0000-0000-0000-000000000000"],
+  "thread_root_message_id": "00000000-0000-0000-0000-000000000000",
+  "anchor_message_id": "00000000-0000-0000-0000-000000000000",
+  "direction": "before",
+  "include_anchor": true,
+  "read_all": false,
+  "limit": 50
+}
+```
+
+读取规则：
+
+- `message_ids` 用于精确读取一个或多个已知消息。executor 兼容单个字符串输入，但规范层面仍建议传数组。
+- `thread_root_message_id` 用于读取指定 thread 的 root message 和 replies。如果传入的是 reply id，backend 会解析到对应 root。
+- `anchor_message_id + direction` 用于从某条消息开始向前或向后翻阅当前频道 timeline。`direction = before` 读取更旧消息，`direction = after` 读取更新消息；`include_anchor` 控制返回结果是否包含锚点消息。
+- 无 selector 时返回当前频道最近一页顶层消息，用于 agent 主动发现近期上下文。
+- `read_all = true` 只能作为显式选择使用，表示读取当前频道全部消息行，包括 thread replies。默认调用不能隐式全量读取，避免把大量历史误塞进上下文。
+- `limit` 默认 50，常规读取会被服务端限制在安全上限内。`read_all = true` 且无其他 selector 时不使用分页上限。
+
+当前实现限制：
+
+- `anchor_message_id + direction` 目前按频道顶层 timeline 翻页，不把 thread replies 混入同一条线性 timeline。如果后续产品要求“任意消息都能按全频道消息流前后翻”，需要扩展 repository 查询语义。
+- `read_all = true` 面向调试、复盘和小频道上下文恢复。常规 agent 协作应优先使用 `message_ids`、`thread_root_message_id` 或 anchor 翻页。
+- `read_channel_messages` 会返回 reaction 聚合和 reply count，因此不需要单独的 reaction 读取 tool。
 
 `request_agent_collaboration` 建议参数：
 
@@ -292,3 +325,4 @@ flowchart TD
 | --- | --- | --- |
 | 2026-05-08 | 初次记录 | 固化持久化 agent 频道触发、消息显示与 channel tool 注入体系 |
 | 2026-05-08 | 补充单一 `ChannelRuntimeClient` / `__poco_channel_runtime` 注入约束 | 避免新增频道 tool 继续分散到多个 MCP server |
+| 2026-05-10 | 补充 `read_channel_messages` timeline 翻页与显式全量读取契约 | 防止消息读取 tool 语义漂移成只能读取 thread |

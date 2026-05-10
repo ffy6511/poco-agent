@@ -57,7 +57,13 @@ class ChannelRuntimeService:
         request: AgentChannelMessageReadRequest,
     ) -> AgentChannelMessagesReadResponse:
         scope = self._scope_service.resolve_scope(db, session_id=session_id)
+        has_selector = bool(
+            request.message_ids
+            or request.thread_root_message_id is not None
+            or request.anchor_message_id is not None
+        )
         limit = self._normalize_limit(request.limit)
+        timeline_limit = None if request.read_all and not has_selector else limit
         messages: list[ServerChannelMessage] = []
 
         for message_id in request.message_ids[:limit]:
@@ -91,20 +97,49 @@ class ChannelRuntimeService:
                 )
             )
 
-        if not request.message_ids and request.thread_root_message_id is None:
-            default_message_id = (
-                scope.thread_root_message_id or scope.trigger_message_id
+        if request.anchor_message_id is not None and len(messages) < limit:
+            anchor = self._require_message_in_scope(
+                db,
+                scope=scope,
+                message_id=request.anchor_message_id,
             )
-            if default_message_id is not None:
-                messages.append(
-                    self._require_message_in_scope(
+            remaining = limit - len(messages)
+            if request.include_anchor and remaining > 0:
+                messages.append(anchor)
+                remaining -= 1
+            if remaining > 0:
+                messages.extend(
+                    ServerChannelMessageRepository.list_from_anchor(
                         db,
-                        scope=scope,
-                        message_id=default_message_id,
+                        scope.channel_id,
+                        anchor_message=anchor,
+                        direction=request.direction or "before",
+                        limit=remaining,
                     )
                 )
 
-        messages = self._dedupe_messages(messages)[:limit]
+        if not has_selector:
+            if request.read_all:
+                messages.extend(
+                    ServerChannelMessageRepository.list_all_by_channel(
+                        db,
+                        scope.channel_id,
+                        limit=timeline_limit,
+                    )
+                )
+            else:
+                messages.extend(
+                    ServerChannelMessageRepository.list_by_channel(
+                        db,
+                        scope.channel_id,
+                        before_message_id=None,
+                        limit=timeline_limit,
+                    )
+                )
+
+        messages = self._dedupe_messages(messages)
+        if timeline_limit is not None:
+            messages = messages[:timeline_limit]
         for message in messages:
             if message.channel_id != scope.channel_id:
                 raise AppException(

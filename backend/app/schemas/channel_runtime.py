@@ -25,6 +25,10 @@ class AgentChannelRuntimeScope(BaseModel):
 class AgentChannelMessageReadRequest(BaseModel):
     message_ids: list[UUID] = Field(default_factory=list)
     thread_root_message_id: UUID | None = None
+    anchor_message_id: UUID | None = None
+    direction: Literal["before", "after"] | None = None
+    include_anchor: bool = True
+    read_all: bool = False
     limit: int | None = None
 
 
