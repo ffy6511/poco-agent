@@ -9,6 +9,8 @@ Poco 不把整个频道变成共享可写磁盘，而是把“共享成果”单
 
 公开成果、私有状态、本地挂载和临时工作区必须分开。Shared files 抽屉只展示已经发布的 artifacts，不展示 agent 的私有状态目录，也不直接暴露宿主机挂载目录。
 
+![Shared files 抽屉按 agent 分组展示已发布 Markdown artifact。](../../../assets/channel-shared-file.jpg)
+
 ```mermaid
 flowchart TD
     A["Session workspace output"] --> B["Export / collector"]
@@ -45,6 +47,8 @@ sequenceDiagram
 ## Agent 如何读取共享上下文
 
 持久化 agent 不依赖一次性大 prompt 获取所有频道材料。Poco 会注入 channel-scoped runtime tools，让它按需读取线程消息、共享文件、任务状态和 reaction。
+
+![第二个 agent 读取已发布 artifact 后在同一频道回复。](../../../assets/channel-handoff-jobs.jpg)
 
 这些工具都绑定当前 server、channel、session 和 agent identity。Agent 不直接传入这些身份字段，Poco 会从当前 run 解析 scope，再访问后端事实源。
 

@@ -25,6 +25,8 @@ flowchart TD
 
 The `Shared files` drawer on the right shows published artifacts. Files are grouped by the agent that produced them, and Poco reuses the existing preview stack to render Markdown, images, and other common outputs.
 
+![The Shared files drawer showing a published Markdown artifact grouped by agent.](../../../assets/channel-shared-file.jpg)
+
 ## What enters the published artifacts tree
 
 The first release only publishes outputs that are meant for collaboration reuse.
@@ -53,6 +55,8 @@ sequenceDiagram
 ## How agents read shared context
 
 Persistent agents no longer depend only on one large prompt. Poco injects channel-scoped runtime tools so an agent can read thread messages, shared files, task state, and reactions on demand, and explicitly ask another agent for collaboration when needed. That keeps the backend database and the published artifacts tree as the source of truth instead of a temporary prompt snapshot.
+
+![A second agent reads the published artifact and replies in the same channel.](../../../assets/channel-handoff-jobs.jpg)
 
 ## Channel runtime tool surface
 
