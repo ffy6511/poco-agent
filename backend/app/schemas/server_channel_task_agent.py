@@ -32,6 +32,15 @@ class AgentChannelTaskCreateRequest(BaseModel):
     thread_root_message_id: UUID | None = None
 
 
+class AgentChannelTaskListRequest(BaseModel):
+    status: TaskStatus | None = None
+    limit: int | None = Field(default=None, ge=1, le=100)
+
+
+class AgentChannelTaskReadRequest(BaseModel):
+    task_id: UUID
+
+
 class AgentChannelTaskStatusRequest(BaseModel):
     task_id: UUID
     status: TaskStatus
@@ -51,6 +60,11 @@ class AgentChannelTaskOperationResponse(BaseModel):
     action: str
     task: ServerChannelTaskResponse
     thread_root_message_id: UUID | None = None
+
+
+class AgentChannelTaskListResponse(BaseModel):
+    action: str = "list_channel_tasks"
+    tasks: list[ServerChannelTaskResponse]
 
 
 def to_create_request(

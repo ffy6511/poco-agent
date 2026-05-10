@@ -14,7 +14,10 @@ from app.schemas.server_channel_task_agent import (
     AgentChannelTaskCommentRequest,
     AgentChannelTaskContext,
     AgentChannelTaskCreateRequest,
+    AgentChannelTaskListRequest,
+    AgentChannelTaskListResponse,
     AgentChannelTaskOperationResponse,
+    AgentChannelTaskReadRequest,
     AgentChannelTaskStatusRequest,
     to_claim_self_request,
     to_create_request,
@@ -134,6 +137,47 @@ class ServerChannelTaskAgentService:
         )
         return AgentChannelTaskOperationResponse(
             action="create_channel_task",
+            task=task,
+            thread_root_message_id=task.thread_root_message_id,
+        )
+
+    def list_tasks(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        request: AgentChannelTaskListRequest,
+    ) -> AgentChannelTaskListResponse:
+        context = self.resolve_context(db, session_id=session_id)
+        tasks = self._task_service.list_tasks(
+            db,
+            self._load_actor_user(context),
+            context.server_id,
+            context.channel_id,
+        )
+        if request.status is not None:
+            tasks = [task for task in tasks if task.status == request.status]
+        if request.limit is not None:
+            tasks = tasks[: request.limit]
+        return AgentChannelTaskListResponse(tasks=tasks)
+
+    def read_task(
+        self,
+        db: Session,
+        *,
+        session_id: uuid.UUID,
+        request: AgentChannelTaskReadRequest,
+    ) -> AgentChannelTaskOperationResponse:
+        context = self.resolve_context(db, session_id=session_id)
+        task = self._task_service.get_task(
+            db,
+            self._load_actor_user(context),
+            context.server_id,
+            context.channel_id,
+            request.task_id,
+        )
+        return AgentChannelTaskOperationResponse(
+            action="read_channel_task",
             task=task,
             thread_root_message_id=task.thread_root_message_id,
         )

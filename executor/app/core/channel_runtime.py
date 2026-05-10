@@ -142,6 +142,23 @@ class ChannelRuntimeClient:
             {"title": title, "description": description, "priority": priority},
         )
 
+    async def list_tasks(
+        self,
+        *,
+        status: str | None,
+        limit: int | None,
+    ) -> Any:
+        return await self._request(
+            "/api/v1/agent-channel-tasks/list",
+            {"status": status, "limit": limit},
+        )
+
+    async def read_task(self, *, task_id: str) -> Any:
+        return await self._request(
+            "/api/v1/agent-channel-tasks/read",
+            {"task_id": task_id},
+        )
+
     async def update_task_status(
         self,
         *,
@@ -425,6 +442,52 @@ def create_channel_runtime_mcp_server(
         )
 
     @tool(
+        "list_channel_tasks",
+        "List structured tasks in the current server channel",
+        {"status": str, "limit": int},
+    )
+    async def list_channel_tasks(args: dict[str, Any]) -> dict[str, Any]:
+        status = args.get("status")
+        status = status.strip() if isinstance(status, str) and status.strip() else None
+        if status is not None and status not in {
+            "todo",
+            "in_progress",
+            "in_review",
+            "done",
+        }:
+            return _format_tool_error(
+                "list_channel_tasks",
+                "status must be todo, in_progress, in_review, or done",
+                code="invalid_arguments",
+            )
+        limit = args.get("limit")
+        return await _run_tool(
+            "list_channel_tasks",
+            runtime_client.list_tasks(
+                status=status,
+                limit=limit if isinstance(limit, int) else None,
+            ),
+        )
+
+    @tool(
+        "read_channel_task",
+        "Read one structured task in the current server channel",
+        {"task_id": str},
+    )
+    async def read_channel_task(args: dict[str, Any]) -> dict[str, Any]:
+        task_id = args.get("task_id")
+        if not isinstance(task_id, str) or not task_id.strip():
+            return _format_tool_error(
+                "read_channel_task",
+                "task_id must be a non-empty string",
+                code="invalid_arguments",
+            )
+        return await _run_tool(
+            "read_channel_task",
+            runtime_client.read_task(task_id=task_id.strip()),
+        )
+
+    @tool(
         "create_channel_task",
         "Create a structured channel task in the current server channel",
         {"title": str, "description": str, "priority": str},
@@ -589,6 +652,8 @@ def create_channel_runtime_mcp_server(
             read_channel_messages,
             list_channel_agents,
             request_agent_collaboration,
+            list_channel_tasks,
+            read_channel_task,
             create_channel_task,
             update_channel_task_status,
             claim_channel_task,

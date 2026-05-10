@@ -189,6 +189,8 @@ sequenceDiagram
 | 频道消息 | 延后可选 | `search_channel_messages` | 当轻量索引不足以发现历史消息时再加 |
 | 频道成员 | 新增建议 | `list_channel_agents` | 返回当前频道可协作 agent 的 handle/id/display name |
 | Agent 协作 | 新增建议 | `request_agent_collaboration` | 显式触发另一个 agent，参数保持路由与最小请求语义 |
+| 频道任务 | 当前实现 | `list_channel_tasks` | 列出当前频道任务，可按 status 过滤并限制返回数量 |
+| 频道任务 | 当前实现 | `read_channel_task` | 按 `task_id` 读取当前频道内单个任务详情 |
 | 频道任务 | 当前保留 | `create_channel_task` | 创建 team-visible task |
 | 频道任务 | 当前保留 | `claim_channel_task` | 当前 agent 认领 task |
 | 频道任务 | 当前保留 | `update_channel_task_status` | 更新 task 状态 |
@@ -272,7 +274,7 @@ agent-to-agent 触发必须具备以下约束：
 
 当前 artifact tool 不需要继续细化。`list/search/read` 已经覆盖共享文件的发现与读取，且边界清晰：它只读 published artifacts，不读 `/workspace`、`/agent_state` 或 unpublished session files。
 
-当前 task tool 也保持为结构化团队任务操作面。它不应替代 agent 自己的 `TodoWrite`，也不应被用来表达短暂思考过程。agent 只有在某项工作需要变成频道可见协作任务时，才创建或更新 channel task。
+当前 task tool 也保持为结构化团队任务操作面。`list_channel_tasks` 和 `read_channel_task` 用于让 agent 理解当前频道的团队任务状态；`create_channel_task`、`claim_channel_task`、`update_channel_task_status` 和 `comment_on_channel_task` 用于显式改变团队任务。它不应替代 agent 自己的 `TodoWrite`，也不应被用来表达短暂思考过程。agent 只有在某项工作需要变成频道可见协作任务时，才创建或更新 channel task。
 
 ## 备选方案简述
 
@@ -326,3 +328,4 @@ flowchart TD
 | 2026-05-08 | 初次记录 | 固化持久化 agent 频道触发、消息显示与 channel tool 注入体系 |
 | 2026-05-08 | 补充单一 `ChannelRuntimeClient` / `__poco_channel_runtime` 注入约束 | 避免新增频道 tool 继续分散到多个 MCP server |
 | 2026-05-10 | 补充 `read_channel_messages` timeline 翻页与显式全量读取契约 | 防止消息读取 tool 语义漂移成只能读取 thread |
+| 2026-05-10 | 补充 `list_channel_tasks` / `read_channel_task` 读工具 | 让 agent 能先理解当前频道任务状态再执行任务写操作 |

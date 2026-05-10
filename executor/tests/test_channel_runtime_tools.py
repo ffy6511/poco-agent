@@ -163,6 +163,38 @@ class ChannelRuntimeToolContractTests(unittest.IsolatedAsyncioTestCase):
             {"title": "Review", "description": None, "priority": "medium"},
         )
 
+    async def test_client_lists_channel_tasks_through_facade(self) -> None:
+        client = ChannelRuntimeClient("http://manager", "session-1")
+
+        with patch.object(
+            client,
+            "_request",
+            new=AsyncMock(return_value={"tasks": []}),
+        ) as request:
+            result = await client.list_tasks(status="todo", limit=20)
+
+        self.assertEqual(result, {"tasks": []})
+        request.assert_awaited_once_with(
+            "/api/v1/agent-channel-tasks/list",
+            {"status": "todo", "limit": 20},
+        )
+
+    async def test_client_reads_channel_task_through_facade(self) -> None:
+        client = ChannelRuntimeClient("http://manager", "session-1")
+
+        with patch.object(
+            client,
+            "_request",
+            new=AsyncMock(return_value={"task": {"title": "Review"}}),
+        ) as request:
+            result = await client.read_task(task_id="task-1")
+
+        self.assertEqual(result, {"task": {"title": "Review"}})
+        request.assert_awaited_once_with(
+            "/api/v1/agent-channel-tasks/read",
+            {"task_id": "task-1"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

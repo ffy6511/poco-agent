@@ -11,6 +11,8 @@ from app.schemas.server_channel_task_agent import (
     AgentChannelTaskClaimSelfRequest,
     AgentChannelTaskCommentRequest,
     AgentChannelTaskCreateRequest,
+    AgentChannelTaskListRequest,
+    AgentChannelTaskReadRequest,
     AgentChannelTaskStatusRequest,
 )
 from app.services.server_channel_task_agent_service import (
@@ -30,6 +32,28 @@ async def create_server_channel_task_internal(
 ) -> JSONResponse:
     result = service.create_task(db, session_id=session_id, request=request)
     return Response.success(data=result, message="Agent channel task created")
+
+
+@router.post("/list", response_model=ResponseSchema[Any])
+async def list_server_channel_tasks_internal(
+    request: AgentChannelTaskListRequest,
+    session_id: uuid.UUID,
+    _: None = Depends(require_internal_token),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    result = service.list_tasks(db, session_id=session_id, request=request)
+    return Response.success(data=result, message="Agent channel tasks listed")
+
+
+@router.post("/read", response_model=ResponseSchema[Any])
+async def read_server_channel_task_internal(
+    request: AgentChannelTaskReadRequest,
+    session_id: uuid.UUID,
+    _: None = Depends(require_internal_token),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    result = service.read_task(db, session_id=session_id, request=request)
+    return Response.success(data=result, message="Agent channel task read")
 
 
 @router.post("/status", response_model=ResponseSchema[Any])

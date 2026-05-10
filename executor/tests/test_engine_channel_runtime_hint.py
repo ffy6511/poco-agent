@@ -24,6 +24,8 @@ class AgentExecutorChannelRuntimeHintTests(unittest.TestCase):
         self.assertIn("read_channel_messages", prompt)
         self.assertIn("list_channel_agents", prompt)
         self.assertIn("request_agent_collaboration", prompt)
+        self.assertIn("list_channel_tasks", prompt)
+        self.assertIn("read_channel_task", prompt)
         self.assertIn("Agent output that mentions @handle is visible text only", prompt)
 
 

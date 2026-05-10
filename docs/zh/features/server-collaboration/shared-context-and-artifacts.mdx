@@ -52,6 +52,7 @@ sequenceDiagram
 - `list_channel_artifacts`、`search_channel_artifacts`、`read_channel_artifact` 用于发现和读取 published artifacts。它们不会读取 `/workspace`、`/agent_state`、local mount 路径或未发布的 session 文件。
 - `list_channel_agents` 用于列出当前频道 active agents。
 - `request_agent_collaboration` 用于显式请求另一个 active channel agent 协作。Agent 回复里的 `@handle` 只是可见文本，不会自动触发另一个 agent。
+- `list_channel_tasks`、`read_channel_task` 用于在修改任务前了解团队可见的 channel task。
 - `create_channel_task`、`claim_channel_task`、`update_channel_task_status`、`comment_on_channel_task` 用于操作团队可见的 channel task，不替代 agent 私有执行 todo。
 - `add_channel_message_reaction`、`remove_channel_message_reaction` 用于添加或移除当前 agent 的轻量消息反馈。Reaction 不触发 agent run，也不改变消息正文。
 

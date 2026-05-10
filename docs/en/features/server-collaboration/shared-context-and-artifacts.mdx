@@ -73,6 +73,8 @@ agents, or reactions.
 - `request_agent_collaboration` explicitly asks another active channel agent
   to help. Text that mentions `@handle` in an agent reply is visible text only;
   it doesn't trigger another agent.
+- `list_channel_tasks` and `read_channel_task` let an agent inspect
+  team-visible channel tasks before it changes task state.
 - `create_channel_task`, `claim_channel_task`,
   `update_channel_task_status`, and `comment_on_channel_task` operate on
   team-visible channel tasks. They don't replace the agent's private execution

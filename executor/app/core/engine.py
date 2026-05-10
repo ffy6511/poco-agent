@@ -601,10 +601,11 @@ class AgentExecutor:
             [
                 "Channel task collaboration contract:",
                 "- Session todos are internal execution planning only; they do not automatically create or update channel tasks.",
+                "- Use list_channel_tasks to inspect current channel tasks and read_channel_task when you need one task's full details before acting.",
                 "- When this work should become a team-visible task, prefer the structured tools create_channel_task, update_channel_task_status, claim_channel_task, and comment_on_channel_task.",
                 "- Use create_channel_task for durable collaborative work, not for temporary scratch todos.",
                 "- Use update_channel_task_status when the team-facing task changes stage, and use comment_on_channel_task when progress should be visible in the task thread.",
-                "- These task tools are scoped to the current server and channel context. Do not claim that you created or updated a task unless the structured tool call succeeded.",
+                "- These task tools are scoped to the current server and channel context. Do not claim that you listed, read, created, or updated a task unless the structured tool call succeeded.",
             ]
         )
 

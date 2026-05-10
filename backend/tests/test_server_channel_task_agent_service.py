@@ -8,6 +8,8 @@ from app.schemas.server_channel_task import ServerChannelTaskResponse
 from app.schemas.server_channel_task_agent import (
     AgentChannelTaskCommentRequest,
     AgentChannelTaskCreateRequest,
+    AgentChannelTaskListRequest,
+    AgentChannelTaskReadRequest,
 )
 from app.services.server_channel_task_agent_service import (
     ServerChannelTaskAgentService,
@@ -134,6 +136,108 @@ class ServerChannelTaskAgentServiceTests(unittest.TestCase):
         self.assertEqual(result.action, "create_channel_task")
         self.assertEqual(result.task.task_id, task.task_id)
         self.assertEqual(result.thread_root_message_id, task.thread_root_message_id)
+
+    def test_list_tasks_reads_current_channel_tasks(self) -> None:
+        context = SimpleNamespace(
+            session_id=self.session_id,
+            user_id="user-1",
+            server_id=self.server_id,
+            channel_id=self.channel_id,
+            agent_identity_id=self.agent_identity_id,
+            agent_handle="backend-specialist",
+            agent_label="Backend Specialist",
+            agent_preset_id=7,
+            thread_root_message_id=self.thread_root_message_id,
+        )
+        task = ServerChannelTaskResponse(
+            task_id=uuid.uuid4(),
+            server_id=self.server_id,
+            channel_id=self.channel_id,
+            title="Review retry design",
+            description=None,
+            status="todo",
+            position=0,
+            priority="medium",
+            due_date=None,
+            assignee_user_id=None,
+            assignee_preset_id=None,
+            reporter_user_id=None,
+            related_project_id=None,
+            creator_user_id="user-1",
+            updated_by="user-1",
+            thread_root_message_id=uuid.uuid4(),
+            created_at="2026-05-06T00:00:00Z",
+            updated_at="2026-05-06T00:00:00Z",
+        )
+
+        with (
+            patch.object(self.service, "resolve_context", return_value=context),
+            patch.object(
+                self.service._task_service,
+                "list_tasks",
+                return_value=[task],
+            ) as list_tasks,
+        ):
+            result = self.service.list_tasks(
+                self.db,
+                session_id=self.session_id,
+                request=AgentChannelTaskListRequest(status="todo", limit=10),
+            )
+
+        list_tasks.assert_called_once()
+        self.assertEqual(result.action, "list_channel_tasks")
+        self.assertEqual([item.task_id for item in result.tasks], [task.task_id])
+
+    def test_read_task_uses_current_channel_scope(self) -> None:
+        context = SimpleNamespace(
+            session_id=self.session_id,
+            user_id="user-1",
+            server_id=self.server_id,
+            channel_id=self.channel_id,
+            agent_identity_id=self.agent_identity_id,
+            agent_handle="backend-specialist",
+            agent_label="Backend Specialist",
+            agent_preset_id=7,
+            thread_root_message_id=self.thread_root_message_id,
+        )
+        task = ServerChannelTaskResponse(
+            task_id=uuid.uuid4(),
+            server_id=self.server_id,
+            channel_id=self.channel_id,
+            title="Review retry design",
+            description=None,
+            status="todo",
+            position=0,
+            priority="medium",
+            due_date=None,
+            assignee_user_id=None,
+            assignee_preset_id=None,
+            reporter_user_id=None,
+            related_project_id=None,
+            creator_user_id="user-1",
+            updated_by="user-1",
+            thread_root_message_id=uuid.uuid4(),
+            created_at="2026-05-06T00:00:00Z",
+            updated_at="2026-05-06T00:00:00Z",
+        )
+
+        with (
+            patch.object(self.service, "resolve_context", return_value=context),
+            patch.object(
+                self.service._task_service,
+                "get_task",
+                return_value=task,
+            ) as get_task,
+        ):
+            result = self.service.read_task(
+                self.db,
+                session_id=self.session_id,
+                request=AgentChannelTaskReadRequest(task_id=task.task_id),
+            )
+
+        get_task.assert_called_once()
+        self.assertEqual(result.action, "read_channel_task")
+        self.assertEqual(result.task.task_id, task.task_id)
 
     def test_comment_on_task_uses_service_boundary(self) -> None:
         context = SimpleNamespace(

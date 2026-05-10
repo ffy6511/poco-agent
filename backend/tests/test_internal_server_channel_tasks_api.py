@@ -74,6 +74,51 @@ class InternalServerChannelTasksApiTests(unittest.TestCase):
         self.assertEqual(body["data"]["action"], "create_channel_task")
         create_task.assert_called_once()
 
+    @patch("app.api.v1.internal_server_channel_tasks.service.list_tasks")
+    def test_list_internal_server_channel_tasks_returns_payload(
+        self, list_tasks
+    ) -> None:
+        task = build_task_response(server_id=self.server_id, channel_id=self.channel_id)
+        list_tasks.return_value = {
+            "action": "list_channel_tasks",
+            "tasks": [task.model_dump(mode="json")],
+        }
+
+        response = self.client.post(
+            f"/api/v1/internal/server-channel-tasks/list?session_id={self.session_id}",
+            headers={"X-Internal-Token": "change-this-token-in-production"},
+            json={"status": "todo", "limit": 20},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["code"], 0)
+        self.assertEqual(body["data"]["action"], "list_channel_tasks")
+        list_tasks.assert_called_once()
+
+    @patch("app.api.v1.internal_server_channel_tasks.service.read_task")
+    def test_read_internal_server_channel_task_returns_payload(
+        self, read_task
+    ) -> None:
+        task = build_task_response(server_id=self.server_id, channel_id=self.channel_id)
+        read_task.return_value = {
+            "action": "read_channel_task",
+            "task": task.model_dump(mode="json"),
+            "thread_root_message_id": str(task.thread_root_message_id),
+        }
+
+        response = self.client.post(
+            f"/api/v1/internal/server-channel-tasks/read?session_id={self.session_id}",
+            headers={"X-Internal-Token": "change-this-token-in-production"},
+            json={"task_id": str(task.task_id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["code"], 0)
+        self.assertEqual(body["data"]["action"], "read_channel_task")
+        read_task.assert_called_once()
+
     @patch("app.api.v1.internal_server_channel_tasks.service.comment_on_task")
     def test_comment_internal_server_channel_task_returns_payload(
         self, comment_on_task
